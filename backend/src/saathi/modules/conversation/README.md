@@ -9,7 +9,7 @@ Owns: `conversation`, `message`, agent graph, memory, prompts. Phase 3.
 - `ports/credentials.py` - `CredentialSource`: which API key to use for a tenant + provider
 - `application/llm_resolver.py` - bot's catalog model key -> provider + model id -> client with the right key
 - `application/prompt_builder.py` - fixed platform rules first, tenant instructions in a sealed section, then context
-- `adapters/llm/` - Anthropic / OpenAI adapters; `adapters/memory/` - Redis session memory
+- `adapters/llm/` - Gemini (primary) and Anthropic adapters; `adapters/memory/` - Redis session memory
 - `prompts/` - `platform_rules_v1.md` (fixed safety rules, never tenant-editable)
 - `api/routes.py` - `/api/v1/chat`, `/api/v1/chat/stream` (SSE)
 

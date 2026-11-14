@@ -5,7 +5,9 @@ module, and converts the reply back. Adding Telegram later = one new adapter fol
 
 - `domain/message.py` - `InboundMessage`, `OutboundMessage`, `Channel`
 - `ports/channel.py` - `ChannelSender` interface
+- `ports/speech.py` - `SpeechToText`, `TextToSpeech` (voice notes P4.9, voice channel 8.2)
 - `application/dispatch.py` - inbound -> conversation -> outbound (P4.1)
 - `adapters/web/` - SSE formatting for the widget
+- `adapters/speech/` - Sarvam STT/TTS (`STT_PROVIDER`, `TTS_PROVIDER`; ADR-0006)
 - `adapters/whatsapp/` - Cloud API client, signature verification, dedupe (P4.6 - P4.11)
 - `api/webhooks.py` - `/api/v1/webhooks/whatsapp` (return 200 fast, process async)

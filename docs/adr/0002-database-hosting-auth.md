@@ -1,6 +1,7 @@
 # ADR-0002: Postgres host, app hosting and auth provider
 
-- **Status:** Proposed - **decide by Sun 15 Nov 2026 (end of Phase 0)**
+- **Status:** Accepted for Postgres, auth and storage (2026-11-14). App hosting (Railway vs
+  Render) is still open, due Sun 15 Nov 2026.
 - **Deciders:** Sahil
 
 ## Context
@@ -17,9 +18,23 @@ These must be fixed before Phase 1, because auth affects how RLS gets `tenant_id
 | App hosting | Railway | Render | |
 | Data region | Verify at signup | | DPDP: prefer an India region for client data where offered |
 
-## Recommendation (to confirm)
-Supabase (Postgres + Auth + Storage, India region if available) + Railway or Render (nearest
-available region). Keep the app stateless so hosting can change later without code changes.
+## Decision
+**Supabase** for Postgres + pgvector, Auth and Storage, in an India region if one is offered.
+App hosting: Railway or Render (nearest region), still to be decided. Keep the app stateless so
+hosting can change later without code changes.
+
+### How the code uses Supabase
+- **Database:** the app connects as `saathi_app` (NOBYPASSRLS, R24); migrations connect as the
+  schema owner. Use the **session pooler (port 5432)** or the direct connection. The transaction
+  pooler (6543) breaks asyncpg prepared statements. On Supabase, create `saathi_app` once by
+  running `infra/postgres/init/02_app_role.sh`'s SQL in the SQL editor (the Docker init script
+  only runs locally), and enable the `vector` extension.
+- **Auth:** the P1.7 token verifier reads `AUTH_JWKS_URL`
+  (`https://<ref>.supabase.co/auth/v1/.well-known/jwks.json`), `AUTH_ISSUER`
+  (`https://<ref>.supabase.co/auth/v1`) and `AUTH_AUDIENCE` (`authenticated`).
+- **Storage:** `platform/storage/supabase_store.py` (`STORAGE_PROVIDER=supabase`) uses a private
+  bucket for raw uploads and a public bucket for logos, with the server-only service-role key.
+  Keys must start with `t/{tenant_id}/`.
 
 ## Revisit when
 First client with data-residency or enterprise SSO requirements.

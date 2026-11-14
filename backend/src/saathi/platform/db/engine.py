@@ -1,5 +1,6 @@
 """Async engine + session factory. One engine per process."""
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -22,3 +23,9 @@ def build_engine(url: str) -> AsyncEngine:
 
 def build_sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(engine, expire_on_commit=False)
+
+
+async def ping_database(engine: AsyncEngine) -> None:
+    """Readiness probe: one round trip. Raises if the database is unreachable."""
+    async with engine.connect() as conn:
+        await conn.execute(text("SELECT 1"))

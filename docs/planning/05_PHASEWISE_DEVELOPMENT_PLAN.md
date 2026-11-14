@@ -142,7 +142,7 @@ flowchart LR
 | ID | Task | Details | ⏱️ | 📦 Output |
 |---|---|---|:---:|---|
 | P0.1 | 🔑 Create accounts | GitHub repo, Supabase (or Neon), Upstash Redis, Railway/Render, Langfuse, Sentry | 1.5 | Accounts live |
-| P0.2 | 🤖 Get API keys | Anthropic / OpenAI, Cohere (rerank), Sarvam; set spend caps | 0.5 | `.env` from `.env.example` |
+| P0.2 | 🤖 Get API keys | Gemini (LLM + embeddings), Sarvam (speech), Cohere (rerank), Supabase; set spend caps (ADR-0006) | 0.5 | `.env` from `.env.example` |
 | P0.3 | 🟢 Start Meta setup | Meta Business account + WhatsApp Cloud API **test number** (verification takes time, so start now) | 1 | Test WA number |
 | P0.4 | 🧾 Collect demo data: CA firm | 10–15 docs: GST/ITR services, fees, document checklists, FAQs (write realistic sample content) | 2 | `demos/taxmitra/docs/` |
 | P0.5 | 🏥 Collect demo data: clinic | Timings, doctors, services, policies | 1 | `demos/cliniccare/docs/` |

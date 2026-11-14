@@ -51,6 +51,26 @@ async def check_anthropic(c: httpx.AsyncClient) -> str:
     return f"{len(r.json().get('data', []))} models visible"
 
 
+async def check_gemini(c: httpx.AsyncClient) -> str:
+    r = await c.get(
+        "https://generativelanguage.googleapis.com/v1beta/models",
+        headers={"x-goog-api-key": env("GEMINI_API_KEY")},
+        params={"pageSize": 1000},
+    )
+    r.raise_for_status()
+    names = [m.get("name", "").removeprefix("models/") for m in r.json().get("models", [])]
+    chat = sorted(n for n in names if n.startswith("gemini-") and "embedding" not in n)
+    wanted = [
+        env("GEMINI_EMBEDDING_MODEL") or "gemini-embedding-2",
+        *(m for m in (env("GEMINI_MODEL_SMALL"), env("GEMINI_MODEL_LARGE")) if m),
+    ]
+    missing = [m for m in wanted if m not in names]
+    if missing:
+        # Model ids are not secret; print what exists so the right ids can be chosen.
+        raise RuntimeError(f"not available: {', '.join(missing)}; chat models: {', '.join(chat)}")
+    return f"{', '.join(wanted)} available"
+
+
 async def check_openai(c: httpx.AsyncClient) -> str:
     r = await c.get(
         "https://api.openai.com/v1/models",
@@ -88,6 +108,30 @@ async def check_supabase(c: httpx.AsyncClient) -> str:
     )
     r.raise_for_status()
     return "auth settings reachable"
+
+
+async def check_supabase_storage(c: httpx.AsyncClient) -> str:
+    r = await c.get(
+        f"{env('SUPABASE_URL').rstrip('/')}/storage/v1/bucket",
+        headers={
+            "Authorization": f"Bearer {env('SUPABASE_SERVICE_ROLE_KEY')}",
+            "apikey": env("SUPABASE_SERVICE_ROLE_KEY"),
+        },
+    )
+    r.raise_for_status()
+    buckets = {b.get("name"): b.get("public") for b in r.json()}
+    wanted = {
+        env("SUPABASE_STORAGE_PRIVATE_BUCKET") or "documents": False,
+        env("SUPABASE_STORAGE_PUBLIC_BUCKET") or "public-assets": True,
+    }
+    problems = [
+        f"{name} missing" if name not in buckets else f"{name} should be public={public}"
+        for name, public in wanted.items()
+        if buckets.get(name) is not public
+    ]
+    if problems:
+        raise RuntimeError("; ".join(problems))
+    return "buckets ok"
 
 
 async def check_upstash(c: httpx.AsyncClient) -> str:
@@ -135,11 +179,17 @@ async def send_whatsapp_hello(c: httpx.AsyncClient) -> str:
 
 
 CHECKS: list[tuple[str, tuple[str, ...], Check]] = [
+    ("Gemini", ("GEMINI_API_KEY",), check_gemini),
     ("Anthropic", ("ANTHROPIC_API_KEY",), check_anthropic),
     ("OpenAI", ("OPENAI_API_KEY",), check_openai),
     ("Cohere", ("COHERE_API_KEY",), check_cohere),
     ("Sarvam", ("SARVAM_API_KEY",), check_sarvam),
     ("Supabase", ("SUPABASE_URL", "SUPABASE_ANON_KEY"), check_supabase),
+    (
+        "Supabase Storage",
+        ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"),
+        check_supabase_storage,
+    ),
     ("Upstash Redis", ("UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"), check_upstash),
     ("Langfuse", ("LANGFUSE_HOST", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"), check_langfuse),
     ("WhatsApp token", ("WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID"), check_whatsapp_token),
@@ -166,6 +216,8 @@ async def run(send_whatsapp: bool) -> int:
                 return name, "PASS", await fn(client)
         except httpx.HTTPStatusError as exc:
             return name, "FAIL", f"HTTP {exc.response.status_code}"
+        except RuntimeError as exc:  # our own messages (bucket names etc.), never secrets
+            return name, "FAIL", str(exc)
         except Exception as exc:  # report, never crash the whole run
             return name, "FAIL", type(exc).__name__
 

@@ -6,6 +6,7 @@ exposes one narrow dependency per resource (Interface Segregation).
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 
 import httpx
@@ -15,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from saathi.bootstrap import providers  # noqa: F401  (registers all adapters)
 from saathi.platform.config.model_catalog import ModelCatalog, default_catalog
 from saathi.platform.config.settings import Settings
-from saathi.platform.db.engine import build_engine, build_sessionmaker
+from saathi.platform.db.engine import build_engine, build_sessionmaker, ping_database
 from saathi.platform.http import build_http_client
 from saathi.platform.security.auth import TokenVerifier
 
@@ -43,6 +44,16 @@ class Container:
             # P1.7: plug in the Supabase/Clerk JWKS verifier. None => 401 everywhere (fail closed).
             token_verifier=None,
         )
+
+    def readiness_checks(self) -> Mapping[str, Callable[[], Awaitable[object]]]:
+        """Dependencies the API needs before it can serve traffic (used by /ready)."""
+        return {"database": self._ping_database, "redis": self._ping_redis}
+
+    async def _ping_database(self) -> None:
+        await ping_database(self.engine)
+
+    async def _ping_redis(self) -> None:
+        await self.redis.ping()
 
     async def aclose(self) -> None:
         await self.http.aclose()

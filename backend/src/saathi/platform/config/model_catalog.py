@@ -50,34 +50,49 @@ class ModelCatalog:
 class CatalogSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    gemini_model_small: str | None = None
+    gemini_model_large: str | None = None
     anthropic_model_small: str | None = None
     anthropic_model_large: str | None = None
 
 
 def default_catalog(settings: CatalogSettings | None = None) -> ModelCatalog:
-    """Options appear only when their model id is configured in the environment."""
+    """Options appear only when their model id is configured in the environment.
+
+    Gemini is the primary vendor (ADR-0006), so it owns the plain "standard"/"advanced" keys.
+    Other vendors get prefixed keys, so adding or removing one never changes a saved config.
+    """
     s = settings or CatalogSettings()
+    paid = frozenset({"growth", "pro"})
     options: list[ModelOption] = []
-    if s.anthropic_model_small:
-        options.append(
-            ModelOption(
-                key="standard",
-                label="Standard - fast, lowest cost",
-                provider="anthropic",
-                model_id=s.anthropic_model_small,
-                max_output_tokens=1000,
-                plans=ALL_PLANS,
-            )
-        )
-    if s.anthropic_model_large:
-        options.append(
-            ModelOption(
-                key="advanced",
-                label="Advanced - best answer quality",
-                provider="anthropic",
-                model_id=s.anthropic_model_large,
-                max_output_tokens=2000,
-                plans=frozenset({"growth", "pro"}),
-            )
-        )
+
+    def add(
+        key: str,
+        label: str,
+        provider: str,
+        model_id: str | None,
+        max_tokens: int,
+        plans: frozenset[str],
+    ) -> None:
+        if model_id:
+            options.append(ModelOption(key, label, provider, model_id, max_tokens, plans))
+
+    add("standard", "Standard - fast, lowest cost", "gemini", s.gemini_model_small, 1000, ALL_PLANS)
+    add("advanced", "Advanced - best answer quality", "gemini", s.gemini_model_large, 2000, paid)
+    add(
+        "claude-standard",
+        "Claude Standard - fast",
+        "anthropic",
+        s.anthropic_model_small,
+        1000,
+        ALL_PLANS,
+    )
+    add(
+        "claude-advanced",
+        "Claude Advanced - best quality",
+        "anthropic",
+        s.anthropic_model_large,
+        2000,
+        paid,
+    )
     return ModelCatalog(options)

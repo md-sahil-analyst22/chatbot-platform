@@ -14,4 +14,6 @@ Decided in `docs/adr/0002-database-hosting-auth.md`.
 - Secrets only in the platform's variable store. Never bake them into the image.
 - Run `alembic upgrade head` as a release/pre-deploy step using `MIGRATION_DATABASE_URL`.
 - Set `FORWARDED_ALLOW_IPS` to the platform's proxy range, not `*`.
+- Probes: liveness `GET /health` (restart if failing; also the Docker `HEALTHCHECK`), readiness
+  `GET /ready` (database + Redis; route traffic only when 200). Uptime monitors use `/health`.
 - Staging deploys automatically from `main`; production from tags (Phase 6).

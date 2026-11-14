@@ -474,7 +474,7 @@ app.dependency_overrides[get_bot_service] = lambda: BotService(InMemoryBotReposi
 
 ### R7 · Vendors only through ports, registries and configuration
 
-**Rule:** Business code never imports a vendor SDK or calls a vendor URL. It depends on a port (`CompletionClient`, `Embedder`, `Reranker`, `DocumentParser`, `ChannelSender`). Each vendor adapter registers itself in that port's **registry** under a name. Which name is used comes from configuration (`EMBEDDING_PROVIDER=openai`) or from the bot's published config (model catalog key).
+**Rule:** Business code never imports a vendor SDK or calls a vendor URL. It depends on a port (`CompletionClient`, `Embedder`, `Reranker`, `DocumentParser`, `ChannelSender`, `SpeechToText`, `TextToSpeech`, `ObjectStore`). Each vendor adapter registers itself in that port's **registry** under a name. Which name is used comes from configuration (`EMBEDDING_PROVIDER=gemini`) or from the bot's published config (model catalog key).
 
 **In plain words:** The chef writes "flour" on the list. The manager decides which shop delivers it, and you can change shops by changing one setting.
 
@@ -533,13 +533,13 @@ def create_anthropic_completion_client(http: httpx.AsyncClient, api_key: str) ->
 
 ### R13 · One embedding model and dimension for the whole platform
 
-**Rule:** All tenants use the same embedding model and vector size (planned: `gemini-embedding-001` shortened to 1,536 numbers, stored as `vector(1536)` with an HNSW index). Pick it before the first document is ingested. Use the same model for documents and for questions. L2-normalise shortened vectors. Changing it requires an ADR and re-indexing everything.
+**Rule:** All tenants use the same embedding model and vector size (`gemini-embedding-2` shortened to 1,536 numbers, stored as `vector(1536)` with an HNSW index). Pick it before the first document is ingested. Use the same model for documents and for questions. L2-normalise shortened vectors. Changing it requires an ADR and re-indexing everything.
 
 **In plain words:** Everyone measures with the same ruler. Two rulers give numbers you can't compare.
 
 **Why:** Vectors from different models (or different sizes) can't be compared, so search silently returns nonsense. pgvector can only index up to 2,000 dimensions for `vector`, which is why we shorten 3,072 to 1,536.
 
-**Checked by:** review and ADR. (Today the code has only an OpenAI embedder; see §4.8.)
+**Checked by:** review and ADR-0006. The Gemini embedder (`gemini_embedder.py`) is the default; OpenAI remains registered as a fallback.
 
 ### R14 · No tenant-specific code
 
@@ -820,7 +820,7 @@ CREATE POLICY tenant_isolation ON bots
 **Rule:**
 - **`/api/v1/...`**: for Bot Studio and the dashboard. Requires a bearer token. Tenant and role come from the token.
 - **`/public/v1/...`**: for the widget. Identified by the bot's public key (`pk_...`). Read-only, cacheable, returns public fields only (R10).
-- **`/health`**: liveness, no dependencies.
+- **`/health`**: liveness, no dependencies. **`/ready`**: readiness (database + Redis, 2 s timeout each); returns only `ok`/`fail` per check, never error details.
 
 Every new endpoint must fit one of these. Admin actions are never added to `/public/v1`.
 
@@ -1138,7 +1138,7 @@ saathi-ai/
 |---|---|---|
 | `README.md` | Project intro, quick start, repo map | When something important changes |
 | `CLAUDE.md` | Loaded automatically by Claude Code: the must-never-break rules, the check commands, and a pointer to this rulebook | When a top rule changes |
-| `.env.example` | Every variable, grouped: app, database, auth, platform providers, **model catalog** (`ANTHROPIC_MODEL_SMALL/LARGE` decide which models tenants can pick), provider keys, `CREDENTIALS_ENCRYPTION_KEYS`, WhatsApp, n8n. **Names only** | Copy to `.env`; add every new variable here first |
+| `.env.example` | Every variable, grouped: app, database, auth, platform providers, **model catalog** (`GEMINI_MODEL_SMALL/LARGE`, optional `ANTHROPIC_MODEL_SMALL/LARGE` decide which models tenants can pick), Gemini, Sarvam, Supabase (URL, keys, buckets), other provider keys, `CREDENTIALS_ENCRYPTION_KEYS`, WhatsApp, n8n. **Names only** | Copy to `.env`; add every new variable here first |
 | `.gitignore` | Keeps `.env`, virtual environments, caches, `node_modules`, `dist` and eval reports out of git | Rarely |
 | `.pre-commit-config.yaml` | Before each commit: gitleaks (blocks API keys), ruff lint and format, YAML/JSON checks, private-key detection, large-file guard | Once: `pre-commit install` |
 | `.editorconfig` | Same indentation and line endings everywhere | Never |
@@ -1150,7 +1150,7 @@ flowchart LR
     MK --> DC["docker compose<br/>infra/docker-compose.yml"]
     MK --> NPM["cd dashboard && npm run dev"]
     ENV[".env<br/>copied from .env.example"] --> DC
-    DC --> STACK["postgres · redis · api · worker"]
+    DC --> STACK["redis · api · worker<br/>(DB: Supabase; local postgres optional)"]
     NPM --> STUDIO["Bot Studio on port 5173"]
 ```
 
@@ -1202,6 +1202,7 @@ flowchart LR
 docs/
 ├── adr/            0000 template · 0001 layout · 0002 DB/hosting/auth · 0003 versioned config + models
 │                   · 0004 tenants' own API keys · 0005 Bot Studio as React + Vite
+│                   · 0006 Gemini + Sarvam primary vendors
 ├── planning/       00–05 planning documents (features, architecture, flows, build plan, phases)
 ├── architecture/   C4, ER and sequence diagrams as the system grows
 ├── runbooks/       local-setup.md; later incidents and key rotation
@@ -1395,17 +1396,17 @@ platform/
 
 ```
 api/
-├── router.py       mounts /health, /api/v1 (login required), /public/v1 (widget)
-├── health.py       /health
-├── middleware.py   adds a request id to every request
-├── errors.py       one error format for every failure
+├── router.py       mounts /health, /ready, /api/v1 (login required), /public/v1 (widget)
+├── health.py       /health (liveness) and /ready (database + Redis readiness)
+├── middleware.py   request id on every request + one "http.request" access log line
+├── errors.py       one error format for every failure, incl. unknown routes (404) and 405
 └── deps.py         shared dependencies: who is calling, tenant-bound session, HTTP client, catalog
 ```
 
 ```mermaid
 flowchart LR
     REQ["incoming request"] --> MWR["middleware.py<br/>request id"] --> ROU["router.py"]
-    ROU --> H["/health"]
+    ROU --> H["/health · /ready"]
     ROU --> V1["/api/v1/*<br/>login token required"]
     ROU --> PUB["/public/v1/*<br/>bot public key, read-only"]
     V1 --> DEP["deps.py<br/>PrincipalDep · TenantDbDep"]
@@ -1833,6 +1834,8 @@ flowchart TB
 | Answer LLM | **Each bot** (catalog key in its published config) | `model_catalog.py` → `LlmResolver` |
 | API key for the LLM | Credential source (platform key now; tenant key in Phase 8) | `bootstrap/credentials.py` |
 | Embeddings, reranker, parser | Platform (`EMBEDDING_PROVIDER`, `RERANKER_PROVIDER`) | `bootstrap/providers.py` |
+| Speech-to-text, text-to-speech | Platform (`STT_PROVIDER`, `TTS_PROVIDER`) | `bootstrap/providers.py` |
+| Object storage (private + public bucket) | Platform (`STORAGE_PROVIDER`) | `bootstrap/providers.py` |
 
 ## 3.7 Planned flows
 
@@ -1877,11 +1880,11 @@ sequenceDiagram
 | 1 | Unzip and `cd saathi-ai` | The repo on disk |
 | 2 | `git init && git add . && git commit -m "chore: scaffold"` | First commit |
 | 3 | Create a GitHub repo and push | CI runs on GitHub |
-| 4 | `cp .env.example .env`, set the two DB passwords and `ANTHROPIC_MODEL_SMALL` | Local configuration |
+| 4 | `cp .env.example .env`, set the two DB passwords, `GEMINI_API_KEY` and `GEMINI_MODEL_SMALL` | Local configuration |
 | 5 | `pre-commit install` | Secret scan and lint on every commit |
 | 6 | `cd backend && uv sync && cd ..` | Python 3.12 environment |
 | 7 | `make test` | 105 passed, 1 skipped |
-| 8 | `make up`, then `make migrate` | Postgres, Redis, API and worker |
+| 8 | `make up`, then `make migrate` | Redis, API and worker on Supabase (`make up-local-db` for an offline Postgres) |
 | 9 | `make studio` | Bot Studio at `http://localhost:5173` |
 | 10 | `make check-keys` (+ `ARGS=--send-whatsapp`) | Phase 0 key checks |
 | 11 | `make validate-golden` | Phase 0 golden-set check |
@@ -1994,7 +1997,7 @@ Saved configs keep working because they store the catalog key, not the vendor id
 | Decision | File | Deadline |
 |---|---|---|
 | Accept the modular-monolith layout | `docs/adr/0001` | Before Phase 1 (16 Nov) |
-| Supabase/Neon, Railway/Render, Supabase Auth/Clerk | `docs/adr/0002` | 15 Nov |
+| Railway/Render (Supabase for DB, auth and storage accepted) | `docs/adr/0002` | 15 Nov |
 | Accept versioned config, model catalog, prompt layering | `docs/adr/0003` | Before P1.8 |
 | Accept React + Vite for Bot Studio | `docs/adr/0005` | Before P5.9 |
 | BYOK design (build in Phase 8) | `docs/adr/0004` | Before Phase 8.1 |
@@ -2007,7 +2010,7 @@ Saved configs keep working because they store the catalog key, not the vendor id
 | Tables, RLS policies, `resolve_bot_public_key()` function | P1.5, P1.6, P1.11 |
 | Published-config cache in Redis | P3.11 |
 | Chat endpoint and playground on drafts | P3.8, P5.17 |
-| Logo upload endpoint and object storage adapter | P4.13 |
+| Logo upload endpoint (Supabase Storage adapter exists, not yet wired to a route) | P4.13 |
 | Widget loading branding | P4.5 |
 | Studio auth SDK, knowledge/conversations/inbox screens | P5.9–P5.13 |
 | Own API keys: endpoints, vault wiring, Studio screen | Phase 8.1 |
@@ -2019,7 +2022,8 @@ These are deliberate, tracked differences. Per R44 they're listed here instead o
 
 | Plan says | Code does now | Risk | Resolution |
 |---|---|---|---|
-| Embeddings: `gemini-embedding-001` at 1,536 dims (`02_ARCHITECTURE_AND_STACK.md`) | Only an OpenAI embedder exists | Building ingestion on the wrong model means re-indexing later | Add the Gemini adapter (recipe in 4.2) before the first ingestion in Phase 2 |
+| Gemini embeddings use one task type for documents and questions | `Embedder.embed()` has no document/query distinction, so no `taskType` is sent | Slightly lower retrieval quality than `RETRIEVAL_DOCUMENT` / `RETRIEVAL_QUERY` | Decide with the golden set in Phase 2; if it helps, add the distinction to the port (all adapters + contract) |
+| Supabase transaction pooler | The engine uses asyncpg prepared statements | Port 6543 fails at runtime | Use the session pooler (5432) or direct connection (ADR-0002) |
 | Every repository passes its contract suite with the real adapter (R35) | Repository contract suites run on the in-memory fakes only | The SQL repositories aren't proven equivalent yet | Add SQL subclasses running on real Postgres in Phase 1 (P1.5–P1.6) |
 | Tenant isolation proven on real Postgres | `test_tenant_isolation.py` is skipped | No proof of RLS until the tables exist | Un-skip at P1.6; it's the Phase 1 exit criterion |
 | Logins verified | No token verifier yet, so every `/api/v1` call returns 401 (fail closed) | None (safe default), but nothing works end to end | ADR-0002 auth choice, then P1.7 |

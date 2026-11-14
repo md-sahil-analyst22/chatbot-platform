@@ -14,7 +14,7 @@ style, model, temperature, logo, header, footer, colours; draft -> publish -> ro
 cp .env.example .env              # fill in values; never commit .env
 pre-commit install                # secret scan + lint on every commit
 cd backend && uv sync && cd ..    # Python 3.12 deps
-make up                           # postgres + redis + api + worker
+make up                           # redis + api + worker (database: Supabase)
 make migrate                      # alembic upgrade head
 make test                         # backend: unit, contract, integration, architecture tests
 make studio                       # Bot Studio (React + Vite) on http://localhost:5173

@@ -1,41 +1,105 @@
-# Run from repo root:  make up   (== docker compose --env-file .env -f infra/docker-compose.yml up -d)
+# =============================================================================
+# Saathi AI - LOCAL development stack (Phase 1, task P1.2)
+#
+# Run from the repo root (see Makefile):
+#   make up                               core stack: redis, api, worker (DB = Supabase)
+#   make up-local-db                      same + a local Postgres (offline work)
+#   make migrate                          alembic upgrade head (owner role, from .env)
+#   docker compose ... --profile frontend up -d dashboard      Bot Studio on :5173
+#   docker compose ... --profile integrations up -d n8n        n8n on :5678
+#
+# This file is for LOCAL DEV ONLY (hot reload, source mounted, no TLS).
+# Staging/production run the same backend image on Railway/Render with managed
+# Postgres/Redis and secrets in the platform secret store (infra/deploy/README.md).
+#
+# Database: DATABASE_URL / MIGRATION_DATABASE_URL come from .env (Supabase session pooler,
+# ADR-0002). For the local-db profile, point both at host "postgres" (see comments in .env).
+#
+# Rules enforced here:
+#   R24  api/worker connect as saathi_app (NOBYPASSRLS); only `migrate` gets owner creds
+#   R25  migrations are a separate one-shot step, never run on app start
+#   R17  no secret values in this file; everything comes from .env (git-ignored)
+#   -    every port binds to 127.0.0.1 (never exposed on the LAN)
+# =============================================================================
 name: saathi
 
+# --- shared fragments ---------------------------------------------------------
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"      # keep local disk from filling up with JSON logs
+    max-file: "3"
+
+x-hardening: &hardening
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]        # app runs as uid 10001 on port 8000; needs no Linux capabilities
+
 x-backend: &backend
-  build: ../backend
-  env_file: ../.env
-  environment:
-    DATABASE_URL: postgresql+asyncpg://saathi_app:${APP_DB_PASSWORD}@postgres:5432/saathi
-    MIGRATION_DATABASE_URL: postgresql+asyncpg://saathi_owner:${POSTGRES_OWNER_PASSWORD}@postgres:5432/saathi
+  <<: *hardening
+  build:
+    context: ../backend
+  image: saathi-backend:local
+  env_file: ../.env      # provider keys, auth, catalog... (names listed in .env.example)
+  environment: &backend-env
+    # Runtime role saathi_app: NOT owner, NOBYPASSRLS -> Row-Level Security applies (R24).
+    DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
     REDIS_URL: redis://redis:6379/0
-    PYTHONPATH: /app/src          # mounted source shadows the installed package (hot reload)
+    # Least privilege: blank out owner credentials that env_file would otherwise inject.
+    # The API and worker must never be able to ALTER/DROP tables or bypass RLS.
+    MIGRATION_DATABASE_URL: ""
+    POSTGRES_OWNER_PASSWORD: ""
+    # Hot reload: the mounted source shadows the package installed in the image.
+    PYTHONPATH: /app/src
   volumes:
     - ../backend/src:/app/src:ro
   depends_on:
-    postgres: { condition: service_healthy }
+    # Only waited for when the local-db profile is active; Supabase needs no local service.
+    postgres: { condition: service_healthy, required: false }
     redis: { condition: service_healthy }
+  restart: unless-stopped
+  logging: *default-logging
 
 services:
+  # --- data layer -------------------------------------------------------------
   postgres:
-    image: pgvector/pgvector:pg16
+    profiles: ["local-db"]                 # optional: offline development without Supabase
+    image: pgvector/pgvector:pg16          # Postgres 16 + pgvector (HNSW) - matches prod target
     environment:
       POSTGRES_DB: saathi
-      POSTGRES_USER: saathi_owner
-      POSTGRES_PASSWORD: ${POSTGRES_OWNER_PASSWORD:?set POSTGRES_OWNER_PASSWORD in .env}
-      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env}
+      POSTGRES_USER: saathi_owner          # schema owner; used ONLY by migrations
+      POSTGRES_PASSWORD: ${POSTGRES_OWNER_PASSWORD:-}   # required only with the local-db profile
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-}   # read by init/02_app_role.sh
+      TZ: UTC
+      PGTZ: UTC
     ports: ["127.0.0.1:5432:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # Runs ONCE on an empty volume: pgvector extension + saathi_app role.
+      # Changed an init script? `docker compose down -v` to re-run (destroys local data).
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    shm_size: 256mb                         # default 64 MB is too small for parallel queries / HNSW builds
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U saathi_owner -d saathi"]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 10s
+    stop_grace_period: 30s                  # let Postgres checkpoint cleanly
+    restart: unless-stopped
+    logging: *default-logging
 
   redis:
     image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"                               # ARQ queue survives restarts
+      # Redis holds the ARQ job queue: evicting keys would silently drop jobs.
+      # Fail writes loudly instead. (Upstash in prod must use the same policy.)
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction
     ports: ["127.0.0.1:6379:6379"]
     volumes: [redisdata:/data]
     healthcheck:
@@ -43,41 +107,91 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
+    logging: *default-logging
 
+  # --- application ------------------------------------------------------------
   api:
     <<: *backend
     command: >
       uvicorn saathi.main:create_app --factory
-      --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src
+      --host 0.0.0.0 --port 8000
+      --reload --reload-dir /app/src
+      --proxy-headers
     ports: ["127.0.0.1:8000:8000"]
+    # Image HEALTHCHECK probes GET /health (liveness) on purpose: probing /ready would mark the
+    # API unhealthy - and restart it - whenever Supabase or Redis blips. Check /ready by hand.
 
   worker:
     <<: *backend
     command: ["arq", "--watch", "/app/src", "saathi.worker.WorkerSettings"]
+    healthcheck:
+      # The image's HEALTHCHECK probes :8000, which the worker doesn't serve.
+      # `arq --check` reads the worker's heartbeat key in Redis instead.
+      test: ["CMD", "arq", "--check", "saathi.worker.WorkerSettings"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    # Give in-flight jobs time to finish on `docker compose stop`.
+    # (Prod uses job_timeout=600s; locally 60s is enough - jobs are idempotent, R33.)
+    stop_grace_period: 60s
 
+  # One-shot migration job (R25). Same image, OWNER credentials, no provider keys.
+  #   docker compose --env-file .env -f infra/docker-compose.yml run --rm migrate
+  #   ... run --rm migrate alembic downgrade -1
+  migrate:
+    <<: *hardening
+    profiles: ["tools"]
+    image: saathi-backend:local
+    build:
+      context: ../backend
+    environment:
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?set MIGRATION_DATABASE_URL in .env}
+      PYTHONPATH: /app/src
+    volumes:
+      - ../backend/src:/app/src:ro
+      - ../backend/migrations:/app/migrations:ro
+      - ../backend/alembic.ini:/app/alembic.ini:ro
+    command: ["alembic", "upgrade", "head"]
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres: { condition: service_healthy, required: false }
+    restart: "no"
+    logging: *default-logging
+
+  # --- optional profiles ------------------------------------------------------
   dashboard:
-    profiles: ["frontend"]          # or run `npm run dev` in dashboard/ directly
+    profiles: ["frontend"]                  # or `make studio` (npm run dev on the host)
     image: node:20-alpine
     working_dir: /app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    command: sh -c "npm ci || npm install; npm run dev -- --host 0.0.0.0 --port 5173"
     environment:
-      VITE_API_BASE_URL: http://localhost:8000
+      VITE_API_BASE_URL: http://localhost:8000   # the browser calls the API via the host port
     ports: ["127.0.0.1:5173:5173"]
     volumes:
       - ../dashboard:/app
-      - dashboard_node_modules:/app/node_modules
+      - dashboard_node_modules:/app/node_modules  # keep Linux node_modules out of the host tree
+    depends_on: [api]
+    logging: *default-logging
 
   n8n:
     profiles: ["integrations"]
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:latest                 # TODO pin a version before staging (REPO_STRUCTURE 4.7)
     environment:
-      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-}   # empty => n8n generates one in its volume
-      N8N_SECURE_COOKIE: "false"   # local only
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-}   # empty => n8n generates one inside its volume
+      N8N_SECURE_COOKIE: "false"            # local HTTP only; must be true behind TLS
+      GENERIC_TIMEZONE: Asia/Kolkata
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
     ports: ["127.0.0.1:5678:5678"]
     volumes: [n8ndata:/home/node/.n8n]
+    restart: unless-stopped
+    logging: *default-logging
 
 volumes:
-  dashboard_node_modules:
   pgdata:
   redisdata:
   n8ndata:
+  dashboard_node_modules:

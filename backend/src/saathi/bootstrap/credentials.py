@@ -10,6 +10,7 @@ from collections.abc import Mapping
 from pydantic import SecretStr
 
 from saathi.modules.conversation.adapters.llm.anthropic_llm import AnthropicSettings
+from saathi.modules.conversation.adapters.llm.gemini_llm import GeminiSettings
 
 
 def _reveal(secret: SecretStr | None) -> str | None:
@@ -26,4 +27,9 @@ class PlatformCredentialSource:
 
 def platform_credentials_from_env() -> PlatformCredentialSource:
     # One line per LLM provider adapter.
-    return PlatformCredentialSource({"anthropic": _reveal(AnthropicSettings().api_key)})
+    return PlatformCredentialSource(
+        {
+            "gemini": _reveal(GeminiSettings().api_key),
+            "anthropic": _reveal(AnthropicSettings().api_key),
+        }
+    )

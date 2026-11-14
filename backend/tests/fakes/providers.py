@@ -1,12 +1,19 @@
 """Deterministic provider fakes. `mode` simulates failures for contract tests."""
 
 import hashlib
+import re
 from collections.abc import Sequence
 from typing import Literal
 
+from saathi.modules.channels.ports.speech import SynthesizedSpeech, Transcript
 from saathi.modules.conversation.ports.llm import ChatMessage, LLMResponse
 from saathi.modules.knowledge.ports.providers import RerankResult
-from saathi.platform.errors import ProviderError, ProviderTimeoutError
+from saathi.platform.errors import (
+    NotFoundError,
+    ProviderError,
+    ProviderTimeoutError,
+    ValidationError,
+)
 
 Mode = Literal["ok", "error", "timeout"]
 
@@ -64,3 +71,62 @@ class FakeCompletionClient:
     ) -> LLMResponse:
         _fail(self._mode)
         return LLMResponse(text=self._reply, model=model, tokens_in=1, tokens_out=1)
+
+
+class FakeSpeechToText:
+    """Returns the audio bytes decoded as text, so tests can control the transcript."""
+
+    def __init__(self, mode: Mode = "ok") -> None:
+        self._mode = mode
+
+    async def transcribe(
+        self, audio: bytes, *, content_type: str, language: str | None = None
+    ) -> Transcript:
+        if not audio:
+            raise ValidationError("audio is empty")
+        _fail(self._mode)
+        return Transcript(text=audio.decode(errors="replace"), language=language or "en-IN")
+
+
+class FakeTextToSpeech:
+    def __init__(self, mode: Mode = "ok") -> None:
+        self._mode = mode
+
+    async def synthesize(
+        self, text: str, *, language: str, voice: str | None = None
+    ) -> SynthesizedSpeech:
+        if not text.strip():
+            raise ValidationError("text is empty")
+        _fail(self._mode)
+        return SynthesizedSpeech(audio=f"{language}:{text}".encode(), content_type="audio/wav")
+
+
+_SEGMENT = r"[A-Za-z0-9_\-][A-Za-z0-9_.\-]{0,199}"
+_STORAGE_KEY = re.compile(rf"t/{_SEGMENT}(/{_SEGMENT})+")  # same rule as the real adapter
+
+
+class InMemoryObjectStore:
+    def __init__(self, *, public: bool = False) -> None:
+        self._public = public
+        self._objects: dict[str, tuple[bytes, str]] = {}
+
+    @staticmethod
+    def _check(key: str) -> str:
+        if not _STORAGE_KEY.fullmatch(key):
+            raise ValidationError("invalid storage key")
+        return key
+
+    async def put(self, key: str, data: bytes, content_type: str) -> None:
+        self._objects[self._check(key)] = (data, content_type)
+
+    async def get(self, key: str) -> bytes:
+        try:
+            return self._objects[self._check(key)][0]
+        except KeyError:
+            raise NotFoundError("object not found") from None
+
+    async def delete(self, key: str) -> None:
+        self._objects.pop(self._check(key), None)
+
+    def public_url(self, key: str) -> str | None:
+        return f"memory://public/{self._check(key)}" if self._public else None

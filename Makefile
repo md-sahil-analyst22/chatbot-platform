@@ -1,13 +1,16 @@
 # Run from the repo root.
 COMPOSE = docker compose --env-file .env -f infra/docker-compose.yml
 
-.PHONY: up down logs ps studio migrate test lint fmt typecheck arch check-keys validate-golden n8n
+.PHONY: up up-local-db down logs ps studio migrate test lint fmt typecheck arch check-keys validate-golden n8n
 
-up:            ## start postgres, redis, api, worker
+up:            ## start redis, api, worker (database: Supabase via DATABASE_URL in .env)
 	$(COMPOSE) up -d --build
 
+up-local-db:   ## same, plus a local Postgres for offline work (point .env URLs at it first)
+	$(COMPOSE) --profile local-db up -d --build
+
 down:          ## stop everything (keeps volumes)
-	$(COMPOSE) down
+	$(COMPOSE) --profile local-db down
 
 logs:
 	$(COMPOSE) logs -f api worker

@@ -4,6 +4,7 @@ import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from saathi.platform.errors import (
     AuthenticationError,
@@ -53,6 +54,20 @@ def _body(
     return {"error": error}
 
 
+# Framework-raised HTTP errors (unknown route, wrong method, ...) mapped to our codes, with fixed
+# messages so nothing raised by a library is echoed back to the client.
+_HTTP_CODES: dict[int, tuple[str, str]] = {
+    400: ("bad_request", "Bad request."),
+    401: ("unauthenticated", "Authentication required."),
+    403: ("forbidden", "Forbidden."),
+    404: ("not_found", "Not found."),
+    405: ("method_not_allowed", "Method not allowed."),
+    413: ("payload_too_large", "Request body too large."),
+    415: ("unsupported_media_type", "Unsupported media type."),
+    429: ("rate_limited", "Too many requests."),
+}
+
+
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(SaathiError)
     async def handle_saathi_error(request: Request, exc: SaathiError) -> JSONResponse:
@@ -61,6 +76,19 @@ def register_error_handlers(app: FastAPI) -> None:
             log.warning("security.tenant_isolation_violation", path=request.url.path)
         message = exc.message if status < 500 else "An internal error occurred."
         return JSONResponse(status_code=status, content=_body(request, exc.code, message))
+
+    @app.exception_handler(StarletteHTTPException)
+    async def handle_http_exception(
+        request: Request, exc: StarletteHTTPException
+    ) -> JSONResponse:
+        code, message = _HTTP_CODES.get(exc.status_code, ("http_error", "Request failed."))
+        if exc.status_code >= 500:
+            code, message = "internal_error", "An internal error occurred."
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=_body(request, code, message),
+            headers=exc.headers,  # keeps e.g. "Allow" on 405
+        )
 
     @app.exception_handler(RequestValidationError)
     async def handle_request_validation(

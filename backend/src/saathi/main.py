@@ -27,6 +27,7 @@ def create_app() -> FastAPI:
         app.state.token_verifier = container.token_verifier
         app.state.http = container.http
         app.state.model_catalog = container.model_catalog
+        app.state.readiness_checks = container.readiness_checks()
         try:
             yield
         finally:

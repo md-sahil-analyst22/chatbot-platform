@@ -28,9 +28,12 @@ class Settings(BaseSettings):
 
     # Platform-wide registry keys. The LLM is chosen PER BOT via the model catalog
     # (platform/config/model_catalog.py). Embeddings stay platform-wide because changing the
-    # embedding model requires re-indexing every document.
-    embedding_provider: str = "openai"
+    # embedding model requires re-indexing every document (R13, ADR-0006).
+    embedding_provider: str = "gemini"
     reranker_provider: str = "cohere"
+    stt_provider: str = "sarvam"
+    tts_provider: str = "sarvam"
+    storage_provider: str = "supabase"
 
 
 @lru_cache(maxsize=1)

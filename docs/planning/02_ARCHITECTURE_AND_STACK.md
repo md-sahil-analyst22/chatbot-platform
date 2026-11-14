@@ -198,11 +198,11 @@ flowchart LR
 | Language | **Python 3.12** | Your strongest language; best AI ecosystem | — |
 | API framework | **FastAPI** | Async, fast, auto OpenAPI docs, you already use it | Litestar |
 | Agent orchestration | **LangGraph** | Explicit state machine: easy to add handoff/tool nodes and to debug | Plain Python state machine |
-| LLM (answers) | **Per bot**, from a plan-gated **model catalog** (e.g. "Standard" = Haiku-class, "Advanced" = Sonnet-class) | Tenants choose quality vs cost without seeing vendor model ids | Gemini |
-| LLM (routing/rewrite) | **Claude Haiku-class / GPT-4o-mini-class** (platform-wide) | 5–10× cheaper for small tasks | Groq-hosted Llama |
-| Embeddings | **Google `gemini-embedding-001`** at **1,536 dimensions** (shortened from its 3,072 default; platform-wide) | Strong multilingual retrieval (Bengali question → English document); shortening keeps it inside pgvector's indexing limit at half the storage (see note below); changing per bot would force re-indexing | Full 3,072 dims as `halfvec`; OpenAI `text-embedding-3-small`; BGE-M3 (self-host) |
+| LLM (answers) | **Per bot**, from a plan-gated **model catalog**: **Gemini** primary ("Standard" = `gemini-3.8-flash`, "Advanced" = `gemini-4-argon`); any vendor pluggable (ADR-0006) | Tenants choose quality vs cost without seeing vendor model ids | Claude (`claude-standard` / `claude-advanced`) |
+| LLM (routing/rewrite) | **Gemini Flash-class / Flash-Lite-class** (platform-wide) | 5–10× cheaper for small tasks | Claude Haiku-class; Groq-hosted Llama |
+| Embeddings | **Google `gemini-embedding-2`** at **1,536 dimensions** (shortened from its 3,072 default; platform-wide; ADR-0006) | Strong multilingual retrieval (Bengali question → English document); shortening keeps it inside pgvector's indexing limit at half the storage (see note below); changing per bot would force re-indexing | `gemini-embedding-001`; full 3,072 dims as `halfvec`; OpenAI `text-embedding-3-small`; BGE-M3 (self-host) |
 | Reranker | **Cohere Rerank (multilingual)** | Big precision gain for a few lines of code | BGE-reranker (self-host) |
-| Indic speech/translate | **Sarvam AI** | Best-in-class Hindi/Bengali; your existing expertise | Google STT/TTS |
+| Indic speech/translate | **Sarvam AI** (STT `saaras:v4`, TTS `bulbul:v4-flash`, `bulbul:v3` for Malayalam/Odia) behind `SpeechToText` / `TextToSpeech` ports; any vendor pluggable (ADR-0006) | Best-in-class Hindi/Bengali; your existing expertise | Gemini / Google STT/TTS |
 | Doc parsing | **Docling** / **unstructured** + **PyMuPDF** | Keeps tables & headings; OCR fallback for scans | LlamaParse |
 | Web crawling | **Crawl4AI** / **Firecrawl** | Clean markdown output from sites | Scrapy |
 | Background jobs | **ARQ** (Redis) or **Celery** | Ingestion must not block chat | Dramatiq |
@@ -212,11 +212,11 @@ flowchart LR
 
 | Layer | ✅ Choice | 🤔 Why | 🔁 Alternative |
 |---|---|---|---|
-| Database | **PostgreSQL 16 (Supabase / Neon)** | One DB for relational + vector + full-text = simpler ops | — |
+| Database | **PostgreSQL 16 on Supabase** (ADR-0002) | One DB for relational + vector + full-text = simpler ops | — |
 | Vector search | **pgvector (HNSW index)** on `vector(1536)` | Good enough up to millions of chunks; RLS gives tenant isolation; available on every managed Postgres we're considering | `halfvec(3072)` if full-size Gemini vectors win the eval; **VectorChord** (scale-up path, see note below); Qdrant; Pinecone |
 | Keyword search | **Postgres `tsvector`** | Hybrid search without extra infra | OpenSearch |
 | Cache / queue / limits | **Redis (Upstash)** | Session memory, semantic cache, rate limiting, published-config cache | Valkey |
-| File storage | **Supabase Storage / S3 / Cloudflare R2** | Raw uploads (private), logos (public), tenant-prefixed keys | — |
+| File storage | **Supabase Storage** (ADR-0002); S3 / Cloudflare R2 possible via the `ObjectStore` port | Raw uploads (private), logos (public), tenant-prefixed keys | — |
 
 > **Why pgvector now, and when VectorChord.** VectorChord is a Postgres extension built on pgvector's `vector` type. It uses a compressed IVF index (RaBitQ) instead of HNSW and benchmarks markedly faster for queries, inserts and index builds, especially at tens of millions of vectors. Because it keeps the same `vector` column and query syntax, switching later means **swapping the index**, not rewriting the knowledge module.
 >
@@ -244,7 +244,7 @@ flowchart LR
 | Bot Studio + admin dashboard | **React 19 + Vite + TypeScript**, React Query, React Hook Form + Zod, React Router (shadcn/ui optional) | Static build, no server to run or secure, fast to develop (ADR-0005) |
 | Chat widget | **Preact or vanilla TS, built as a single `widget.js`** | Tiny bundle (< 50 KB) so it doesn't slow client sites; branding fetched from the public config endpoint |
 | Realtime | **Server-Sent Events** (streaming) + **WebSocket** for agent inbox | Streaming answers feel 2× faster |
-| Auth | **Supabase Auth** or **Clerk** | Team invites + roles out of the box |
+| Auth | **Supabase Auth** (ADR-0002) | Team invites + roles out of the box |
 | Charts | **Recharts** | Analytics screens |
 
 ### 🔌 Integrations & Ops
