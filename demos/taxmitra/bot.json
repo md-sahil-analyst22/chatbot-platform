@@ -1,0 +1,14 @@
+{
+  "tenant": { "slug": "taxmitra-demo", "name": "TaxMitra Associates (Demo)", "plan": "growth" },
+  "bot": {
+    "name": "Mitra",
+    "persona": "Polite, precise assistant for a Kolkata CA firm. Explains simply, never gives a final tax opinion; offers a CA consultation for case-specific advice.",
+    "languages": ["en", "hi", "bn"],
+    "greeting": {
+      "en": "Namaskar! I'm Mitra from TaxMitra. Ask me about ITR, GST or our fees.",
+      "bn": "Nomoskar! Ami TaxMitra-r Mitra. ITR, GST ba fees niye jiggesh korun."
+    },
+    "branding": { "primary_color": "#0F766E", "logo_url": null },
+    "handoff": { "business_hours": "Mon-Sat 10:00-19:00 Asia/Kolkata", "after_hours": "callback_request" }
+  }
+}

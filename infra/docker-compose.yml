@@ -1,0 +1,83 @@
+# Run from repo root:  make up   (== docker compose --env-file .env -f infra/docker-compose.yml up -d)
+name: saathi
+
+x-backend: &backend
+  build: ../backend
+  env_file: ../.env
+  environment:
+    DATABASE_URL: postgresql+asyncpg://saathi_app:${APP_DB_PASSWORD}@postgres:5432/saathi
+    MIGRATION_DATABASE_URL: postgresql+asyncpg://saathi_owner:${POSTGRES_OWNER_PASSWORD}@postgres:5432/saathi
+    REDIS_URL: redis://redis:6379/0
+    PYTHONPATH: /app/src          # mounted source shadows the installed package (hot reload)
+  volumes:
+    - ../backend/src:/app/src:ro
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: saathi
+      POSTGRES_USER: saathi_owner
+      POSTGRES_PASSWORD: ${POSTGRES_OWNER_PASSWORD:?set POSTGRES_OWNER_PASSWORD in .env}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env}
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saathi_owner -d saathi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["127.0.0.1:6379:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    <<: *backend
+    command: >
+      uvicorn saathi.main:create_app --factory
+      --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src
+    ports: ["127.0.0.1:8000:8000"]
+
+  worker:
+    <<: *backend
+    command: ["arq", "--watch", "/app/src", "saathi.worker.WorkerSettings"]
+
+  dashboard:
+    profiles: ["frontend"]          # or run `npm run dev` in dashboard/ directly
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    ports: ["127.0.0.1:5173:5173"]
+    volumes:
+      - ../dashboard:/app
+      - dashboard_node_modules:/app/node_modules
+
+  n8n:
+    profiles: ["integrations"]
+    image: n8nio/n8n:latest
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-}   # empty => n8n generates one in its volume
+      N8N_SECURE_COOKIE: "false"   # local only
+    ports: ["127.0.0.1:5678:5678"]
+    volumes: [n8ndata:/home/node/.n8n]
+
+volumes:
+  dashboard_node_modules:
+  pgdata:
+  redisdata:
+  n8ndata:

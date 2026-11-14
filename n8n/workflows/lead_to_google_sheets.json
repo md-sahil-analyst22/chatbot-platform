@@ -1,0 +1,15 @@
+{
+  "name": "Saathi - lead.created -> Google Sheets (placeholder)",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "saathi-lead-created", "responseMode": "onReceived" },
+      "name": "Saathi webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    }
+  ],
+  "connections": {},
+  "settings": {},
+  "meta": { "note": "Placeholder. Build in Phase 5 (P5.8): verify signature -> map fields -> append row." }
+}

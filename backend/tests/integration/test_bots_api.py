@@ -1,0 +1,71 @@
+"""Route tests with the use-case service swapped for an in-memory repository (no DB).
+
+Possible only because routes depend on BotService via `get_bot_service` (Dependency Inversion).
+"""
+
+from collections.abc import AsyncIterator
+from uuid import UUID, uuid4
+
+import httpx
+import pytest
+from tests.fakes.builders import make_bot
+from tests.fakes.in_memory import InMemoryBotRepository
+
+from saathi.api.deps import get_principal
+from saathi.main import create_app
+from saathi.modules.tenancy.api.deps import get_bot_service
+from saathi.modules.tenancy.application.services import BotService
+from saathi.platform.security.auth import Principal, Role
+
+TENANT_A = UUID("00000000-0000-0000-0000-00000000000a")
+
+
+class Harness:
+    def __init__(self) -> None:
+        self.repo = InMemoryBotRepository()
+        self.principal = Principal(user_id="u1", tenant_id=TENANT_A, role=Role.ADMIN)
+
+
+@pytest.fixture
+async def ctx() -> AsyncIterator[tuple[httpx.AsyncClient, Harness]]:
+    h = Harness()
+    app = create_app()
+    app.dependency_overrides[get_principal] = lambda: h.principal
+    app.dependency_overrides[get_bot_service] = lambda: BotService(h.repo)
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client, h
+
+
+async def test_create_bot_takes_tenant_from_token(ctx: tuple[httpx.AsyncClient, Harness]) -> None:
+    client, h = ctx
+    r = await client.post("/api/v1/bots", json={"name": "Mitra", "languages": ["en", "bn"]})
+    assert r.status_code == 201
+    stored = h.repo.rows[UUID(r.json()["id"])]
+    assert stored.tenant_id == TENANT_A
+    assert r.json()["public_key"].startswith("pk_")
+
+
+async def test_smuggled_tenant_id_is_rejected(ctx: tuple[httpx.AsyncClient, Harness]) -> None:
+    client, _ = ctx
+    r = await client.post(
+        "/api/v1/bots", json={"name": "x", "languages": ["en"], "tenant_id": str(uuid4())}
+    )
+    assert r.status_code == 422
+    assert r.json()["error"]["code"] == "validation_error"
+
+
+async def test_viewer_cannot_create(ctx: tuple[httpx.AsyncClient, Harness]) -> None:
+    client, h = ctx
+    h.principal = Principal(user_id="u2", tenant_id=TENANT_A, role=Role.VIEWER)
+    r = await client.post("/api/v1/bots", json={"name": "x", "languages": ["en"]})
+    assert r.status_code == 403
+
+
+async def test_other_tenants_bot_is_404(ctx: tuple[httpx.AsyncClient, Harness]) -> None:
+    client, h = ctx
+    other = make_bot(tenant_id=uuid4(), name="B")
+    await h.repo.add(other)
+    r = await client.get(f"/api/v1/bots/{other.id}")
+    assert r.status_code == 404
