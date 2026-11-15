@@ -33,6 +33,18 @@ class TokenVerifier(Protocol):
         ...
 
 
+@dataclass(frozen=True, slots=True)
+class Membership:
+    tenant_id: UUID
+    role: Role
+
+
+class MembershipLookup(Protocol):
+    """Which tenants a verified user belongs to (ADR-0007). Runs before any tenant context."""
+
+    async def memberships(self, auth_user_id: str) -> list[Membership]: ...
+
+
 def require_role(principal: Principal, minimum: Role) -> None:
     if _RANK[principal.role] < _RANK[minimum]:
         raise AuthorizationError(f"requires role >= {minimum.value}")

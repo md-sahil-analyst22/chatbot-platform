@@ -17,6 +17,16 @@ class CreateBotCommand:
     settings: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True, slots=True)
+class UpdateBotCommand:
+    """Partial update: None means "leave unchanged"."""
+
+    name: str | None = None
+    persona: str | None = None
+    languages: tuple[str, ...] | None = None
+    settings: dict[str, Any] | None = None
+
+
 class BotService:
     def __init__(self, repo: BotRepository) -> None:
         self._repo = repo
@@ -45,3 +55,23 @@ class BotService:
         if bot is None:
             raise NotFoundError("bot not found")
         return bot
+
+    async def update_bot(self, principal: Principal, bot_id: UUID, cmd: UpdateBotCommand) -> Bot:
+        require_role(principal, Role.ADMIN)
+        bot = await self.get_bot(principal, bot_id)  # 404 for another tenant's bot (R29)
+        if cmd.name is not None:
+            bot = bot.renamed(cmd.name)
+        if cmd.persona is not None:
+            bot = bot.with_persona(cmd.persona)
+        if cmd.languages is not None:
+            bot = bot.with_languages(cmd.languages)
+        if cmd.settings is not None:
+            bot = bot.with_settings(cmd.settings)
+        await self._repo.update(bot)
+        return bot
+
+    async def delete_bot(self, principal: Principal, bot_id: UUID) -> None:
+        """Deletes the bot and everything that belongs to it (configs, sources, chats)."""
+        require_role(principal, Role.ADMIN)
+        if not await self._repo.delete(principal.tenant_id, bot_id):
+            raise NotFoundError("bot not found")

@@ -752,7 +752,8 @@ class BotConfigService:
 **Rule:** Every table that holds a tenant's data must have:
 
 1. `tenant_id UUID NOT NULL` with a foreign key to `tenants`.
-2. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` **and** `FORCE ROW LEVEL SECURITY`, plus a `tenant_isolation` policy using `current_setting('app.tenant_id', true)`. If no tenant is set, the policy matches zero rows (fail closed).
+2. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` **and** `FORCE ROW LEVEL SECURITY`, plus a `tenant_isolation` policy using `nullif(current_setting('app.tenant_id', true), '')::uuid`. If no tenant is set, the policy matches zero rows (fail closed). `nullif` matters: on a reused pooled connection an unset setting reads as `''`, and `''::uuid` would raise an error instead.
+6. References to a parent inside the tenant use a composite foreign key `(tenant_id, parent_id) → parent (tenant_id, id)`, so a row can never point at another tenant's parent (foreign-key checks ignore RLS).
 3. Unique constraints that include the tenant: `UNIQUE (tenant_id, name)`, not `UNIQUE (name)`.
 4. Indexes only for queries that really exist, written down next to the index ("serves: list bots for a tenant, newest first").
 5. A repository contract suite and an isolation test (R35, R37).
@@ -775,9 +776,11 @@ CREATE INDEX ix_bots_tenant_created ON bots (tenant_id, created_at DESC);
 ALTER TABLE bots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bots FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON bots
-    USING      (tenant_id = current_setting('app.tenant_id', true)::uuid)
-    WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+    USING      (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid)
+    WITH CHECK (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid);
 ```
+
+The full schema (all tables, policies and grants) is generated from the migrations into `backend/migrations/schema.sql` (`make schema-sql`). Read it, or paste it into an empty database; never edit it by hand.
 
 **Checked by:** `tests/security/test_tenant_isolation.py` (real Postgres, from P1.6) and review.
 
@@ -1202,7 +1205,7 @@ flowchart LR
 docs/
 ├── adr/            0000 template · 0001 layout · 0002 DB/hosting/auth · 0003 versioned config + models
 │                   · 0004 tenants' own API keys · 0005 Bot Studio as React + Vite
-│                   · 0006 Gemini + Sarvam primary vendors
+│                   · 0006 Gemini + Sarvam primary vendors · 0007 JWT verification + tenant membership
 ├── planning/       00–05 planning documents (features, architecture, flows, build plan, phases)
 ├── architecture/   C4, ER and sequence diagrams as the system grows
 ├── runbooks/       local-setup.md; later incidents and key rotation
@@ -1343,7 +1346,7 @@ flowchart TB
         C --> R["Redis"]
         C --> H["shared HTTP client"]
         C --> MC["model catalog"]
-        C --> V["token verifier<br/>None until Phase 1, so 401"]
+        C --> V["token verifier<br/>Supabase JWKS + membership (ADR-0007)<br/>None without AUTH_* -> 401"]
     end
     subgraph PV["providers.py"]
         I["import each adapter<br/>so it registers"] --> F0["build_llm_resolver()"]
@@ -1367,7 +1370,7 @@ platform/
 ├── logging/         setup.py
 ├── observability/   tracing.py
 ├── providers/       registry.py
-├── security/        auth.py · crypto.py · pii.py · rate_limit.py · uploads.py
+├── security/        auth.py · jwt_verifier.py · crypto.py · pii.py · rate_limit.py · uploads.py
 └── storage/         object_store.py
 ```
 
@@ -1381,7 +1384,8 @@ platform/
 | `logging/setup.py` | JSON logs with request id and tenant id |
 | `observability/tracing.py` | Tracing interface with a do-nothing default (Langfuse later) |
 | `providers/registry.py` | `ProviderRegistry[T]`, the generic registry behind every vendor choice |
-| `security/auth.py` | Roles, `Principal`, `TokenVerifier` interface, `require_role()` |
+| `security/auth.py` | Roles, `Principal`, `TokenVerifier` and `MembershipLookup` interfaces, `require_role()` |
+| `security/jwt_verifier.py` | Supabase access tokens: JWKS signature (ES256/RS256 only), issuer, audience, expiry; then exactly one tenant membership (ADR-0007) |
 | `security/crypto.py` | AES-256-GCM with key ids (rotation) and tenant-bound associated data |
 | `security/pii.py` | `redact()` for Aadhaar, PAN, cards, phones, emails |
 | `security/rate_limit.py` | Redis token bucket, tenant-scoped keys, fail-closed option |
@@ -2006,8 +2010,8 @@ Saved configs keep working because they store the catalog key, not the vendor id
 
 | Item | Arrives in |
 |---|---|
-| Login token verification (endpoints return 401 until then) | P1.7 |
-| Tables, RLS policies, `resolve_bot_public_key()` function | P1.5, P1.6, P1.11 |
+| Self-service sign-up (first tenant + owner are created by an operator, see `docs/runbooks/local-setup.md`) | P5.9 |
+| Tenant switching for users in several tenants (refused with 403 for now, ADR-0007) | When needed |
 | Published-config cache in Redis | P3.11 |
 | Chat endpoint and playground on drafts | P3.8, P5.17 |
 | Logo upload endpoint (Supabase Storage adapter exists, not yet wired to a route) | P4.13 |
@@ -2024,7 +2028,9 @@ These are deliberate, tracked differences. Per R44 they're listed here instead o
 |---|---|---|---|
 | Gemini embeddings use one task type for documents and questions | `Embedder.embed()` has no document/query distinction, so no `taskType` is sent | Slightly lower retrieval quality than `RETRIEVAL_DOCUMENT` / `RETRIEVAL_QUERY` | Decide with the golden set in Phase 2; if it helps, add the distinction to the port (all adapters + contract) |
 | Supabase transaction pooler | The engine uses asyncpg prepared statements | Port 6543 fails at runtime | Use the session pooler (5432) or direct connection (ADR-0002) |
-| Every repository passes its contract suite with the real adapter (R35) | Repository contract suites run on the in-memory fakes only | The SQL repositories aren't proven equivalent yet | Add SQL subclasses running on real Postgres in Phase 1 (P1.5–P1.6) |
-| Tenant isolation proven on real Postgres | `test_tenant_isolation.py` is skipped | No proof of RLS until the tables exist | Un-skip at P1.6; it's the Phase 1 exit criterion |
-| Logins verified | No token verifier yet, so every `/api/v1` call returns 401 (fail closed) | None (safe default), but nothing works end to end | ADR-0002 auth choice, then P1.7 |
+| Every repository passes its contract suite with the real adapter (R35) | `SqlAlchemyBotRepository` and `SqlAlchemyBotConfigRepository` pass their suites on real Postgres (`tests/contracts/test_sql_repositories.py`) | Runs only when a test database is configured (`make test-db`) | Run it in CI with a Postgres service (P1.9) |
+| Tenant isolation proven on real Postgres | `tests/security/test_tenant_isolation.py` proves read/write/update/delete isolation, fail-closed without a tenant, composite FKs, 404 through the API, and a concurrent-publish race, as `saathi_app` | Skipped unless `RUN_DB_TESTS=1` and a test database are set | Run it in CI with a Postgres service (P1.9); Phase 1 exit criterion |
+| `updated_at` changes on every update | Bumped by the ORM (`onupdate`), not by a trigger | Raw SQL updates leave it stale | Add a trigger if raw-SQL updates appear |
+| Postgres version | Supabase runs 17; local Docker image and plan say 16 | Small risk of version-specific behaviour | Move the local image to `pgvector/pgvector:pg17` |
+| Bot deletion is audited | `DELETE /bots/{id}` removes the bot and everything under it (FK cascade) without an `audit_logs` row; files in object storage aren't cleaned up yet | No record of who deleted what; orphaned logo files | Add an audit-log port + writes for destructive actions, and storage cleanup with P4.13 |
 

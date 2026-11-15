@@ -69,3 +69,101 @@ async def test_other_tenants_bot_is_404(ctx: tuple[httpx.AsyncClient, Harness]) 
     await h.repo.add(other)
     r = await client.get(f"/api/v1/bots/{other.id}")
     assert r.status_code == 404
+
+
+# ----------------------------------------------------------------- P1.8: update and delete
+async def test_create_duplicate_name_is_409(ctx: tuple[httpx.AsyncClient, Harness]) -> None:
+    client, _ = ctx
+    body = {"name": "Mitra", "languages": ["en"]}
+    assert (await client.post("/api/v1/bots", json=body)).status_code == 201
+    r = await client.post("/api/v1/bots", json=body)
+    assert r.status_code == 409
+    assert r.json()["error"]["code"] == "conflict"
+
+
+async def test_patch_updates_only_sent_fields(ctx: tuple[httpx.AsyncClient, Harness]) -> None:
+    client, h = ctx
+    bot = make_bot(tenant_id=TENANT_A, name="Mitra")
+    await h.repo.add(bot)
+    r = await client.patch(f"/api/v1/bots/{bot.id}", json={"name": "মিত্র", "languages": ["bn"]})
+    assert r.status_code == 200
+    assert r.json()["name"] == "মিত্র"  # Bengali names round-trip
+    assert r.json()["languages"] == ["bn"]
+    assert r.json()["public_key"] == bot.public_key  # untouched
+    assert h.repo.rows[bot.id].persona == bot.persona
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {},  # nothing to change
+        {"name": None},  # explicit null
+        {"name": ""},
+        {"name": "x" * 101},
+        {"languages": []},
+        {"languages": ["fr"]},
+        {"tenant_id": str(uuid4())},  # smuggled tenant
+        {"public_key": "pk_aaaaaaaaaaaaaaaaaaaa"},  # keys are server-generated
+    ],
+)
+async def test_patch_rejects_bad_input(
+    ctx: tuple[httpx.AsyncClient, Harness], body: dict[str, object]
+) -> None:
+    client, h = ctx
+    bot = make_bot(tenant_id=TENANT_A)
+    await h.repo.add(bot)
+    r = await client.patch(f"/api/v1/bots/{bot.id}", json=body)
+    assert r.status_code == 422
+
+
+async def test_patch_to_existing_name_is_409(ctx: tuple[httpx.AsyncClient, Harness]) -> None:
+    client, h = ctx
+    a, b = make_bot(tenant_id=TENANT_A, name="A"), make_bot(tenant_id=TENANT_A, name="B")
+    await h.repo.add(a)
+    await h.repo.add(b)
+    r = await client.patch(f"/api/v1/bots/{b.id}", json={"name": "A"})
+    assert r.status_code == 409
+
+
+async def test_patch_and_delete_other_tenants_bot_are_404(
+    ctx: tuple[httpx.AsyncClient, Harness],
+) -> None:
+    client, h = ctx
+    other = make_bot(tenant_id=uuid4(), name="Theirs")
+    await h.repo.add(other)
+    assert (await client.patch(f"/api/v1/bots/{other.id}", json={"name": "x"})).status_code == 404
+    assert (await client.delete(f"/api/v1/bots/{other.id}")).status_code == 404
+    assert h.repo.rows[other.id].name == "Theirs"  # untouched
+
+
+async def test_viewer_cannot_patch_or_delete(ctx: tuple[httpx.AsyncClient, Harness]) -> None:
+    client, h = ctx
+    bot = make_bot(tenant_id=TENANT_A)
+    await h.repo.add(bot)
+    h.principal = Principal(user_id="u2", tenant_id=TENANT_A, role=Role.VIEWER)
+    assert (await client.patch(f"/api/v1/bots/{bot.id}", json={"name": "x"})).status_code == 403
+    assert (await client.delete(f"/api/v1/bots/{bot.id}")).status_code == 403
+    assert bot.id in h.repo.rows
+
+
+async def test_delete_bot(ctx: tuple[httpx.AsyncClient, Harness]) -> None:
+    client, h = ctx
+    bot = make_bot(tenant_id=TENANT_A)
+    await h.repo.add(bot)
+    r = await client.delete(f"/api/v1/bots/{bot.id}")
+    assert r.status_code == 204
+    assert r.content == b""
+    assert bot.id not in h.repo.rows
+    assert (await client.delete(f"/api/v1/bots/{bot.id}")).status_code == 404
+
+
+async def test_new_endpoints_require_login() -> None:
+    app = create_app()  # no principal override: real dependency, no verifier -> 401
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            bot_id = uuid4()
+            assert (
+                await client.patch(f"/api/v1/bots/{bot_id}", json={"name": "x"})
+            ).status_code == 401
+            assert (await client.delete(f"/api/v1/bots/{bot_id}")).status_code == 401

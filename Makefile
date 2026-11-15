@@ -1,7 +1,7 @@
 # Run from the repo root.
 COMPOSE = docker compose --env-file .env -f infra/docker-compose.yml
 
-.PHONY: up up-local-db down logs ps studio migrate test lint fmt typecheck arch check-keys validate-golden n8n
+.PHONY: up up-local-db down logs ps studio migrate schema-sql test test-db lint fmt typecheck arch check-keys validate-golden n8n
 
 up:            ## start redis, api, worker (database: Supabase via DATABASE_URL in .env)
 	$(COMPOSE) up -d --build
@@ -27,8 +27,14 @@ n8n:           ## start n8n too (optional profile)
 migrate:
 	cd backend && uv run --env-file ../.env alembic upgrade head
 
+schema-sql:    ## regenerate backend/migrations/schema.sql from the migrations (no DB connection)
+	cd backend && { sed -n '1,13p' migrations/schema.sql; uv run --env-file ../.env alembic upgrade head --sql 2>/dev/null; } > migrations/schema.sql.tmp && mv migrations/schema.sql.tmp migrations/schema.sql
+
 test:
 	cd backend && uv run pytest -q
+
+test-db:       ## real-Postgres tests (RLS isolation, SQL repositories, migration round trip); needs TEST_DATABASE_URL + TEST_APP_DATABASE_URL exported
+	cd backend && RUN_DB_TESTS=1 uv run pytest -q tests/security tests/contracts/test_sql_repositories.py
 
 lint:
 	cd backend && uv run ruff check . && uv run ruff format --check .

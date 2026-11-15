@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Node / dashboard build artefacts (REPO_STRUCTURE 2.1)
+node_modules/
+*.tsbuildinfo

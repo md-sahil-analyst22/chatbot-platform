@@ -2,12 +2,12 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Response, status
 
 from saathi.api.deps import PrincipalDep
 from saathi.modules.tenancy.api.deps import BotServiceDep
-from saathi.modules.tenancy.api.schemas import BotCreate, BotOut
-from saathi.modules.tenancy.application.services import CreateBotCommand
+from saathi.modules.tenancy.api.schemas import BotCreate, BotOut, BotUpdate
+from saathi.modules.tenancy.application.services import CreateBotCommand, UpdateBotCommand
 from saathi.modules.tenancy.domain.entities import Bot
 
 router = APIRouter(prefix="/bots", tags=["bots"])
@@ -48,3 +48,26 @@ async def list_bots(
 @router.get("/{bot_id}")
 async def get_bot(bot_id: UUID, principal: PrincipalDep, service: BotServiceDep) -> BotOut:
     return _out(await service.get_bot(principal, bot_id))
+
+
+@router.patch("/{bot_id}")
+async def update_bot(
+    bot_id: UUID, body: BotUpdate, principal: PrincipalDep, service: BotServiceDep
+) -> BotOut:
+    bot = await service.update_bot(
+        principal,
+        bot_id,
+        UpdateBotCommand(
+            name=body.name,
+            persona=body.persona,
+            languages=tuple(body.languages) if body.languages is not None else None,
+            settings=body.settings,
+        ),
+    )
+    return _out(bot)
+
+
+@router.delete("/{bot_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_bot(bot_id: UUID, principal: PrincipalDep, service: BotServiceDep) -> Response:
+    await service.delete_bot(principal, bot_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
