@@ -147,7 +147,7 @@ flowchart LR
 | P0.4 | 🧾 Collect demo data: CA firm | 10–15 docs: GST/ITR services, fees, document checklists, FAQs (write realistic sample content) | 2 | `demos/taxmitra/docs/` |
 | P0.5 | 🏥 Collect demo data: clinic | Timings, doctors, services, policies | 1 | `demos/cliniccare/docs/` |
 | P0.6 | ❓ Draft golden set v0 | 30 Q&A pairs (EN) with expected source document + 5–8 unanswerable | 1.5 | `evals/golden/golden_v0.jsonl` |
-| P0.7 | 🛠️ Local tooling | Docker Desktop, uv, Node 20, VS Code / Claude Code, pre-commit | 0.5 | Working dev machine |
+| P0.7 | 🛠️ Local tooling | Docker Desktop, uv, Node 24 LTS, VS Code / Claude Code, pre-commit | 0.5 | Working dev machine |
 | P0.8 | 📝 Decide ADRs | Accept/reject 0001 (layout), 0003 (bot config), 0005 (React + Vite Studio); decide 0002 (DB/hosting/auth) | 0.5 | ADR statuses updated |
 
 ### 🏁 Exit criteria
