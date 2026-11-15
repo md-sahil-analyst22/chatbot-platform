@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # ---- build stage ------------------------------------------------------------
-FROM python:3.12-slim AS builder
+FROM python:3.15-slim AS builder
 # Pin to a specific uv version/digest before production.
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 WORKDIR /app
@@ -15,7 +15,7 @@ COPY alembic.ini ./
 RUN uv sync --no-dev --no-editable
 
 # ---- runtime stage ----------------------------------------------------------
-FROM python:3.12-slim AS runtime
+FROM python:3.15-slim AS runtime
 RUN useradd --create-home --uid 10001 app
 WORKDIR /app
 COPY --from=builder --chown=app:app /app /app
