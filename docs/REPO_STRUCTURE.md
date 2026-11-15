@@ -1206,6 +1206,7 @@ docs/
 ├── adr/            0000 template · 0001 layout · 0002 DB/hosting/auth · 0003 versioned config + models
 │                   · 0004 tenants' own API keys · 0005 Bot Studio as React + Vite
 │                   · 0006 Gemini + Sarvam primary vendors · 0007 JWT verification + tenant membership
+│                   · 0008 Hostinger VPS hosting
 ├── planning/       00–05 planning documents (features, architecture, flows, build plan, phases)
 ├── architecture/   C4, ER and sequence diagrams as the system grows
 ├── runbooks/       local-setup.md; later incidents and key rotation
@@ -1222,12 +1223,14 @@ docs/
 ```
 scripts/
 ├── check_keys.py   checks every platform API key with one cheap call each (PASS / FAIL / SKIP)
+├── vps/setup.sh    one-time hardening + install of a fresh Ubuntu 24.04 VPS (ADR-0008)
+├── vps/deploy.sh   build -> migrate -> restart -> health check -> publish Bot Studio (run by CI or by hand)
 └── README.md
 ```
 
 `check_keys.py` never prints secret values. `--send-whatsapp` sends a test message to your phone. Together they cover two Phase 0 exit criteria.
 
-**Rules here:** R17. Scripts may read `.env`, but must never print or log secrets.
+**Rules here:** R17. Scripts may read `.env`, but must never print or log secrets. The VPS scripts are checked by `shellcheck` in CI, and `deploy.sh` accepts only a commit SHA or `main` as input.
 
 ## 2.5 `infra/`, how the system runs
 
@@ -1240,7 +1243,8 @@ infra/
 │   ├── README.md               why there are two database roles
 │   └── init/01_extensions.sql  enables pgvector
 │       init/02_app_role.sh     creates the least-privilege app role
-├── nginx/nginx.conf            reverse proxy for a future own server
+├── docker-compose.prod.yml     production stack on the VPS (ADR-0008)
+├── nginx/saathi.conf.template  nginx site for api.<domain> + app.<domain> (rendered by setup.sh)
 ├── deploy/README.md            environments, scaling, deploy rules
 └── README.md
 ```
@@ -1271,7 +1275,8 @@ flowchart LR
     AR -- "anonymous widget lookup only" --> FN["resolve_bot_public_key()<br/>returns tenant_id + bot_id only"]
 ```
 
-- `nginx/nginx.conf`: HTTPS redirect, security headers, upload limit, per-IP limits, forwarded headers overwritten (never trusted from clients), streaming locations.
+- `nginx/saathi.conf.template`: API and Bot Studio sites, security headers (CSP on Studio), upload limit, per-IP limits, forwarded headers overwritten (never trusted from clients), streaming locations. certbot adds HTTPS.
+- `docker-compose.prod.yml`: built image only, API on `127.0.0.1:8000`, private network with a fixed gateway so uvicorn trusts forwarding headers only from nginx; migrations as a one-shot job.
 - `deploy/README.md`: services per environment and how each scales; secrets only in the platform's secret store; migrations as a release step.
 
 **Rules here:** R24 (two roles), R25 (migrations as a release step), R17 (secrets in the secret store).
@@ -1683,7 +1688,7 @@ flowchart TB
         M["Meta WhatsApp"]
     end
 
-    subgraph Hosting["Hosting platform (Railway / Render), later VPS + Nginx"]
+    subgraph Hosting["Hostinger VPS: nginx + Docker Compose (ADR-0008)"]
         A1["API container<br/>scales by requests + open streams"]
         W1["Worker container<br/>scales by queue depth"]
     end
@@ -2001,7 +2006,6 @@ Saved configs keep working because they store the catalog key, not the vendor id
 | Decision | File | Deadline |
 |---|---|---|
 | Accept the modular-monolith layout | `docs/adr/0001` | Before Phase 1 (16 Nov) |
-| Railway/Render (Supabase for DB, auth and storage accepted) | `docs/adr/0002` | 15 Nov |
 | Accept versioned config, model catalog, prompt layering | `docs/adr/0003` | Before P1.8 |
 | Accept React + Vite for Bot Studio | `docs/adr/0005` | Before P5.9 |
 | BYOK design (build in Phase 8) | `docs/adr/0004` | Before Phase 8.1 |

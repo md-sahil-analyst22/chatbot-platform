@@ -10,4 +10,4 @@
 
 `planning/` mirrors the docs in the claude.ai "chatbot" project; update both together.
 
-ADR index: 0001 layout · 0002 database/hosting/auth · 0003 versioned bot config & per-bot models · 0004 tenant API keys (BYOK) · 0005 Bot Studio as React + Vite SPA · 0006 Gemini + Sarvam primary AI vendors · 0007 Supabase JWT verification & tenant membership.
+ADR index: 0001 layout · 0002 database/hosting/auth · 0003 versioned bot config & per-bot models · 0004 tenant API keys (BYOK) · 0005 Bot Studio as React + Vite SPA · 0006 Gemini + Sarvam primary AI vendors · 0007 Supabase JWT verification & tenant membership · 0008 Hostinger VPS hosting.

@@ -1,7 +1,7 @@
 # ADR-0002: Postgres host, app hosting and auth provider
 
-- **Status:** Accepted for Postgres, auth and storage (2026-11-14). App hosting (Railway vs
-  Render) is still open, due Sun 15 Nov 2026.
+- **Status:** Accepted for Postgres, auth and storage (2026-11-14). App hosting: superseded by
+  ADR-0008 (Hostinger VPS, 2026-11-15).
 - **Deciders:** Sahil
 
 ## Context
@@ -20,7 +20,7 @@ These must be fixed before Phase 1, because auth affects how RLS gets `tenant_id
 
 ## Decision
 **Supabase** for Postgres + pgvector, Auth and Storage, in an India region if one is offered.
-App hosting: Railway or Render (nearest region), still to be decided. Keep the app stateless so
+App hosting: decided in ADR-0008 (Hostinger VPS, Mumbai). Keep the app stateless so
 hosting can change later without code changes.
 
 ### How the code uses Supabase

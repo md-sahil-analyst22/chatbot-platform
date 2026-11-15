@@ -1,0 +1,116 @@
+# =============================================================================
+# Saathi AI - PRODUCTION stack on the VPS (P1.10, ADR-0008)
+#
+# Run on the server by scripts/vps/deploy.sh (never by hand unless you know why):
+#   docker compose --env-file .env -f infra/docker-compose.prod.yml ...
+#
+# Differences from docker-compose.yml (local dev):
+#   - runs the built image: no mounted source, no --reload, no dev tools
+#   - only the API is published, on 127.0.0.1:8000, for host nginx (TLS + domain)
+#   - fixed private network so uvicorn can trust X-Forwarded-* from nginx ONLY
+#   - Postgres is Supabase (DATABASE_URL in .env); no database container here
+#
+# Rules: R24 (app never gets owner credentials), R25 (migrations are a one-shot job),
+#        R17 (all secrets come from .env on the server, mode 600)
+# =============================================================================
+name: saathi
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+x-hardening: &hardening
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+
+x-backend: &backend
+  <<: *hardening
+  image: saathi-backend:prod
+  env_file: ../.env
+  environment: &backend-env
+    DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+    REDIS_URL: redis://redis:6379/0
+    # Least privilege: the API and worker never see the owner/migration credentials.
+    MIGRATION_DATABASE_URL: ""
+    POSTGRES_OWNER_PASSWORD: ""
+  depends_on:
+    redis: { condition: service_healthy }
+  restart: unless-stopped
+  logging: *default-logging
+  networks: [internal]
+
+services:
+  redis:
+    <<: *hardening
+    image: redis:7-alpine
+    # Start as the image's own "redis" user: with cap_drop ALL, the root entrypoint's
+    # chown-then-switch-user step would fail, and nothing here needs root anyway.
+    user: redis
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction # the ARQ job queue must never be silently evicted
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    logging: *default-logging
+    networks: [internal]
+    # No ports: only the API and worker can reach Redis.
+
+  api:
+    <<: *backend
+    build:
+      context: ../backend
+    # The image CMD runs uvicorn with --proxy-headers. Trust X-Forwarded-* ONLY from the Docker
+    # gateway, which is where host nginx's connections appear from (fixed subnet below).
+    environment:
+      <<: *backend-env
+      FORWARDED_ALLOW_IPS: 172.30.0.1
+    ports: ["127.0.0.1:8000:8000"] # host nginx only; the firewall blocks 8000 from outside anyway
+    stop_grace_period: 30s
+
+  worker:
+    <<: *backend
+    command: ["arq", "saathi.worker.WorkerSettings"]
+    healthcheck:
+      test: ["CMD", "arq", "--check", "saathi.worker.WorkerSettings"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 120s # let running jobs finish (they are idempotent, R33)
+
+  # One-shot migration job (R25), run by deploy.sh BEFORE the new API starts.
+  migrate:
+    <<: *hardening
+    profiles: ["tools"]
+    image: saathi-backend:prod
+    env_file: ../.env
+    environment:
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?set MIGRATION_DATABASE_URL in .env}
+    command: ["alembic", "upgrade", "head"]
+    healthcheck:
+      disable: true
+    restart: "no"
+    logging: *default-logging
+    networks: [internal]
+
+networks:
+  internal:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+          gateway: 172.30.0.1
+
+volumes:
+  redisdata:

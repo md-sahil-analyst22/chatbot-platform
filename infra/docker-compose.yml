@@ -9,7 +9,8 @@
 #   docker compose ... --profile integrations up -d n8n        n8n on :5678
 #
 # This file is for LOCAL DEV ONLY (hot reload, source mounted, no TLS).
-# Staging/production run the same backend image on Railway/Render with managed
+# Production runs the same backend image on the Hostinger VPS (ADR-0008) with
+# infra/docker-compose.prod.yml, managed
 # Postgres/Redis and secrets in the platform secret store (infra/deploy/README.md).
 #
 # Database: DATABASE_URL / MIGRATION_DATABASE_URL come from .env (Supabase session pooler,
