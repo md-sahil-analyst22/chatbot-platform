@@ -16,6 +16,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+# ...but not the dashboard's source folder (the Python template's lib/ hid it from git)
+!dashboard/src/lib/
 parts/
 sdist/
 var/
