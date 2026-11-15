@@ -1,4 +1,7 @@
 # Weekly dependency-update PRs (REPO_STRUCTURE 2.2). CI must pass before merging any of them.
+#
+# Minor and patch updates are grouped into one PR per ecosystem. Major upgrades are deliberately
+# NOT grouped: each arrives as its own PR so it can be reviewed and reverted on its own.
 version: 2
 updates:
   - package-ecosystem: uv
@@ -26,3 +29,8 @@ updates:
     directory: /backend
     schedule:
       interval: weekly
+    ignore:
+      # backend/pyproject.toml pins requires-python = ">=3.12,<3.13"; a newer image would break the
+      # build. Move to a new Python only together with that pin (and an ADR if it's a big jump).
+      - dependency-name: python
+        versions: [">=3.13"]
