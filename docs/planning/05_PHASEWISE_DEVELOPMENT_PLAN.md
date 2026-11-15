@@ -141,7 +141,7 @@ flowchart LR
 
 | ID | Task | Details | ⏱️ | 📦 Output |
 |---|---|---|:---:|---|
-| P0.1 | 🔑 Create accounts | GitHub repo, Supabase (or Neon), Upstash Redis, Railway/Render, Langfuse, Sentry | 1.5 | Accounts live |
+| P0.1 | 🔑 Create accounts | GitHub repo, Supabase, Hostinger VPS + domain (ADR-0008), Langfuse, Sentry | 1.5 | Accounts live |
 | P0.2 | 🤖 Get API keys | Gemini (LLM + embeddings), Sarvam (speech), Cohere (rerank), Supabase; set spend caps (ADR-0006) | 0.5 | `.env` from `.env.example` |
 | P0.3 | 🟢 Start Meta setup | Meta Business account + WhatsApp Cloud API **test number** (verification takes time, so start now) | 1 | Test WA number |
 | P0.4 | 🧾 Collect demo data: CA firm | 10–15 docs: GST/ITR services, fees, document checklists, FAQs (write realistic sample content) | 2 | `demos/taxmitra/docs/` |
@@ -190,7 +190,7 @@ flowchart LR
 | P1.7 | 👤 Auth | Supabase Auth / Clerk JWT verification (JWKS), role checks | 2 | `TokenVerifier` adapter |
 | P1.8 | 🏢 Tenant & Bot API + config versions | CRUD `/bots`; `/bots/{id}/config/versions` (save draft), `/publish`, `/rollback`, `/draft`, `/published`; `/model-options` (plan-gated catalog) | 3 | REST endpoints |
 | P1.9 | ✅ CI pipeline | GitHub Actions: ruff, mypy, import-linter, pytest, Studio build, Docker build, gitleaks | 1 | `.github/workflows/ci.yml` |
-| P1.10 | 🚀 First deploy | Railway/Render from `main`, managed Postgres + Redis, env secrets | 0.5 | Public URL |
+| P1.10 | 🚀 First deploy | Hostinger VPS from `main` (ADR-0008): nginx + HTTPS, Docker Compose, Supabase Postgres, secrets in server `.env` | 0.5 | Public URL |
 | P1.11 | 🔑 Public widget lookup | `resolve_bot_public_key()` SECURITY DEFINER function + `/public/v1/widgets/{key}/config` | 0.5 | Public endpoint |
 
 ### 🏁 Exit criteria

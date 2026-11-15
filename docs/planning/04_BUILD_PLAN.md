@@ -47,7 +47,7 @@ gantt
 - [ ] Supabase/Clerk auth; tenant + bot creation API (bot public key)
 - [ ] Typed, versioned bot config API: save draft → publish → rollback; model catalog
 - [ ] GitHub Actions: lint (ruff) + types (mypy) + boundaries + tests (pytest) + Docker build
-- [ ] Deploy a "hello world" to Railway/Render ✅ *(closes your deployment gap early)*
+- [ ] Deploy a "hello world" to the Hostinger VPS (ADR-0008) ✅ *(closes your deployment gap early)*
 
 **🏁 Done when:** `POST /bots` works on a public URL.
 

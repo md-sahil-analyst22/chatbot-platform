@@ -136,6 +136,23 @@ jobs:
       - name: Dependency audit (high and critical)
         run: npm audit --audit-level=high
 
+  scripts:
+    name: scripts (shellcheck VPS setup, validate prod compose)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: shellcheck (catch a broken setup script before it reaches the server)
+        run: shellcheck scripts/vps/*.sh
+      - name: Production compose file is valid
+        env:
+          DATABASE_URL: postgresql+asyncpg://ci:ci@localhost/ci
+          MIGRATION_DATABASE_URL: postgresql+asyncpg://ci:ci@localhost/ci
+          STUDIO_API_BASE_URL: https://api.saathi.example.com
+        run: |
+          touch .env  # the real .env exists only on the server
+          docker compose --env-file .env -f infra/docker-compose.prod.yml config -q
+
   golden-set:
     name: golden-set (validate eval file)
     runs-on: ubuntu-latest

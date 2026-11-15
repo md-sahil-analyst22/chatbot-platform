@@ -256,7 +256,7 @@ flowchart LR
 | Observability | **Langfuse** | Traces, cost per tenant, prompt and config versions, eval datasets |
 | Evaluation | **RAGAS** + custom golden set | Proves quality to clients with numbers |
 | Containers | **Docker + docker-compose** | Same stack on laptop and server (closes your deployment gap) |
-| Hosting | **Railway / Render** (API + worker) + static hosting for Bot Studio (MVP) → **AWS ECS or a Hetzner VPS** (scale) | Cheap to start, upgrade path |
+| Hosting | **Hostinger VPS (Mumbai)**: Docker Compose (API + worker + Redis) behind host nginx with Let's Encrypt; Bot Studio served by the same nginx (ADR-0008) → more VPSs behind a load balancer or a managed container service (scale) | Low, predictable cost and full control; close to users |
 | CI/CD | **GitHub Actions** | Lint → types → boundaries → tests → Studio build → eval → Docker build → deploy |
 | Errors & uptime | **Sentry** + **Better Stack / UptimeRobot** | Know before the client calls you |
 
