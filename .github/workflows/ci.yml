@@ -1,0 +1,162 @@
+# CI pipeline (P1.9, REPO_STRUCTURE 2.2). Every job must pass before merge (R42).
+# Never weaken a step to make a change pass; fix the change instead.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege for every job; jobs ask for more only where they need it.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets-scan:
+    name: secrets-scan (gitleaks, full history)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read # gitleaks lists the PR's commits
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # scan every commit, not just the last one
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  backend:
+    name: backend (format, lint, types, boundaries, migrations, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      # Throwaway database for this job only. Same major version as Supabase (17).
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: saathi_owner
+          POSTGRES_PASSWORD: ci-owner # not a secret: dies with the job
+          POSTGRES_DB: saathi_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U saathi_owner -d saathi_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      RUN_DB_TESTS: "1" # db_fixtures fails loudly if the URLs below are missing
+      TEST_DATABASE_URL: postgresql+asyncpg://saathi_owner:ci-owner@localhost:5432/saathi_test
+      TEST_APP_DATABASE_URL: postgresql+asyncpg://saathi_app:ci-app@localhost:5432/saathi_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install dependencies (exactly as locked)
+        run: uv sync --locked
+
+      - name: Format
+        run: uv run ruff format --check .
+
+      - name: Lint (incl. security S and async ASYNC rules)
+        run: uv run ruff check .
+
+      - name: Strict types
+        run: uv run mypy src
+
+      - name: Module boundaries (R1, R2, R4, R5)
+        run: uv run lint-imports
+
+      - name: Create the least-privilege app role (R24)
+        run: >-
+          psql "postgresql://saathi_owner:ci-owner@localhost:5432/saathi_test"
+          -v ON_ERROR_STOP=1
+          -c "CREATE ROLE saathi_app LOGIN PASSWORD 'ci-app'
+          NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;"
+
+      - name: Migrations apply, roll back and re-apply on real Postgres (R25)
+        env:
+          MIGRATION_DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: |
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+
+      - name: schema.sql matches the migrations (make schema-sql)
+        env:
+          MIGRATION_DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: |
+          tail -n +14 migrations/schema.sql > "$RUNNER_TEMP/committed.sql"
+          uv run alembic upgrade head --sql 2>/dev/null > "$RUNNER_TEMP/generated.sql"
+          diff -u "$RUNNER_TEMP/committed.sql" "$RUNNER_TEMP/generated.sql" \
+            || { echo "::error::schema.sql is stale - run 'make schema-sql' and commit it"; exit 1; }
+
+      - name: Tests (unit, contract, integration, RLS isolation on real Postgres)
+        run: uv run pytest -q -rs
+
+  dashboard:
+    name: dashboard (Bot Studio typecheck, tests, build, audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24" # LTS; Node 20 is end-of-life and vitest 5 needs >= 22.12
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies (exactly as locked)
+        run: npm ci --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Dependency audit (high and critical)
+        run: npm audit --audit-level=high
+
+  golden-set:
+    name: golden-set (validate eval file)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate golden questions
+        run: python3 evals/runners/validate_golden.py evals/golden/golden_v0.jsonl
+
+  docker:
+    name: docker (backend image builds)
+    needs: [backend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend image (not pushed)
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

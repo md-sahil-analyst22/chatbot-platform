@@ -1,6 +1,6 @@
 # Runbook: local setup
 
-1. Install: Docker Desktop, uv, Node 20, pre-commit.
+1. Install: Docker Desktop, uv, Node 24 LTS (20 is end-of-life), pre-commit.
 2. `cp .env.example .env` and fill values: `DATABASE_URL` / `MIGRATION_DATABASE_URL` (Supabase session
    pooler, see ADR-0002; create the `saathi_app` role in the Supabase SQL Editor first), `SUPABASE_*`, keys.
    Offline instead: set `POSTGRES_OWNER_PASSWORD` / `APP_DB_PASSWORD`, point both URLs at the local

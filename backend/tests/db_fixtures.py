@@ -28,7 +28,11 @@ from sqlalchemy.pool import NullPool
 BACKEND = Path(__file__).resolve().parents[1]
 OWNER_URL = os.environ.get("TEST_DATABASE_URL", "")
 APP_URL = os.environ.get("TEST_APP_DATABASE_URL", "")
-ENABLED = os.environ.get("RUN_DB_TESTS") == "1" and bool(OWNER_URL and APP_URL)
+REQUESTED = os.environ.get("RUN_DB_TESTS") == "1"
+if REQUESTED and not (OWNER_URL and APP_URL):
+    # Fail loudly: silently skipping the isolation tests in CI would be a false green.
+    raise RuntimeError("RUN_DB_TESTS=1 needs TEST_DATABASE_URL and TEST_APP_DATABASE_URL")
+ENABLED = REQUESTED
 
 requires_db = pytest.mark.skipif(
     not ENABLED, reason="set RUN_DB_TESTS=1, TEST_DATABASE_URL and TEST_APP_DATABASE_URL"

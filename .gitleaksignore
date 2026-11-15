@@ -1,0 +1,7 @@
+# Reviewed false positives only - one exact finding per line (commit:file:rule:line).
+# Never add a real secret here: rotate it, and remove it from history instead.
+#
+# 2026-11-15: a docs table row in REPO_STRUCTURE 4.7 (Bot Studio screens, P5.9) matched
+# generic-api-key on a keyword plus high-entropy prose. No credential. The row now carries an
+# inline gitleaks:allow marker; this entry covers the original commit in history.
+0a615051e898819338b9d8147b15ab24af0e709b:docs/REPO_STRUCTURE.md:generic-api-key:2012

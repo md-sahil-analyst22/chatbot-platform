@@ -1189,9 +1189,9 @@ flowchart LR
 
 | Job | Catches |
 |---|---|
-| `secrets-scan` | An API key committed anywhere in history |
-| `backend` | Formatting, lint, type errors, broken boundaries, migrations that don't apply, failing tests |
-| `dashboard` | TypeScript errors, failing tests, broken build, high-severity npm vulnerabilities |
+| `secrets-scan` | An API key committed anywhere in history. Reviewed false positives go in `.gitleaksignore`, one exact finding per line; never a real secret |
+| `backend` | Formatting, lint, type errors, broken boundaries, migrations that don't apply **or don't roll back**, a stale `schema.sql`, failing tests. Runs the RLS isolation and SQL contract tests on a throwaway Postgres 17 + pgvector, as `saathi_app` (`RUN_DB_TESTS=1` fails loudly if the database isn't configured) |
+| `dashboard` | TypeScript errors, failing tests, broken build, high-severity npm vulnerabilities (Node 24 LTS) |
 | `golden-set` | Malformed golden questions |
 | `docker` | A Dockerfile that no longer builds |
 
@@ -1975,7 +1975,7 @@ Saved configs keep working because they store the catalog key, not the vendor id
 | P0.3 WhatsApp test number | `WHATSAPP_*`, then `make check-keys ARGS=--send-whatsapp` |
 | P0.4 / P0.5 demo documents | `demos/*/docs/` (checklists in each demo README) |
 | P0.6 golden questions | `evals/golden/golden_v0.jsonl`, then `make validate-golden` |
-| P0.7 local tools | `pre-commit install`, `uv sync`, Node 20 for `make studio` |
+| P0.7 local tools | `pre-commit install`, `uv sync`, Node 24 LTS for `make studio` |
 | P0.8 decisions | `docs/adr/0001`, `0002`, `0003`, `0005` |
 
 ## 4.5 Plan-document paths mapped to this repo
@@ -2016,7 +2016,7 @@ Saved configs keep working because they store the catalog key, not the vendor id
 | Chat endpoint and playground on drafts | P3.8, P5.17 |
 | Logo upload endpoint (Supabase Storage adapter exists, not yet wired to a route) | P4.13 |
 | Widget loading branding | P4.5 |
-| Studio auth SDK, knowledge/conversations/inbox screens | P5.9–P5.13 |
+| Studio auth SDK, knowledge/conversations/inbox screens | P5.9–P5.13 | <!-- gitleaks:allow (prose, not a credential) -->
 | Own API keys: endpoints, vault wiring, Studio screen | Phase 8.1 |
 | Version pins (uv image, n8n image, pre-commit hooks) | Before production |
 
@@ -2028,9 +2028,9 @@ These are deliberate, tracked differences. Per R44 they're listed here instead o
 |---|---|---|---|
 | Gemini embeddings use one task type for documents and questions | `Embedder.embed()` has no document/query distinction, so no `taskType` is sent | Slightly lower retrieval quality than `RETRIEVAL_DOCUMENT` / `RETRIEVAL_QUERY` | Decide with the golden set in Phase 2; if it helps, add the distinction to the port (all adapters + contract) |
 | Supabase transaction pooler | The engine uses asyncpg prepared statements | Port 6543 fails at runtime | Use the session pooler (5432) or direct connection (ADR-0002) |
-| Every repository passes its contract suite with the real adapter (R35) | `SqlAlchemyBotRepository` and `SqlAlchemyBotConfigRepository` pass their suites on real Postgres (`tests/contracts/test_sql_repositories.py`) | Runs only when a test database is configured (`make test-db`) | Run it in CI with a Postgres service (P1.9) |
-| Tenant isolation proven on real Postgres | `tests/security/test_tenant_isolation.py` proves read/write/update/delete isolation, fail-closed without a tenant, composite FKs, 404 through the API, and a concurrent-publish race, as `saathi_app` | Skipped unless `RUN_DB_TESTS=1` and a test database are set | Run it in CI with a Postgres service (P1.9); Phase 1 exit criterion |
 | `updated_at` changes on every update | Bumped by the ORM (`onupdate`), not by a trigger | Raw SQL updates leave it stale | Add a trigger if raw-SQL updates appear |
-| Postgres version | Supabase runs 17; local Docker image and plan say 16 | Small risk of version-specific behaviour | Move the local image to `pgvector/pgvector:pg17` |
+| Postgres version | Supabase and CI run 17; the local Docker image and plan say 16 | Small risk of version-specific behaviour locally | Move the local image to `pgvector/pgvector:pg17` |
+| Pre-commit hooks (R42, 2.1) | `.pre-commit-config.yaml` doesn't exist yet; gitleaks and ruff run only in CI | Secrets are caught at push, not before commit | Add the pre-commit config (gitleaks, ruff, file checks) |
+| Supply-chain pinning | CI actions are pinned to major tags (`@v4`), the Dockerfile copies `uv:latest` | A compromised tag could change what runs | Pin actions to commit SHAs and the uv image to a digest before production (Dependabot keeps them current) |
 | Bot deletion is audited | `DELETE /bots/{id}` removes the bot and everything under it (FK cascade) without an `audit_logs` row; files in object storage aren't cleaned up yet | No record of who deleted what; orphaned logo files | Add an audit-log port + writes for destructive actions, and storage cleanup with P4.13 |
 
