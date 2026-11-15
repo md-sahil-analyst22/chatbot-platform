@@ -116,7 +116,9 @@ class TestSarvamTextToSpeech(TextToSpeechContract):
             return httpx.Response(200, json={"audios": [base64.b64encode(b"RIFF....").decode()]})
 
         http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-        return SarvamTextToSpeech(http, api_key="k", default_speaker="simran_hi_conversation", max_chars=50)
+        return SarvamTextToSpeech(
+            http, api_key="k", default_speaker="simran_hi_conversation", max_chars=50
+        )
 
     async def test_uses_default_speaker_and_language(self) -> None:
         await self.make().synthesize("namaskar", language="hi-IN")

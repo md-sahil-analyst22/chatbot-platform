@@ -1,0 +1,120 @@
+"""SQLAlchemy tables for the knowledge module (sources, chunks, FAQs). Created by migration 0002.
+
+Embedding size is fixed platform-wide (R13): gemini-embedding-2 shortened to 1,536 dimensions.
+"""
+
+import uuid
+from datetime import datetime
+from typing import Any
+
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import (
+    CheckConstraint,
+    Computed,
+    ForeignKeyConstraint,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
+from sqlalchemy.orm import Mapped, mapped_column
+
+from saathi.platform.db.base import Base, created_at, tenant_fk, updated_at, uuid_pk
+
+EMBEDDING_DIMENSIONS = 1536
+
+
+class SourceRow(Base):
+    """A document or URL a bot learns from. Lifecycle: queued -> processing -> ready | failed."""
+
+    __tablename__ = "sources"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "bot_id"], ["bots.tenant_id", "bots.id"], ondelete="CASCADE"
+        ),
+        UniqueConstraint("tenant_id", "id", name="uq_sources_tenant_id_id"),  # composite FK target
+        UniqueConstraint("tenant_id", "bot_id", "uri", name="uq_sources_tenant_bot_uri"),
+        CheckConstraint("kind IN ('file', 'url')", name="kind"),
+        CheckConstraint("status IN ('queued', 'processing', 'ready', 'failed')", name="status"),
+        # serves: list a bot's sources, newest first
+        Index("ix_sources_tenant_bot_created", "tenant_id", "bot_id", text("created_at DESC")),
+    )
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = tenant_fk()
+    bot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    kind: Mapped[str] = mapped_column(String(10))
+    uri: Mapped[str] = mapped_column(String(2000))  # storage key or https URL
+    title: Mapped[str | None] = mapped_column(String(300))
+    status: Mapped[str] = mapped_column(String(20), server_default="queued")
+    content_hash: Mapped[str | None] = mapped_column(String(64))  # sha256: skip unchanged files
+    error: Mapped[str | None] = mapped_column(String(500))  # safe summary, never a stack trace
+    synced_at: Mapped[datetime | None]
+    created_at: Mapped[datetime] = created_at()
+    updated_at: Mapped[datetime] = updated_at()
+
+
+class ChunkRow(Base):
+    """A searchable passage: vector (semantic) + tsvector (keyword) for hybrid retrieval."""
+
+    __tablename__ = "chunks"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "source_id"], ["sources.tenant_id", "sources.id"], ondelete="CASCADE"
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "bot_id"], ["bots.tenant_id", "bots.id"], ondelete="CASCADE"
+        ),
+        # re-ingesting a source replaces its chunks by position (idempotent, R33)
+        UniqueConstraint("source_id", "chunk_index", name="uq_chunks_source_index"),
+        CheckConstraint("chunk_index >= 0", name="chunk_index"),
+        # serves: semantic search (cosine distance)
+        Index(
+            "ix_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+        # serves: keyword search half of hybrid retrieval
+        Index("ix_chunks_tsv", "tsv", postgresql_using="gin"),
+        # serves: restrict retrieval to one bot's chunks
+        Index("ix_chunks_tenant_bot", "tenant_id", "bot_id"),
+    )
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = tenant_fk()
+    bot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    source_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    chunk_index: Mapped[int]
+    content: Mapped[str] = mapped_column(Text)
+    embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIMENSIONS))
+    # 'simple' config: no language-specific stemming, so Bengali/Hindi/English all work.
+    tsv: Mapped[str] = mapped_column(
+        TSVECTOR, Computed("to_tsvector('simple', content)", persisted=True)
+    )
+    metadata_: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSONB, server_default=text("'{}'::jsonb")
+    )
+    created_at: Mapped[datetime] = created_at()
+
+
+class FaqRow(Base):
+    __tablename__ = "faqs"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "bot_id"], ["bots.tenant_id", "bots.id"], ondelete="CASCADE"
+        ),
+        # serves: list / match a bot's FAQs
+        Index("ix_faqs_tenant_bot", "tenant_id", "bot_id"),
+    )
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = tenant_fk()
+    bot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    question: Mapped[str] = mapped_column(String(1000))
+    answer: Mapped[str] = mapped_column(String(4000))
+    is_active: Mapped[bool] = mapped_column(server_default=text("true"))
+    created_at: Mapped[datetime] = created_at()
+    updated_at: Mapped[datetime] = updated_at()

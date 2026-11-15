@@ -1,10 +1,21 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from saathi.modules.tenancy.adapters.orm import BotRow, TenantRow
 from saathi.modules.tenancy.domain.entities import Bot
+from saathi.platform.db.errors import violated_constraint
+from saathi.platform.errors import ConflictError, NotFoundError
+
+_DUPLICATE_NAME = "uq_bots_tenant_name"
+
+
+def _conflict_or_raise(exc: IntegrityError) -> None:
+    if violated_constraint(exc) == _DUPLICATE_NAME:
+        raise ConflictError("a bot with this name already exists") from exc
+    raise exc
 
 
 class SqlAlchemyBotRepository:
@@ -25,7 +36,33 @@ class SqlAlchemyBotRepository:
                 settings=dict(bot.settings),
             )
         )
-        await self._session.flush()
+        try:
+            await self._session.flush()
+        except IntegrityError as exc:
+            _conflict_or_raise(exc)
+
+    async def update(self, bot: Bot) -> None:
+        try:
+            result = await self._session.execute(
+                update(BotRow)
+                .where(BotRow.id == bot.id, BotRow.tenant_id == bot.tenant_id)
+                .values(
+                    name=bot.name,
+                    persona=bot.persona,
+                    languages=list(bot.languages),
+                    settings=dict(bot.settings),
+                )
+            )
+        except IntegrityError as exc:
+            _conflict_or_raise(exc)
+        if result.rowcount == 0:  # type: ignore[attr-defined]  # CursorResult for UPDATE
+            raise NotFoundError("bot not found")
+
+    async def delete(self, tenant_id: UUID, bot_id: UUID) -> bool:
+        result = await self._session.execute(
+            delete(BotRow).where(BotRow.id == bot_id, BotRow.tenant_id == tenant_id)
+        )
+        return bool(result.rowcount)  # type: ignore[attr-defined]  # CursorResult for DELETE
 
     async def get(self, tenant_id: UUID, bot_id: UUID) -> Bot | None:
         row = await self._session.scalar(

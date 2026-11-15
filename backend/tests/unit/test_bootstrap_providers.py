@@ -32,9 +32,7 @@ def test_all_adapters_are_registered() -> None:
     assert "supabase" in object_store_registry.available()
 
 
-def test_platform_defaults_follow_adr_0006(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_platform_defaults_follow_adr_0006(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)  # ignore any developer .env
     for var in ("EMBEDDING_PROVIDER", "STT_PROVIDER", "TTS_PROVIDER", "STORAGE_PROVIDER"):
         monkeypatch.delenv(var, raising=False)

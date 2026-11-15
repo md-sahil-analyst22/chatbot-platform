@@ -1,15 +1,16 @@
 """Tenant context for Postgres Row-Level Security.
 
-Every tenant-owned table gets a policy like (created in the Phase 1 migration, P1.6):
+Every tenant-owned table has a policy like this (migration 0002):
 
     ALTER TABLE bots ENABLE ROW LEVEL SECURITY;
     ALTER TABLE bots FORCE ROW LEVEL SECURITY;
     CREATE POLICY tenant_isolation ON bots
-        USING      (tenant_id = current_setting('app.tenant_id', true)::uuid)
-        WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+        USING      (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid)
+        WITH CHECK (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid);
 
-If app.tenant_id is not set, current_setting(..., true) returns NULL and the policy matches
-no rows -> fail closed.
+If app.tenant_id is not set, current_setting(..., true) returns NULL (or '' on a pooled
+connection that used it earlier); nullif() makes both NULL, so the policy matches no rows ->
+fail closed.
 """
 
 from collections.abc import AsyncIterator

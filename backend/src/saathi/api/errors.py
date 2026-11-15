@@ -78,9 +78,7 @@ def register_error_handlers(app: FastAPI) -> None:
         return JSONResponse(status_code=status, content=_body(request, exc.code, message))
 
     @app.exception_handler(StarletteHTTPException)
-    async def handle_http_exception(
-        request: Request, exc: StarletteHTTPException
-    ) -> JSONResponse:
+    async def handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         code, message = _HTTP_CODES.get(exc.status_code, ("http_error", "Request failed."))
         if exc.status_code >= 500:
             code, message = "internal_error", "An internal error occurred."

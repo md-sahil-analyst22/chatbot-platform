@@ -1,6 +1,7 @@
 """Alembic environment (async). URL from MIGRATION_DATABASE_URL (schema-owner role)."""
 
 import asyncio
+import importlib
 import os
 from logging.config import fileConfig
 
@@ -9,8 +10,20 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-import saathi.modules.tenancy.adapters.orm  # noqa: F401  (register tables on Base.metadata)
 from saathi.platform.db.base import Base
+
+# Register every module's tables on Base.metadata (add a module here when it gets tables).
+MODULES_WITH_TABLES = (
+    "analytics",
+    "conversation",
+    "credentials",
+    "handoff",
+    "knowledge",
+    "leads",
+    "tenancy",
+)
+for _module in MODULES_WITH_TABLES:
+    importlib.import_module(f"saathi.modules.{_module}.adapters.orm")
 
 config = context.config
 if config.config_file_name is not None:

@@ -5,10 +5,12 @@ needed (the real ones are exercised by `make up` + /ready).
 """
 
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 
 import httpx
 import pytest
+import structlog
 from fastapi import FastAPI
 from structlog.testing import capture_logs
 
@@ -131,6 +133,12 @@ async def test_access_log_has_status_and_duration_but_no_query_string(
 
 
 async def test_probes_are_logged_at_debug(client: httpx.AsyncClient) -> None:
-    with capture_logs() as logs:
-        await client.get("/health")
+    # The app filters below INFO before any processor runs; let debug through for this test.
+    previous = structlog.get_config()
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG))
+    try:
+        with capture_logs() as logs:
+            await client.get("/health")
+    finally:
+        structlog.configure(**previous)
     assert [e["log_level"] for e in logs if e["event"] == "http.request"] == ["debug"]

@@ -7,3 +7,5 @@ with `httpx.MockTransport`) and fake - subclasses it.
 
 New vendor? Add `class TestMyVendorX(XContract)` with a `make()` method. If it passes, it is
 safe to swap in by config.
+
+Repository contracts also run against the real SQL adapters on Postgres (`test_sql_repositories.py`, `make test-db`).

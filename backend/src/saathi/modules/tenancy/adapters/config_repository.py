@@ -3,11 +3,26 @@
 from uuid import UUID
 
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from saathi.modules.tenancy.adapters.config_mapper import config_from_json, config_to_json
 from saathi.modules.tenancy.adapters.orm import BotConfigVersionRow
 from saathi.modules.tenancy.domain.bot_config import BotConfigVersion, ConfigStatus
+from saathi.platform.db.errors import violated_constraint
+from saathi.platform.errors import ConflictError
+
+_CONFLICTS = {
+    "uq_bot_config_versions_bot_version": "the configuration was saved concurrently; try again",
+    "uq_bot_config_versions_one_published": "another publish is in progress; try again",
+}
+
+
+def _conflict_or_raise(exc: IntegrityError) -> None:
+    message = _CONFLICTS.get(violated_constraint(exc) or "")
+    if message:
+        raise ConflictError(message) from exc
+    raise exc
 
 
 def _to_domain(row: BotConfigVersionRow) -> BotConfigVersion:
@@ -54,18 +69,24 @@ class SqlAlchemyBotConfigRepository:
                 created_at=version.created_at,
             )
         )
-        await self._session.flush()
+        try:
+            await self._session.flush()
+        except IntegrityError as exc:
+            _conflict_or_raise(exc)
 
     async def update_status(self, version: BotConfigVersion) -> None:
-        await self._session.execute(
-            update(BotConfigVersionRow)
-            .where(
-                BotConfigVersionRow.id == version.id,
-                BotConfigVersionRow.tenant_id == version.tenant_id,
+        # The partial unique index fires on the UPDATE itself (concurrent publish).
+        try:
+            await self._session.execute(
+                update(BotConfigVersionRow)
+                .where(
+                    BotConfigVersionRow.id == version.id,
+                    BotConfigVersionRow.tenant_id == version.tenant_id,
+                )
+                .values(status=version.status.value)
             )
-            .values(status=version.status.value)
-        )
-        await self._session.flush()
+        except IntegrityError as exc:
+            _conflict_or_raise(exc)
 
     async def get(self, tenant_id: UUID, bot_id: UUID, version: int) -> BotConfigVersion | None:
         row = await self._session.scalar(

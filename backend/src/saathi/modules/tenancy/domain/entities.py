@@ -56,3 +56,9 @@ class Bot:
 
     def with_languages(self, languages: tuple[str, ...]) -> "Bot":
         return replace(self, languages=languages)
+
+    def with_persona(self, persona: str) -> "Bot":
+        return replace(self, persona=persona)
+
+    def with_settings(self, settings: Mapping[str, Any]) -> "Bot":
+        return replace(self, settings=settings)

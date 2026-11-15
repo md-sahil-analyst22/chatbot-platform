@@ -4,6 +4,7 @@ from saathi.modules.credentials.domain.credential import CredentialStatus, Provi
 from saathi.modules.tenancy.domain.bot_config import BotConfigVersion, ConfigStatus
 from saathi.modules.tenancy.domain.entities import Bot
 from saathi.modules.tenancy.ports.repositories import PublicBotRef
+from saathi.platform.errors import ConflictError, NotFoundError
 
 
 class InMemoryBotRepository:
@@ -12,8 +13,29 @@ class InMemoryBotRepository:
     def __init__(self) -> None:
         self.rows: dict[UUID, Bot] = {}
 
+    def _name_taken(self, bot: Bot) -> bool:
+        return any(
+            b.tenant_id == bot.tenant_id and b.name == bot.name and b.id != bot.id
+            for b in self.rows.values()
+        )
+
     async def add(self, bot: Bot) -> None:
+        if self._name_taken(bot):
+            raise ConflictError("a bot with this name already exists")
         self.rows[bot.id] = bot
+
+    async def update(self, bot: Bot) -> None:
+        if await self.get(bot.tenant_id, bot.id) is None:
+            raise NotFoundError("bot not found")
+        if self._name_taken(bot):
+            raise ConflictError("a bot with this name already exists")
+        self.rows[bot.id] = bot
+
+    async def delete(self, tenant_id: UUID, bot_id: UUID) -> bool:
+        if await self.get(tenant_id, bot_id) is None:
+            return False
+        del self.rows[bot_id]
+        return True
 
     async def get(self, tenant_id: UUID, bot_id: UUID) -> Bot | None:
         bot = self.rows.get(bot_id)
@@ -46,13 +68,16 @@ class InMemoryBotConfigRepository:
         return versions[-1].version + 1 if versions else 1
 
     async def add(self, version: BotConfigVersion) -> None:
+        if any(v.version == version.version for v in self._of(version.tenant_id, version.bot_id)):
+            raise ConflictError("the configuration was saved concurrently; try again")
         self.rows[version.id] = version
 
     async def update_status(self, version: BotConfigVersion) -> None:
         if version.status is ConfigStatus.PUBLISHED:
             others = self._of(version.tenant_id, version.bot_id)
             if any(v.status is ConfigStatus.PUBLISHED and v.id != version.id for v in others):
-                raise AssertionError("two published versions (DB partial unique index would fail)")
+                # Same outcome as the partial unique index in Postgres.
+                raise ConflictError("another publish is in progress; try again")
         self.rows[version.id] = version
 
     async def get(self, tenant_id: UUID, bot_id: UUID, version: int) -> BotConfigVersion | None:

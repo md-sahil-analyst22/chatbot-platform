@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Language = Literal["en", "hi", "bn"]
 PUBLIC_KEY_REGEX = r"^pk_[A-Za-z0-9_-]{16,64}$"
@@ -17,6 +17,24 @@ class BotCreate(_Strict):
     persona: str = Field(default="", max_length=2000)
     languages: list[Language] = Field(min_length=1, max_length=3)
     settings: dict[str, Any] = Field(default_factory=dict)
+
+
+class BotUpdate(_Strict):
+    """PATCH body: send only the fields to change."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    persona: str | None = Field(default=None, max_length=2000)
+    languages: list[Language] | None = Field(default=None, min_length=1, max_length=3)
+    settings: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def _not_empty(self) -> "BotUpdate":
+        if not self.model_fields_set:
+            raise ValueError("send at least one field to change")
+        for name in self.model_fields_set:
+            if getattr(self, name) is None:
+                raise ValueError(f"{name} cannot be null")
+        return self
 
 
 class BotOut(BaseModel):
