@@ -4,7 +4,7 @@
 |---|---|---|
 | `check_keys.py` | Phase 0 exit check: one cheap call per provider | `make check-keys` |
 | `check_keys.py --send-whatsapp` | Sends the `hello_world` template to `WHATSAPP_TEST_RECIPIENT` | `make check-keys ARGS=--send-whatsapp` |
-| `vps/setup.sh` | Once, on a fresh Ubuntu 24.04 VPS, as root | `sudo bash setup.sh yourdomain.com you@example.com` (see `docs/runbooks/vps-deploy.md`) |
+| `vps/setup.sh` | Once, on a fresh Ubuntu 24.04 VPS, as root | `sudo bash setup.sh saathi.yourdomain.com you@example.com` (see `docs/runbooks/vps-deploy.md`) |
 | `vps/deploy.sh` | Every release (CI calls it automatically) | on the server: `./scripts/vps/deploy.sh <sha>\|main` |
 
 Rules: scripts never print secret values; they read `.env` from the repo root.

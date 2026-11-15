@@ -3,8 +3,8 @@
 Takes about **1 hour** the first time. After that, every merge to `main` deploys itself.
 
 **What you'll end up with**
-- `https://api.yourdomain.com`: the API (HTTPS, behind nginx)
-- `https://app.yourdomain.com`: Bot Studio
+- `https://api.saathi.yourdomain.com`: the API (HTTPS, behind nginx)
+- `https://app.saathi.yourdomain.com`: Bot Studio
 - A hardened server: firewall, SSH keys only, automatic security updates
 - Automatic deploys from GitHub after CI passes
 
@@ -15,11 +15,13 @@ Takes about **1 hour** the first time. After that, every merge to `main` deploys
 | VPS | Your own small Linux server in a data centre |
 | SSH | A secure way to type commands on that server from your Mac's terminal |
 | SSH key | A pair of files that replaces a password: the *private* key stays on your Mac, the *public* key goes on the server |
-| DNS | The internet's phone book: it maps `api.yourdomain.com` to your server's IP address |
+| DNS | The internet's phone book: it maps `api.saathi.yourdomain.com` to your server's IP address |
 | nginx | The front door on the server: handles HTTPS and forwards requests to the app |
 
-Throughout this guide, replace **`yourdomain.com`** with your real domain and **`SERVER_IP`** with
-your VPS's IP address.
+**Your project's base address.** This guide uses **`saathi.yourdomain.com`**: a sub-domain just for
+this project, so the same domain can host other projects too. Replace it everywhere with your own
+(for example `saathi.mydomain.in`), and replace **`SERVER_IP`** with your VPS's IP address. The
+scripts put `api.` and `app.` in front of whatever base address you give them.
 
 ---
 
@@ -61,15 +63,17 @@ In hPanel → **Domains** → your domain → **DNS / Nameservers** → DNS reco
 
 | Type | Name | Points to | TTL |
 |---|---|---|---|
-| A | `api` | `SERVER_IP` | 300 (or default) |
-| A | `app` | `SERVER_IP` | 300 (or default) |
+| A | `api.saathi` | `SERVER_IP` | 300 (or default) |
+| A | `app.saathi` | `SERVER_IP` | 300 (or default) |
 
-If your domain is at another registrar, add the same two records there.
+The **Name** is everything before your domain: for `api.saathi.yourdomain.com` it's `api.saathi`.
+Some DNS panels want the full name instead, which is also fine. Your other projects' records are
+unaffected. If your domain is at another registrar, add the same two records there.
 DNS takes **5–30 minutes** (sometimes longer). Check from your Mac:
 
 ```bash
-dig +short api.yourdomain.com
-dig +short app.yourdomain.com
+dig +short api.saathi.yourdomain.com
+dig +short app.saathi.yourdomain.com
 ```
 
 ✅ Both print `SERVER_IP`. You can keep going while you wait; step 5 tells you if DNS isn't ready.
@@ -91,8 +95,10 @@ them. Still logged in as root:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/md-sahil-analyst22/chatbot-platform/main/scripts/vps/setup.sh -o setup.sh
 less setup.sh                                   # optional: read what it will do (press q to exit)
-sudo bash setup.sh yourdomain.com you@example.com
+sudo bash setup.sh saathi.yourdomain.com you@example.com
 ```
+
+Give the **base address** (`saathi.yourdomain.com`), not `api.` or `app.`: the script adds those.
 
 The email gets Let's Encrypt notices if a certificate ever fails to renew.
 
@@ -105,7 +111,7 @@ three values: copy them somewhere safe for step 8:**
 | What you see | Meaning |
 |---|---|
 | `password and root logins disabled` | ✅ From now on log in with `ssh deploy@SERVER_IP` (root login is off) |
-| `Skipped HTTPS` | DNS isn't ready yet. Wait, then run `sudo bash setup.sh yourdomain.com you@example.com` again: it's safe to repeat |
+| `Skipped HTTPS` | DNS isn't ready yet. Wait, then run `sudo bash setup.sh saathi.yourdomain.com you@example.com` again: it's safe to repeat |
 | `no SSH key found for deploy` | Your SSH key wasn't added in step 2. Add it to `/home/deploy/.ssh/authorized_keys` and re-run |
 
 Type `exit` to leave the server.
@@ -130,8 +136,8 @@ In `nano`, change these lines (move with the arrow keys, save with **Ctrl+O, Ent
 
 ```bash
 ENV=production
-CORS_ALLOWED_ORIGINS='["https://app.yourdomain.com"]'
-STUDIO_API_BASE_URL=https://api.yourdomain.com
+CORS_ALLOWED_ORIGINS='["https://app.saathi.yourdomain.com"]'
+STUDIO_API_BASE_URL=https://api.saathi.yourdomain.com
 ```
 
 Check that these are already set from your local `.env` (they are, if local works):
@@ -156,10 +162,10 @@ Check it from **your Mac's browser**:
 
 | Open | Expect |
 |---|---|
-| `https://api.yourdomain.com/health` | `{"status":"ok"}` and a padlock icon |
-| `https://app.yourdomain.com` | Saathi Studio ("missing bearer token" is expected until the Studio login exists, P5.9) |
-| `https://api.yourdomain.com/docs` | `Not found`: correct, docs are off in production |
-| `http://api.yourdomain.com/health` | Redirects to `https://` |
+| `https://api.saathi.yourdomain.com/health` | `{"status":"ok"}` and a padlock icon |
+| `https://app.saathi.yourdomain.com` | Saathi Studio ("missing bearer token" is expected until the Studio login exists, P5.9) |
+| `https://api.saathi.yourdomain.com/docs` | `Not found`: correct, docs are off in production |
+| `http://api.saathi.yourdomain.com/health` | Redirects to `https://` |
 
 ## Step 8: Turn on automatic deploys (5 min)
 
@@ -214,7 +220,18 @@ in your password manager. Hostinger snapshots (hPanel) are a useful extra.
 | Bot Studio shows network errors | `STUDIO_API_BASE_URL` or `CORS_ALLOWED_ORIGINS` don't match your domains exactly (https, no trailing `/`) |
 | GitHub Deploy says "skipped" | The three secrets from step 8 aren't set |
 
+## Sharing one VPS with other projects
+
+This setup assumes the VPS runs **only Saathi**. Before adding another project to the same server, check:
+- **Port 8000** is used by Saathi's API (on `127.0.0.1`), so give the other app a different port.
+- The Docker network `172.30.0.0/24` belongs to Saathi; use another subnet for other Compose projects.
+- `setup.sh` removes nginx's *default* site. Add other projects as their **own** files in
+  `/etc/nginx/sites-available/` (never edit `saathi.conf`, which `setup.sh` overwrites).
+- Each project gets its own Let's Encrypt certificate: `sudo certbot --nginx -d other.yourdomain.com`.
+
+Projects on **other** servers need nothing special: just their own DNS records.
+
 ## Recommended soon
 - Move the Supabase project to **Mumbai** (`ap-south-1`), next to the server. Today every database
   round trip goes to Singapore and back.
-- Add an uptime monitor (UptimeRobot / Better Stack) on `https://api.yourdomain.com/health`.
+- Add an uptime monitor (UptimeRobot / Better Stack) on `https://api.saathi.yourdomain.com/health`.

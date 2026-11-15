@@ -3,7 +3,10 @@
 #
 # Run as root on the server:
 #   curl -fsSL https://raw.githubusercontent.com/md-sahil-analyst22/chatbot-platform/main/scripts/vps/setup.sh -o setup.sh
-#   sudo bash setup.sh yourdomain.com you@example.com
+#   sudo bash setup.sh saathi.yourdomain.com you@example.com
+#
+# The first argument is the project's BASE address; the script serves api.<base> and app.<base>
+# (e.g. api.saathi.yourdomain.com), so one domain can host several projects.
 #
 # What it does: system updates, firewall (22/80/443 only), fail2ban, automatic security updates,
 # swap, Docker, nginx + certbot, a non-root "deploy" user (SSH keys only), the repo checkout,
@@ -24,7 +27,9 @@ die()  { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 [[ $EUID -eq 0 ]] || die "run as root: sudo bash setup.sh <domain> <email>"
 [[ "$DOMAIN" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]] \
-  || die "usage: sudo bash setup.sh yourdomain.com you@example.com   (domain in lowercase, no https://)"
+  || die "usage: sudo bash setup.sh saathi.yourdomain.com you@example.com   (base address, lowercase, no https://, no api./app.)"
+[[ "$DOMAIN" != api.* && "$DOMAIN" != app.* ]] \
+  || die "give the BASE address (e.g. saathi.yourdomain.com); the script adds api. and app. itself"
 [[ "$EMAIL" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]] \
   || die "give an email for Let's Encrypt expiry notices as the 2nd argument"
 # shellcheck source=/dev/null  # system file, exists on the server only

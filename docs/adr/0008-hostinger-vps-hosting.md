@@ -15,8 +15,10 @@ with nginx as reverse proxy and a custom domain.
 - **One VPS** runs everything except the database:
   - `docker compose -f infra/docker-compose.prod.yml` starts the API, the worker and Redis;
   - **host nginx** terminates TLS (Let's Encrypt via certbot);
-  - nginx proxies `api.<domain>` to the API on `127.0.0.1:8000`;
-  - nginx serves the built Bot Studio at `app.<domain>`.
+  - nginx proxies `api.<base>` to the API on `127.0.0.1:8000`;
+  - nginx serves the built Bot Studio at `app.<base>`.
+  - `<base>` is a project sub-domain such as `saathi.yourdomain.com`, so the same domain can host
+    other projects (`api.saathi.yourdomain.com`, `app.saathi.yourdomain.com`).
 - **Postgres, Auth and Storage** stay on **Supabase** (ADR-0002).
 - **Deploys:** after CI passes on `main`, GitHub Actions SSHes in as a non-root `deploy` user and
   runs `scripts/vps/deploy.sh <commit>`. That script:
