@@ -1224,13 +1224,12 @@ docs/
 scripts/
 ├── check_keys.py   checks every platform API key with one cheap call each (PASS / FAIL / SKIP)
 ├── vps/setup.sh    one-time hardening + install of a fresh Ubuntu 24.04 VPS (ADR-0008)
-├── vps/deploy.sh   build -> migrate -> restart -> health check -> publish Bot Studio (run by CI or by hand)
 └── README.md
 ```
 
 `check_keys.py` never prints secret values. `--send-whatsapp` sends a test message to your phone. Together they cover two Phase 0 exit criteria.
 
-**Rules here:** R17. Scripts may read `.env`, but must never print or log secrets. The VPS scripts are checked by `shellcheck` in CI, and `deploy.sh` accepts only a commit SHA or `main` as input.
+**Rules here:** R17. Scripts may read `.env`, but must never print or log secrets. The VPS script is checked by `shellcheck` in CI. Releases are manual (`saathi down` → `git pull` → `saathi up -d --build`, ADR-0008).
 
 ## 2.5 `infra/`, how the system runs
 

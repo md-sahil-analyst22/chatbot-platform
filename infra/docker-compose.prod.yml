@@ -1,8 +1,14 @@
 # =============================================================================
 # Saathi AI - PRODUCTION stack on the VPS (P1.10, ADR-0008)
 #
-# Run on the server by scripts/vps/deploy.sh (never by hand unless you know why):
-#   docker compose --env-file .env -f infra/docker-compose.prod.yml ...
+# Released BY HAND on the server (docs/runbooks/vps-deploy.md), from ~/chatbot-platform:
+#   1. docker compose --env-file .env -f infra/docker-compose.prod.yml down      (optional, see runbook)
+#   2. git pull
+#   3. docker compose --env-file .env -f infra/docker-compose.prod.yml up -d --build
+#
+# Step 3 does the whole release, in this order:
+#   build images -> migrate (one-shot; API/worker start only if it succeeds) -> redis, api, worker
+#   -> studio (one-shot: builds Bot Studio and publishes it to the folder nginx serves)
 #
 # Differences from docker-compose.yml (local dev):
 #   - runs the built image: no mounted source, no --reload, no dev tools
@@ -37,6 +43,8 @@ x-backend: &backend
     POSTGRES_OWNER_PASSWORD: ""
   depends_on:
     redis: { condition: service_healthy }
+    # New code never runs against an old schema: start only after migrations succeed (R25).
+    migrate: { condition: service_completed_successfully }
   restart: unless-stopped
   logging: *default-logging
   networks: [internal]
@@ -69,8 +77,7 @@ services:
 
   api:
     <<: *backend
-    build:
-      context: ../backend
+    # Image saathi-backend:prod is built once, by the migrate service below.
     # The image CMD runs uvicorn with --proxy-headers. Trust X-Forwarded-* ONLY from the Docker
     # gateway, which is where host nginx's connections appear from (fixed subnet below).
     environment:
@@ -90,11 +97,13 @@ services:
       start_period: 20s
     stop_grace_period: 120s # let running jobs finish (they are idempotent, R33)
 
-  # One-shot migration job (R25), run by deploy.sh BEFORE the new API starts.
+  # One-shot migration job (R25): runs on every `up`, before the API and worker start.
+  # `alembic upgrade head` is a no-op when the schema is already current.
   migrate:
     <<: *hardening
-    profiles: ["tools"]
     image: saathi-backend:prod
+    build:
+      context: ../backend
     env_file: ../.env
     environment:
       MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?set MIGRATION_DATABASE_URL in .env}
@@ -104,6 +113,23 @@ services:
     restart: "no"
     logging: *default-logging
     networks: [internal]
+
+  # One-shot: builds Bot Studio against the public API address and copies it into the folder
+  # host nginx serves for app.<base>. Exits when done; nginx keeps serving the files.
+  studio:
+    build:
+      context: ../dashboard
+      args:
+        VITE_API_BASE_URL: ${STUDIO_API_BASE_URL:?set STUDIO_API_BASE_URL in .env, e.g. https://api.saathi.yourdomain.com}
+    image: saathi-studio:prod
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    cap_add: [DAC_OVERRIDE] # write into the deploy user's web folder; nothing else
+    volumes:
+      - ${STUDIO_WEB_ROOT:-/var/www/saathi-studio}:/out
+    network_mode: none # copies files only; needs no network at all
+    restart: "no"
+    logging: *default-logging
 
 networks:
   internal:

@@ -10,8 +10,8 @@
 #
 # What it does: system updates, firewall (22/80/443 only), fail2ban, automatic security updates,
 # swap, Docker, nginx + certbot, a non-root "deploy" user (SSH keys only), the repo checkout,
-# the nginx site, HTTPS (once DNS points here) and a GitHub Actions deploy key that can ONLY run
-# the deploy script. It never deletes data and can be run again at any time.
+# the nginx site and HTTPS (once DNS points here). Releases are done by hand (runbook step 7);
+# no CI system gets access to the server. It never deletes data and can be run again at any time.
 set -euo pipefail
 
 DOMAIN="${1:-}"
@@ -39,17 +39,17 @@ die()  { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 export DEBIAN_FRONTEND=noninteractive
 
-say "1/11 System updates and base packages"
+say "1/10 System updates and base packages"
 apt-get update -q
 apt-get -y -q upgrade
 apt-get -y -q install ca-certificates curl git rsync ufw fail2ban unattended-upgrades \
   nginx certbot python3-certbot-nginx
 
-say "2/11 Automatic security updates"
+say "2/10 Automatic security updates"
 dpkg-reconfigure -f noninteractive unattended-upgrades
 systemctl enable --now unattended-upgrades
 
-say "3/11 Swap (helps small VPS plans survive Docker builds)"
+say "3/10 Swap (helps small VPS plans survive Docker builds)"
 if ! swapon --show | grep -q .; then
   fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile >/dev/null && swapon /swapfile
   grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
@@ -58,7 +58,7 @@ else
   echo "swap already present - skipped"
 fi
 
-say "4/11 Docker Engine (official repository)"
+say "4/10 Docker Engine (official repository)"
 if ! command -v docker >/dev/null; then
   install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
@@ -71,7 +71,7 @@ fi
 systemctl enable --now docker
 docker compose version
 
-say "5/11 Deploy user '${DEPLOY_USER}' (SSH keys only)"
+say "5/10 Deploy user '${DEPLOY_USER}' (SSH keys only)"
 id "$DEPLOY_USER" >/dev/null 2>&1 || adduser --disabled-password --gecos "" "$DEPLOY_USER"
 usermod -aG docker "$DEPLOY_USER"   # note: docker access is root-equivalent; protect its keys
 install -d -m 700 -o "$DEPLOY_USER" -g "$DEPLOY_USER" "/home/${DEPLOY_USER}/.ssh"
@@ -86,8 +86,7 @@ if [[ -s /root/.ssh/authorized_keys ]]; then
 fi
 chown "$DEPLOY_USER:$DEPLOY_USER" "$AUTH" && chmod 600 "$AUTH"
 
-say "6/11 SSH hardening (only if a key login is guaranteed to keep working)"
-# A personal login key line starts with its type; the restricted CI key line starts with "restrict,".
+say "6/10 SSH hardening (only if a key login is guaranteed to keep working)"
 if grep -qE '^(ssh-(ed25519|rsa)|ecdsa-sha2-)' "$AUTH"; then
   cat > /etc/ssh/sshd_config.d/99-saathi-hardening.conf <<'SSHD'
 # Managed by scripts/vps/setup.sh (ADR-0008)
@@ -102,14 +101,14 @@ else
   warn "Add your public key to ${AUTH}, then re-run this script."
 fi
 
-say "7/11 Firewall: allow only SSH, HTTP, HTTPS"
+say "7/10 Firewall: allow only SSH, HTTP, HTTPS"
 ufw allow OpenSSH >/dev/null
 ufw allow 'Nginx Full' >/dev/null
 ufw --force enable
 ufw status verbose | sed -n '1,12p'
 systemctl enable --now fail2ban   # Ubuntu enables the sshd jail by default
 
-say "8/11 Code checkout at ${APP_DIR}"
+say "8/10 Code checkout at ${APP_DIR}"
 if [[ ! -d "${APP_DIR}/.git" ]]; then
   sudo -u "$DEPLOY_USER" git clone --quiet "$REPO_URL" "$APP_DIR"
 else
@@ -118,17 +117,20 @@ fi
 install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 755 "$WEB_DIR"
 [[ -f "${WEB_DIR}/index.html" ]] || echo "<!doctype html><title>Saathi</title><p>Bot Studio will appear after the first deploy.</p>" \
   | sudo -u "$DEPLOY_USER" tee "${WEB_DIR}/index.html" >/dev/null
+# Short command for releases: `saathi down`, `saathi up -d --build`, `saathi ps`, `saathi logs -f api`.
+ALIAS_LINE="alias saathi='docker compose --env-file ${APP_DIR}/.env -f ${APP_DIR}/infra/docker-compose.prod.yml'"
+grep -qxF "$ALIAS_LINE" "/home/${DEPLOY_USER}/.bashrc" || echo "$ALIAS_LINE" >> "/home/${DEPLOY_USER}/.bashrc"
 if [[ ! -f "${APP_DIR}/.env" ]]; then
   warn "${APP_DIR}/.env does not exist yet - create it before the first deploy (runbook step 6)."
 fi
 
-say "9/11 nginx site for api.${DOMAIN} and app.${DOMAIN}"
+say "9/10 nginx site for api.${DOMAIN} and app.${DOMAIN}"
 sed "s/__DOMAIN__/${DOMAIN}/g" "${APP_DIR}/infra/nginx/saathi.conf.template" > /etc/nginx/sites-available/saathi.conf
 ln -sf /etc/nginx/sites-available/saathi.conf /etc/nginx/sites-enabled/saathi.conf
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 
-say "10/11 HTTPS certificates (Let's Encrypt)"
+say "10/10 HTTPS certificates (Let's Encrypt)"
 SERVER_IP="$(curl -fsS4 https://api.ipify.org || true)"
 ready=1
 for host in "api.${DOMAIN}" "app.${DOMAIN}"; do
@@ -146,23 +148,5 @@ else
   warn "Skipped HTTPS. Add the DNS records (runbook step 3), wait ~10 minutes, then re-run this script."
 fi
 
-say "11/11 GitHub Actions deploy key (can ONLY run the deploy script)"
-if ! grep -q 'gha-deploy' "$AUTH"; then
-  tmp="$(mktemp -d)"
-  ssh-keygen -q -t ed25519 -N "" -C "gha-deploy" -f "${tmp}/key"
-  echo "restrict,command=\"${APP_DIR}/scripts/vps/deploy.sh\" $(cat "${tmp}/key.pub")" >> "$AUTH"
-  echo
-  echo "Copy EVERYTHING between the lines into the GitHub secret VPS_SSH_KEY (runbook step 8)."
-  echo "It is shown once and then deleted from this server."
-  echo "-----------------------------------------------------------------------"
-  cat "${tmp}/key"
-  echo "-----------------------------------------------------------------------"
-  rm -rf "$tmp"
-else
-  echo "deploy key already installed - skipped (remove the 'gha-deploy' line in ${AUTH} to rotate it)"
-fi
-echo
-echo "GitHub secret VPS_HOST:        ${SERVER_IP}"
-echo "GitHub secret VPS_KNOWN_HOSTS: ${SERVER_IP} $(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)"
-
-say "Done. Next: create ${APP_DIR}/.env (runbook step 6), then run the first deploy (step 7)."
+say "Done. Next: create ${APP_DIR}/.env (runbook step 6), then release by hand (step 7):"
+echo "  ssh ${DEPLOY_USER}@<server-ip>, then: cd ~/chatbot-platform && saathi up -d --build"

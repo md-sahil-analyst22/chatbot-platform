@@ -20,21 +20,20 @@ with nginx as reverse proxy and a custom domain.
   - `<base>` is a project sub-domain such as `saathi.yourdomain.com`, so the same domain can host
     other projects (`api.saathi.yourdomain.com`, `app.saathi.yourdomain.com`).
 - **Postgres, Auth and Storage** stay on **Supabase** (ADR-0002).
-- **Deploys:** after CI passes on `main`, GitHub Actions SSHes in as a non-root `deploy` user and
-  runs `scripts/vps/deploy.sh <commit>`. That script:
-  1. checks out the commit;
-  2. builds the backend image;
-  3. runs migrations as a one-shot job (R25);
-  4. restarts the API and worker;
-  5. checks `/health`;
-  6. builds and publishes Bot Studio.
+- **Releases are manual, by the operator, on the server** (product owner's choice: no CI system gets
+  access to the server). As the non-root `deploy` user: `saathi down` (optional) → `git pull` →
+  `saathi up -d --build`. `up` does the whole release:
+  1. builds the backend and Bot Studio images;
+  2. runs migrations as a one-shot job (R25); the API and worker start only if it succeeds;
+  3. starts Redis, the API and the worker;
+  4. publishes Bot Studio to nginx's folder (one-shot job, no network).
 - **Server hardening** is scripted in `scripts/vps/setup.sh`:
   - SSH keys only, with root login disabled;
   - `ufw` firewall allowing 22, 80 and 443 only;
   - `fail2ban` and unattended security upgrades;
   - Docker ports bound to localhost only.
 - **Secrets** live only in `/home/deploy/chatbot-platform/.env` on the server (mode 600), never in git
-  or the image (R17). GitHub holds only the deploy SSH key and the server's host key.
+  or the image (R17). GitHub holds no server credentials at all.
 
 ## Alternatives considered
 - **Railway / Render:** zero server administration and built-in TLS and deploys, but a higher monthly
@@ -50,7 +49,8 @@ with nginx as reverse proxy and a custom domain.
 - **We are the operators:** OS patching (automated), disk and backup monitoring, TLS renewal
   (automated by certbot), and incident response.
 - **Single server:** a VPS outage takes the API down. No zero-downtime deploys yet: a restart drops
-  open connections for a few seconds.
+  open connections for a few seconds (the whole build time if the operator runs `down` first).
+- **Manual releases** depend on the operator remembering to pull only green (CI-passed) commits.
 - **Latency to the database:** the API in Mumbai talks to Supabase in Singapore, adding about 60 ms
   per round trip. Move the Supabase project to Mumbai (`ap-south-1`) while it's still empty.
 
@@ -59,13 +59,13 @@ with nginx as reverse proxy and a custom domain.
   network, with the API published on `127.0.0.1` only.
 - uvicorn trusts `X-Forwarded-*` only from the fixed Docker gateway (`FORWARDED_ALLOW_IPS`), so
   clients can't spoof their IP. nginx overwrites the headers.
-- The deploy user can run Docker. Docker access is root-equivalent, so the deploy key must be
-  protected like a root key, and only GitHub Actions and the operator hold it.
+- The deploy user can run Docker. Docker access is root-equivalent, so the operator's SSH key must be
+  protected like a root key. No CI system holds a key to the server.
 - HSTS, `nosniff`, a referrer policy and `server_tokens off` are set on both sites.
 
 ## Operational impact
 - First-time setup is about one hour, following `docs/runbooks/vps-deploy.md`.
-- Rollback: re-run the deploy workflow on an older commit, or `deploy.sh <old-sha>` on the server.
+- Rollback: `git checkout <last-good-commit>` and `saathi up -d --build` on the server.
   Never run a data-destroying `alembic downgrade` in production (R25).
 
 ## Revisit when

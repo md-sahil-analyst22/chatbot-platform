@@ -14,8 +14,8 @@ Decided in `docs/adr/0002-database-hosting-auth.md` (Supabase) and `docs/adr/000
 
 ## Rules
 - Secrets only in `/home/deploy/chatbot-platform/.env` on the server (mode 600). Never in git or the image.
-- `deploy.sh` runs `alembic upgrade head` as a one-shot job (`migrate` service) before restarting the app.
+- `saathi up -d --build` runs `alembic upgrade head` as a one-shot job (`migrate` service); the API and worker start only after it succeeds.
 - `FORWARDED_ALLOW_IPS` is the fixed Docker gateway (`172.30.0.1`), where host nginx's connections appear from. Never `*`.
 - Probes: liveness `GET /health` (restart if failing; also the Docker `HEALTHCHECK`), readiness
   `GET /ready` (database + Redis; route traffic only when 200). Uptime monitors use `/health`.
-- Production deploys automatically from `main` after CI passes (`.github/workflows/deploy.yml`). Tag-based releases and a staging server: Phase 6.
+- Releases are manual on the server: `saathi down` (optional) → `git pull` → `saathi up -d --build` (ADR-0008). Pull only commits that passed CI. Tag-based releases and a staging server: Phase 6.

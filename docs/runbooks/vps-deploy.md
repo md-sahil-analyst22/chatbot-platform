@@ -1,12 +1,13 @@
 # Runbook: deploy to a Hostinger VPS (ADR-0008)
 
-Takes about **1 hour** the first time. After that, every merge to `main` deploys itself.
+Takes about **1 hour** the first time. After that, releasing a new version is **three commands** on
+the server, run by you whenever you choose (nothing deploys automatically).
 
 **What you'll end up with**
 - `https://api.saathi.yourdomain.com`: the API (HTTPS, behind nginx)
 - `https://app.saathi.yourdomain.com`: Bot Studio
 - A hardened server: firewall, SSH keys only, automatic security updates
-- Automatic deploys from GitHub after CI passes
+- Manual releases: `saathi down` → `git pull` → `saathi up -d --build`
 
 **Words you'll see**
 
@@ -102,11 +103,8 @@ Give the **base address** (`saathi.yourdomain.com`), not `api.` or `app.`: the s
 
 The email gets Let's Encrypt notices if a certificate ever fails to renew.
 
-It runs 11 steps (updates, firewall, Docker, nginx, deploy user, HTTPS...). **At the end it prints
-three values: copy them somewhere safe for step 8:**
-- a block starting `-----BEGIN OPENSSH PRIVATE KEY-----` (**shown only once**)
-- `GitHub secret VPS_HOST: ...`
-- `GitHub secret VPS_KNOWN_HOSTS: ...`
+It runs 10 steps (updates, firewall, Docker, nginx, deploy user, HTTPS...) and ends with `Done.`
+It also creates the short `saathi` command used in step 7.
 
 | What you see | Meaning |
 |---|---|
@@ -147,18 +145,50 @@ Check that these are already set from your local `.env` (they are, if local work
 `ENV=production` means the API **refuses to start** if the `AUTH_*` lines are missing (on purpose),
 and the `/docs` page is switched off.
 
-## Step 7: First deploy, by hand (5–10 min)
+## Step 7: Release by hand: your 3 commands (5–10 min the first time)
 
-Still on the server as `deploy`:
+Log in as `deploy` and go to the project:
 
 ```bash
+ssh deploy@SERVER_IP
 cd ~/chatbot-platform
-./scripts/vps/deploy.sh main
 ```
 
-✅ It ends with `[deploy ...] done: <commit> is live`. The first run is slower (it downloads and builds).
+Then, **every time you want to release a new version**:
 
-Check it from **your Mac's browser**:
+```bash
+saathi down              # 1. stop the running app (optional - see below)
+git pull                 # 2. get the latest code from GitHub (main)
+saathi up -d --build     # 3. build and start the new version
+```
+
+`saathi` is a short name for `docker compose --env-file .env -f infra/docker-compose.prod.yml`
+(created by `setup.sh`). If it says `command not found`, log out and back in once.
+
+**What step 3 does by itself, in this order:**
+1. builds the new backend and Bot Studio images;
+2. runs the **database migration**. If it fails, the API and worker are **not** started, so new code
+   never runs against an old database. You'll see `service "migrate" didn't complete successfully`;
+3. starts Redis, the API and the worker;
+4. rebuilds Bot Studio and publishes it to the folder nginx serves.
+
+The first time takes several minutes (downloads and builds); later releases are faster.
+
+**About step 1 (`down`):** the site is offline from `down` until step 3 finishes, which is the
+whole build (a few minutes). Skipping `down` and running only steps 2 and 3 builds first and then
+swaps the containers, so users see only a few seconds of interruption. Both are safe; `down` never
+deletes data. **Never add `-v`** (`saathi down -v`): that deletes Redis' data (the job queue).
+
+**Check that it worked:**
+
+```bash
+saathi ps
+```
+
+✅ `api`, `redis`, `worker` show **Up (healthy)**; `migrate` and `studio` show **Exited (0)**. That's
+correct: they're one-shot jobs that finish.
+
+Then in **your Mac's browser**:
 
 | Open | Expect |
 |---|---|
@@ -167,25 +197,7 @@ Check it from **your Mac's browser**:
 | `https://api.saathi.yourdomain.com/docs` | `Not found`: correct, docs are off in production |
 | `http://api.saathi.yourdomain.com/health` | Redirects to `https://` |
 
-## Step 8: Turn on automatic deploys (5 min)
-
-On GitHub: your repo → **Settings → Secrets and variables → Actions → New repository secret**.
-Add three secrets, with the values printed in step 5:
-
-| Name | Value |
-|---|---|
-| `VPS_HOST` | the IP address |
-| `VPS_SSH_KEY` | the whole private key block, including the `-----BEGIN` and `-----END` lines |
-| `VPS_KNOWN_HOSTS` | the whole line (`SERVER_IP ssh-ed25519 AAAA...`) |
-
-Then delete your temporary copy of the private key.
-This key can **only** run the deploy script on the server: it can't open a shell.
-
-**Test it:** GitHub → **Actions → Deploy → Run workflow** (leave the commit empty) → **Run**.
-✅ A green check. From now on, every merge to `main` deploys automatically once CI is green.
-
-Optional: GitHub → Settings → **Environments → production** → *Required reviewers* (add yourself)
-to approve each deploy with one click.
+**Release only from green code:** pull after the commit shows a green ✓ (CI passed) on GitHub.
 
 ---
 
@@ -195,10 +207,12 @@ All on the server: `ssh deploy@SERVER_IP`, then `cd ~/chatbot-platform`.
 
 | I want to... | Command |
 |---|---|
-| See if everything runs | `docker compose --env-file .env -f infra/docker-compose.prod.yml ps` (all **healthy**) |
-| Watch the API logs | `docker compose --env-file .env -f infra/docker-compose.prod.yml logs -f --tail 100 api` (Ctrl+C to stop) |
-| Restart the app | `docker compose --env-file .env -f infra/docker-compose.prod.yml restart api worker` |
-| Roll back to an older version | GitHub → Actions → Deploy → Run workflow → paste the older commit SHA. Or on the server: `./scripts/vps/deploy.sh <sha>` |
+| Release a new version | `saathi down` → `git pull` → `saathi up -d --build` (step 7) |
+| See if everything runs | `saathi ps` (api, redis, worker **healthy**) |
+| Watch the API logs | `saathi logs -f --tail 100 api` (Ctrl+C to stop) |
+| Why did a release fail? | `saathi logs migrate` or `saathi logs studio` |
+| Restart the app | `saathi restart api worker` |
+| Roll back to an older version | `git log --oneline -10` (find the last good commit) → `git checkout <commit>` → `saathi up -d --build`. To return to normal: `git switch main` → `git pull` → `saathi up -d --build` |
 | Check HTTPS auto-renewal | `sudo certbot renew --dry-run` |
 | Check disk space | `df -h /` (keep it under 80%) |
 
@@ -215,10 +229,11 @@ in your password manager. Hostinger snapshots (hPanel) are a useful extra.
 | `Permission denied (publickey)` | You're using the wrong user or key. Use `ssh deploy@SERVER_IP` from the Mac that made the key |
 | Browser says "not secure" | HTTPS isn't set up yet: check DNS (step 3), then re-run `setup.sh` |
 | `502 Bad Gateway` | The app isn't running: check `ps` and the logs (table above) |
-| Deploy says `.env must be private` | `chmod 600 ~/chatbot-platform/.env` |
-| Deploy says `API not healthy` | The logs are printed above the error. Usually a wrong value in `.env`. Fix it and deploy again. The previous version was already replaced, so deploy the last good commit if needed |
+| `git pull` says `not possible because you have unmerged files` or `local changes` | Never edit code on the server. Run `git status`, then `git restore .` to throw away server-side edits (`.env` is untouched: git ignores it) |
+| `required variable STUDIO_API_BASE_URL is missing` | Add `STUDIO_API_BASE_URL=https://api.saathi.yourdomain.com` to `.env` (step 6) |
+| `service "migrate" didn't complete successfully` | The database migration failed and the API was **not** started. Read `saathi logs migrate`; usually `MIGRATION_DATABASE_URL` in `.env` is wrong. Fix it and run `saathi up -d --build` again |
+| `api` is `unhealthy` | `saathi logs --tail 80 api`: usually a wrong value in `.env`. Fix it and run `saathi up -d` again, or roll back |
 | Bot Studio shows network errors | `STUDIO_API_BASE_URL` or `CORS_ALLOWED_ORIGINS` don't match your domains exactly (https, no trailing `/`) |
-| GitHub Deploy says "skipped" | The three secrets from step 8 aren't set |
 
 ## Sharing one VPS with other projects
 

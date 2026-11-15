@@ -68,7 +68,7 @@ server {
     listen [::]:80;
     server_name app.__DOMAIN__;
 
-    root /var/www/saathi-studio;       # published by scripts/vps/deploy.sh
+    root /var/www/saathi-studio;       # published by the compose `studio` job on every release
     index index.html;
 
     server_tokens off;
