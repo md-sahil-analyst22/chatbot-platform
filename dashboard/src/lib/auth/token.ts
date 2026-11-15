@@ -1,0 +1,13 @@
+/**
+ * Access-token holder. At P1.7 the Supabase Auth / Clerk SDK manages the session and this module
+ * returns its current token. Tokens stay in memory (never localStorage) to limit XSS impact.
+ */
+let accessToken: string | null = null;
+
+export function setAccessToken(token: string | null): void {
+  accessToken = token;
+}
+
+export function getAccessToken(): string | null {
+  return accessToken;
+}
