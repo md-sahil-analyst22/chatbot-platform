@@ -2,19 +2,21 @@
 # Saathi AI - PRODUCTION stack on the VPS (P1.10, ADR-0008)
 #
 # Released BY HAND on the server (docs/runbooks/vps-deploy.md), from ~/chatbot-platform:
-#   1. docker compose --env-file .env -f infra/docker-compose.prod.yml down      (optional, see runbook)
+#   1. saathi down            (optional, see runbook)
 #   2. git pull
-#   3. docker compose --env-file .env -f infra/docker-compose.prod.yml up -d --build
+#   3. saathi up -d --build
+# (`saathi` = docker compose --env-file .env -f infra/docker-compose.prod.yml, set up by setup.sh)
 #
 # Step 3 does the whole release, in this order:
 #   build images -> migrate (one-shot; API/worker start only if it succeeds) -> redis, api, worker
-#   -> studio (one-shot: builds Bot Studio and publishes it to the folder nginx serves)
+#   -> studio (Bot Studio web server)
 #
-# Differences from docker-compose.yml (local dev):
-#   - runs the built image: no mounted source, no --reload, no dev tools
-#   - only the API is published, on 127.0.0.1:8000, for host nginx (TLS + domain)
-#   - fixed private network so uvicorn can trust X-Forwarded-* from nginx ONLY
-#   - Postgres is Supabase (DATABASE_URL in .env); no database container here
+# The front door is the server's EXISTING Traefik (Hostinger n8n template; host network, Docker
+# provider, entrypoint "websecure", cert resolver "letsencrypt"). Traefik only routes containers
+# labelled traefik.enable=true, and gets/renews HTTPS certificates for:
+#   api.${SAATHI_BASE_DOMAIN}  -> api      (port 8000)
+#   app.${SAATHI_BASE_DOMAIN}  -> studio   (port 8080)
+# Nothing here touches Traefik or n8n.
 #
 # Rules: R24 (app never gets owner credentials), R25 (migrations are a one-shot job),
 #        R17 (all secrets come from .env on the server, mode 600)
@@ -38,6 +40,8 @@ x-backend: &backend
   environment: &backend-env
     DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
     REDIS_URL: redis://redis:6379/0
+    # Derived from the one base address, so it can't drift from the Studio URL.
+    CORS_ALLOWED_ORIGINS: '["https://app.${SAATHI_BASE_DOMAIN:?set SAATHI_BASE_DOMAIN in .env}"]'
     # Least privilege: the API and worker never see the owner/migration credentials.
     MIGRATION_DATABASE_URL: ""
     POSTGRES_OWNER_PASSWORD: ""
@@ -73,18 +77,34 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks: [internal]
-    # No ports: only the API and worker can reach Redis.
+    # No ports and no Traefik labels: only the API and worker can reach Redis.
 
   api:
     <<: *backend
     # Image saathi-backend:prod is built once, by the migrate service below.
-    # The image CMD runs uvicorn with --proxy-headers. Trust X-Forwarded-* ONLY from the Docker
-    # gateway, which is where host nginx's connections appear from (fixed subnet below).
+    # The image CMD runs uvicorn with --proxy-headers. Traefik runs on the host network, so its
+    # connections arrive from this network's gateway: trust X-Forwarded-* from there ONLY.
     environment:
       <<: *backend-env
       FORWARDED_ALLOW_IPS: 172.30.0.1
-    ports: ["127.0.0.1:8000:8000"] # host nginx only; the firewall blocks 8000 from outside anyway
+    # Localhost only, for debugging on the server (`curl 127.0.0.1:8000/health`). Public traffic
+    # comes through Traefik, never this port.
+    ports: ["127.0.0.1:8000:8000"]
     stop_grace_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.saathi-api.rule=Host(`api.${SAATHI_BASE_DOMAIN:?set SAATHI_BASE_DOMAIN in .env}`)
+      - traefik.http.routers.saathi-api.entrypoints=websecure
+      - traefik.http.routers.saathi-api.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}
+      - traefik.http.routers.saathi-api.middlewares=saathi-api-headers,saathi-api-ratelimit
+      - traefik.http.services.saathi-api.loadbalancer.server.port=8000
+      - traefik.http.middlewares.saathi-api-headers.headers.stsSeconds=31536000
+      - traefik.http.middlewares.saathi-api-headers.headers.stsIncludeSubdomains=true
+      - traefik.http.middlewares.saathi-api-headers.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.saathi-api-headers.headers.referrerPolicy=strict-origin-when-cross-origin
+      # Abuse limit per client IP (Traefik sees the real client address on the host network).
+      - traefik.http.middlewares.saathi-api-ratelimit.ratelimit.average=20
+      - traefik.http.middlewares.saathi-api-ratelimit.ratelimit.burst=40
 
   worker:
     <<: *backend
@@ -114,22 +134,33 @@ services:
     logging: *default-logging
     networks: [internal]
 
-  # One-shot: builds Bot Studio against the public API address and copies it into the folder
-  # host nginx serves for app.<base>. Exits when done; nginx keeps serving the files.
+  # Bot Studio: static files served by non-root nginx on :8080, behind Traefik.
   studio:
+    <<: *hardening
     build:
       context: ../dashboard
       args:
-        VITE_API_BASE_URL: ${STUDIO_API_BASE_URL:?set STUDIO_API_BASE_URL in .env, e.g. https://api.saathi.yourdomain.com}
+        VITE_API_BASE_URL: https://api.${SAATHI_BASE_DOMAIN:?set SAATHI_BASE_DOMAIN in .env}
     image: saathi-studio:prod
-    security_opt: ["no-new-privileges:true"]
-    cap_drop: [ALL]
-    cap_add: [DAC_OVERRIDE] # write into the deploy user's web folder; nothing else
-    volumes:
-      - ${STUDIO_WEB_ROOT:-/var/www/saathi-studio}:/out
-    network_mode: none # copies files only; needs no network at all
-    restart: "no"
+    environment:
+      SAATHI_BASE_DOMAIN: ${SAATHI_BASE_DOMAIN} # for the Content-Security-Policy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
     logging: *default-logging
+    networks: [studio] # its own network: Bot Studio can't reach Redis or the API container
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.saathi-studio.rule=Host(`app.${SAATHI_BASE_DOMAIN:?set SAATHI_BASE_DOMAIN in .env}`)
+      - traefik.http.routers.saathi-studio.entrypoints=websecure
+      - traefik.http.routers.saathi-studio.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}
+      - traefik.http.routers.saathi-studio.middlewares=saathi-studio-headers
+      - traefik.http.services.saathi-studio.loadbalancer.server.port=8080
+      - traefik.http.middlewares.saathi-studio-headers.headers.stsSeconds=31536000
+      - traefik.http.middlewares.saathi-studio-headers.headers.stsIncludeSubdomains=true
 
 networks:
   internal:
@@ -137,6 +168,10 @@ networks:
       config:
         - subnet: 172.30.0.0/24
           gateway: 172.30.0.1
+  studio:
+    ipam:
+      config:
+        - subnet: 172.30.1.0/24
 
 volumes:
   redisdata:

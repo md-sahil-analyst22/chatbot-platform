@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1
-# Bot Studio for the VPS (ADR-0008). Built by `docker compose -f infra/docker-compose.prod.yml up --build`.
-# Stage 1 builds the static site; stage 2 is a tiny one-shot container that copies it into the
-# folder host nginx serves (/var/www/saathi-studio, mounted at /out), then exits.
+# Bot Studio for the VPS (ADR-0008): built by `saathi up -d --build`, served behind Traefik.
+# Stage 1 builds the static site; stage 2 serves it with non-root nginx on :8080.
 
 FROM node:24-alpine AS build
 WORKDIR /app
@@ -14,7 +13,7 @@ RUN test -n "$VITE_API_BASE_URL" || (echo "VITE_API_BASE_URL build arg is requir
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
-FROM alpine:3.22 AS publish
-COPY --from=build /app/dist /site
-# Replace the published files atomically enough for a small site: clear, then copy.
-CMD ["sh", "-c", "find /out -mindepth 1 -delete && cp -R /site/. /out/ && echo 'Bot Studio published'"]
+FROM nginxinc/nginx-unprivileged:1.30-alpine AS serve
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 8080

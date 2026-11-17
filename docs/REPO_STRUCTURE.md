@@ -1243,7 +1243,6 @@ infra/
 │   └── init/01_extensions.sql  enables pgvector
 │       init/02_app_role.sh     creates the least-privilege app role
 ├── docker-compose.prod.yml     production stack on the VPS (ADR-0008)
-├── nginx/saathi.conf.template  nginx site for api.<domain> + app.<domain> (rendered by setup.sh)
 ├── deploy/README.md            environments, scaling, deploy rules
 └── README.md
 ```
@@ -1274,8 +1273,8 @@ flowchart LR
     AR -- "anonymous widget lookup only" --> FN["resolve_bot_public_key()<br/>returns tenant_id + bot_id only"]
 ```
 
-- `nginx/saathi.conf.template`: API and Bot Studio sites, security headers (CSP on Studio), upload limit, per-IP limits, forwarded headers overwritten (never trusted from clients), streaming locations. certbot adds HTTPS.
-- `docker-compose.prod.yml`: built image only, API on `127.0.0.1:8000`, private network with a fixed gateway so uvicorn trusts forwarding headers only from nginx; migrations as a one-shot job.
+- Bot Studio in production: `dashboard/Dockerfile` + `dashboard/nginx.conf.template` (non-root nginx, strict CSP, SPA fallback, immutable asset caching).
+- `docker-compose.prod.yml`: built images only, routed by the server's existing Traefik via labels (`api.` / `app.` + `SAATHI_BASE_DOMAIN`), private network with a fixed gateway so uvicorn trusts forwarding headers only from Traefik; migrations as a one-shot job the app waits for.
 - `deploy/README.md`: services per environment and how each scales; secrets only in the platform's secret store; migrations as a release step.
 
 **Rules here:** R24 (two roles), R25 (migrations as a release step), R17 (secrets in the secret store).

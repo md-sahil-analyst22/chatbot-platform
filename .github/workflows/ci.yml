@@ -148,7 +148,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://ci:ci@localhost/ci
           MIGRATION_DATABASE_URL: postgresql+asyncpg://ci:ci@localhost/ci
-          STUDIO_API_BASE_URL: https://api.saathi.example.com
+          SAATHI_BASE_DOMAIN: saathi.example.com
         run: |
           touch .env  # the real .env exists only on the server
           docker compose --env-file .env -f infra/docker-compose.prod.yml config -q
