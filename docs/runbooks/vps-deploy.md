@@ -191,7 +191,9 @@ On the server: `ssh deploy@SERVER_IP`, then `cd ~/chatbot-platform`.
 | `required variable SAATHI_BASE_DOMAIN is missing` | Add `SAATHI_BASE_DOMAIN=...` to `.env` (step 6) |
 | `service "migrate" didn't complete successfully` | The migration failed and the API was **not** started. Run `saathi logs migrate`; usually `MIGRATION_DATABASE_URL` in `.env` is wrong |
 | Browser shows "not secure" / certificate warning | DNS isn't pointing at the server yet, or it changed in the last minutes. Check step 2; Traefik retries automatically |
-| `404 page not found` (plain text) | Traefik doesn't know the address. Check `SAATHI_BASE_DOMAIN` in `.env` matches your DNS names exactly, then `saathi up -d` |
+| `404 page not found` (plain text), certificate warning, **n8n down too** | Traefik lost its connection to Docker (happens when a Docker update restarts Docker). Check: `docker logs --tail 5 traefik-traefik-1` shows `Cannot connect to the Docker daemon`. Fix: `docker restart traefik-traefik-1` (as root; n8n blinks ~5 s). Re-running `setup.sh` also does this automatically |
+| `404 page not found` (plain text), only Saathi | Traefik doesn't know the address. Check `SAATHI_BASE_DOMAIN` in `.env` matches your DNS names exactly, then `saathi up -d` |
+| Browser shows `Not Secure` although the site works | Your browser remembers clicking "Proceed anyway" during the first minute (before the real certificate). Click `Not Secure` → **Turn on warnings**, or quit the browser (Cmd+Q) and reopen. Check in a private window |
 | `api` is `unhealthy` | `saathi logs --tail 80 api`: usually a wrong `.env` value. Fix it, then `saathi up -d` |
 | `git pull` complains about local changes | Never edit code on the server: `git restore .`, then pull again (`.env` is untouched) |
 | n8n stopped working | Saathi doesn't touch it, but check: `docker ps` should show the n8n and traefik containers **Up** |

@@ -65,7 +65,10 @@ nginx remains, inside the Bot Studio container, serving static files.
   (automated by Traefik), and incident response.
 - **Shared edge:** Saathi depends on Hostinger's Traefik (`traefik:latest`, managed in
   `/docker/traefik`). If someone changes its entrypoint or resolver names, Saathi's labels must
-  follow (`setup.sh` checks them). Its image tag isn't pinned (outside this repo).
+  follow (`setup.sh` checks them). Its image tag isn't pinned (outside this repo). Traefik mounts
+  `/var/run/docker.sock`; when Docker restarts (e.g. a Docker package update) the mount goes stale
+  and Traefik stops routing every site, n8n included, until it's restarted. `setup.sh` restarts it
+  when Docker restarted during its run or Traefik's log shows the lost connection.
 - **No request-body size limit at the edge yet:** Traefik's buffering middleware would also buffer
   streaming responses (SSE, P3.8), so uploads rely on the app's own size checks (R19).
 - **Single server:** a VPS outage takes the API down. No zero-downtime deploys yet: a restart drops
