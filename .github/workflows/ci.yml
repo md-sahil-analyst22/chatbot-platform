@@ -133,8 +133,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Dependency audit (high and critical)
-        run: npm audit --audit-level=high
+      - name: Dependency audit (high and critical; reviewed exceptions in audit-exceptions.json)
+        run: npm run audit:ci
 
   scripts:
     name: scripts (shellcheck VPS setup, validate prod compose)
