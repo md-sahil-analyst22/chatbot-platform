@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "audit:ci": "node scripts/audit-check.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.2",

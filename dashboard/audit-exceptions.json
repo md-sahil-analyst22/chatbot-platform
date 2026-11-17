@@ -1,0 +1,14 @@
+{
+  "_readme": "Reviewed npm advisories that CI tolerates TEMPORARILY (approved by the product owner). One entry per advisory id. Every entry needs a reason (why it can't hurt us) and an expiry date (max ~30 days); after it, CI fails again so the advisory is re-checked. Never add an advisory that affects code shipped to browsers. See scripts/audit-check.mjs.",
+  "exceptions": [
+    {
+      "id": "GHSA-fc5q-39xc-vjpf",
+      "package": "picomatch",
+      "severity": "high",
+      "reason": "ReDoS via attacker-supplied extglob patterns. picomatch is only used by build/test tools (vite, vitest via tinyglobby/fdir) with our own fixed patterns; it is not shipped to browsers and never receives untrusted input. No patched version exists yet (<= 4.0.7 affected, 4.0.7 is latest).",
+      "reviewed": "2026-11-17",
+      "approved_by": "product owner (Sahil), option A",
+      "expires": "2026-12-17"
+    }
+  ]
+}

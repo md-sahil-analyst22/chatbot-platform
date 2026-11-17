@@ -1191,7 +1191,7 @@ flowchart LR
 |---|---|
 | `secrets-scan` | An API key committed anywhere in history. Reviewed false positives go in `.gitleaksignore`, one exact finding per line; never a real secret |
 | `backend` | Formatting, lint, type errors, broken boundaries, migrations that don't apply **or don't roll back**, a stale `schema.sql`, failing tests. Runs the RLS isolation and SQL contract tests on a throwaway Postgres 17 + pgvector, as `saathi_app` (`RUN_DB_TESTS=1` fails loudly if the database isn't configured) |
-| `dashboard` | TypeScript errors, failing tests, broken build, high-severity npm vulnerabilities (Node 24 LTS) |
+| `dashboard` | TypeScript errors, failing tests, broken build, high/critical npm advisories (Node 24 LTS). Advisories with no fix yet that can't reach users may be tolerated **only** through a reviewed, expiring entry in `dashboard/audit-exceptions.json` (`npm run audit:ci`); never by loosening the audit |
 | `golden-set` | Malformed golden questions |
 | `docker` | A Dockerfile that no longer builds |
 
@@ -2033,6 +2033,7 @@ These are deliberate, tracked differences. Per R44 they're listed here instead o
 | `updated_at` changes on every update | Bumped by the ORM (`onupdate`), not by a trigger | Raw SQL updates leave it stale | Add a trigger if raw-SQL updates appear |
 | Postgres version | Supabase and CI run 17; the local Docker image and plan say 16 | Small risk of version-specific behaviour locally | Move the local image to `pgvector/pgvector:pg17` |
 | Pre-commit hooks (R42, 2.1) | `.pre-commit-config.yaml` doesn't exist yet; gitleaks and ruff run only in CI | Secrets are caught at push, not before commit | Add the pre-commit config (gitleaks, ruff, file checks) |
+| npm audit exception | `picomatch` ReDoS (GHSA-fc5q-39xc-vjpf) has no fix yet; tolerated in `dashboard/audit-exceptions.json` until 2026-12-17 (build/test tools only, never shipped, no untrusted input) | CI fails again on expiry | When a fixed `picomatch` ships, merge the Dependabot update and delete the entry; otherwise re-review before expiry |
 | Supply-chain pinning | CI actions are pinned to major tags (`@v4`), the Dockerfile copies `uv:latest` | A compromised tag could change what runs | Pin actions to commit SHAs and the uv image to a digest before production (Dependabot keeps them current) |
 | Bot deletion is audited | `DELETE /bots/{id}` removes the bot and everything under it (FK cascade) without an `audit_logs` row; files in object storage aren't cleaned up yet | No record of who deleted what; orphaned logo files | Add an audit-log port + writes for destructive actions, and storage cleanup with P4.13 |
 
