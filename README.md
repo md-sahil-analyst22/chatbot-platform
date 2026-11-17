@@ -34,7 +34,7 @@ API: http://localhost:8000/health · docs: http://localhost:8000/docs (non-produ
 | `evals/` | Golden datasets + evaluation runners |
 | `demos/` | Demo tenants: TaxMitra (CA firm), ClinicCare (clinic) |
 | `n8n/` | Exported n8n workflow JSONs (CRM, Sheets, Slack) |
-| `infra/` | docker-compose, Postgres init, Nginx, deploy notes |
+| `infra/` | docker-compose (dev + prod behind Traefik), Postgres init, deploy notes |
 | `scripts/` | Operational scripts (key checks, seeding) |
 | `docs/` | ADRs 0001-0005, planning docs, runbooks, structure guide |
 | `sales/` | Onboarding kit, proposals, SOW (Phase 7) |
