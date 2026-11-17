@@ -42,6 +42,11 @@ die()  { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 export DEBIAN_FRONTEND=noninteractive
 
+# When Docker was last (re)started. System updates below can restart Docker; a container that
+# mounts /var/run/docker.sock (Traefik) then keeps a dead socket and stops seeing containers.
+docker_started() { systemctl show docker -p ActiveEnterTimestampMonotonic --value 2>/dev/null || echo none; }
+DOCKER_STARTED_BEFORE="$(docker_started)"
+
 say "1/10 System updates and base packages"
 apt-get update -q
 apt-get -y -q upgrade
@@ -139,6 +144,20 @@ TRAEFIK_CMD="$(docker inspect "$TRAEFIK" --format '{{json .Config.Cmd}}')"
 for needed in "providers.docker=true" "entrypoints.websecure.address=:443" "certificatesresolvers.letsencrypt"; do
   [[ "$TRAEFIK_CMD" == *"$needed"* ]] || die "Traefik (${TRAEFIK}) is missing '${needed}', which Saathi's routing labels rely on"
 done
+# Reconnect Traefik to Docker if Docker restarted during this run (e.g. a Docker package update),
+# or if Traefik already lost it. Symptom otherwise: every site, n8n included, answers
+# "404 page not found" with Traefik's default certificate. Restart takes ~5 s.
+if [[ "$(docker_started)" != "$DOCKER_STARTED_BEFORE" ]] \
+   || docker logs --since 15m "$TRAEFIK" 2>&1 | grep -q "Cannot connect to the Docker daemon"; then
+  echo "Docker was restarted (or Traefik lost its Docker connection): restarting ${TRAEFIK} (~5 s; n8n blinks)"
+  docker restart "$TRAEFIK" >/dev/null
+  sleep 8
+  if docker logs --since 8s "$TRAEFIK" 2>&1 | grep -q "Cannot connect to the Docker daemon"; then
+    warn "Traefik still can't reach Docker. Check: docker logs --tail 20 ${TRAEFIK}"
+  else
+    echo "Traefik reconnected to Docker"
+  fi
+fi
 echo "Traefik '${TRAEFIK}' is ready: Docker provider, websecure entrypoint, letsencrypt certificates"
 
 say "10/10 DNS check for api.${DOMAIN} and app.${DOMAIN}"

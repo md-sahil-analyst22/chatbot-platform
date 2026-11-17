@@ -36,6 +36,9 @@ x-hardening: &hardening
 x-backend: &backend
   <<: *hardening
   image: saathi-backend:prod
+  # Built locally by the migrate service, never downloaded: without this, `up` first tries to
+  # pull "saathi-backend" from Docker Hub and prints a scary (harmless) "pull access denied".
+  pull_policy: never
   env_file: ../.env
   environment: &backend-env
     DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
