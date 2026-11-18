@@ -58,10 +58,13 @@ def step(ok: bool, label: str, detail: str = "") -> bool:
 def error_of(r: httpx.Response) -> str:
     """The API's own error code/message (never secrets), or the HTTP status."""
     try:
-        err = r.json().get("error", {})
-        return f"HTTP {r.status_code} {err.get('code', '')}: {err.get('message', '')}".strip()
+        body = r.json()
     except ValueError:
         return f"HTTP {r.status_code}"
+    if not isinstance(body, dict):  # successful list responses aren't errors
+        return f"HTTP {r.status_code}"
+    err = body.get("error", {})
+    return f"HTTP {r.status_code} {err.get('code', '')}: {err.get('message', '')}".strip()
 
 
 def token_header(token: str) -> str:
