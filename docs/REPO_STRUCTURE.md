@@ -599,7 +599,7 @@ bot = Bot(id=uuid4(), tenant_id=principal.tenant_id, name=command.name, ...)
 
 **Why:** The widget runs on the tenant's public website. Anyone can call its endpoint with the public key. Leaking the prompt or model lets competitors copy the bot or attack it.
 
-**Checked by:** `test_bot_studio_api.py` asserts the exact public fields and the cache header.
+**Checked by:** `test_bot_studio_api.py` asserts the exact public field set (`PUBLIC_WIDGET_FIELDS`) and the cache header; `tests/security/test_public_widget.py` proves the whole path on real Postgres as `saathi_app`: the right tenant's look only, published versions only, no prompts or ids in the response, and the same 404 for an unknown key and an unpublished bot.
 
 ### R15 · Every repository query filters by tenant
 

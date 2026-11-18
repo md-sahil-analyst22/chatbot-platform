@@ -93,7 +93,8 @@ class ModelOptionOut(BaseModel):
 
 
 class PublicWidgetConfigOut(BaseModel):
-    bot_id: UUID
+    """Public look of a widget only (R10): no prompts, model, plan or internal ids."""
+
     header_title: str
     header_subtitle: str
     footer_text: str
