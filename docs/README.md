@@ -2,6 +2,7 @@
 
 | Folder | Purpose |
 |---|---|
+| `CODE_GUIDE.md` | Beginner-friendly explanation of every class and function, with flow and data diagrams (updated each phase; `make code-guide-check`) |
 | `REPO_STRUCTURE.md` | Step-by-step explanation of every folder in this repo |
 | `adr/` | Architecture Decision Records - one file per significant decision |
 | `planning/` | Product and delivery plans 00-05 (features, architecture, flows, phase plan) |

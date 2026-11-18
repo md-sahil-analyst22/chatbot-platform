@@ -42,4 +42,5 @@
 - [ ] Endpoints tested for 401 / 403 / 404 / 422 (R36)
 - [ ] All quality gates pass (R42); migrations up and down on real Postgres (R25)
 - [ ] `.env.example`, docs and ADRs updated in the same change (R12, R43)
+- [ ] New or changed classes/functions explained in `docs/CODE_GUIDE.md` (`make code-guide-check` passes)
 - [ ] Any conflict with the plan or rules is stated, not hidden (R44)
