@@ -1,7 +1,7 @@
 # Run from the repo root.
 COMPOSE = docker compose --env-file .env -f infra/docker-compose.yml
 
-.PHONY: up up-local-db down logs ps studio migrate schema-sql smoke-live test test-db lint fmt typecheck arch check-keys validate-golden n8n
+.PHONY: up up-local-db down logs ps studio migrate schema-sql smoke-live code-guide-check test test-db lint fmt typecheck arch check-keys validate-golden n8n
 
 up:            ## start redis, api, worker (database: Supabase via DATABASE_URL in .env)
 	$(COMPOSE) up -d --build
@@ -50,6 +50,9 @@ arch:          ## enforce module/layer boundaries
 
 smoke-live:    ## Phase 1 exit check on the LIVE API: real login, create/configure/publish a test bot (ARGS=--keep)
 	uv run --with httpx scripts/smoke_live.py $(ARGS)
+
+code-guide-check: ## list backend classes/functions docs/CODE_GUIDE.md doesn't explain yet
+	cd backend && uv run python ../scripts/check_code_guide.py
 
 check-keys:    ## Phase 0 exit check (add ARGS=--send-whatsapp to send the test template)
 	uv run --with httpx scripts/check_keys.py $(ARGS)
