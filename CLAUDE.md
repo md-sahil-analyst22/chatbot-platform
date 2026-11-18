@@ -4,6 +4,34 @@
 
 **Source of truth, highest first (R44):** `docs/planning/` features → architecture → process flows → build plan → ADRs (`docs/adr/`) → code → tests. Code never silently redefines a requirement.
 
+## Documents: what to read, and what to update in the same PR
+
+| Document | Read it when | Update it in the same PR when |
+|---|---|---|
+| [`docs/REPO_STRUCTURE.md`](docs/REPO_STRUCTURE.md) | Before any code change (Part 0 + Part 1) | A rule, folder or known gap (§4.7/§4.8) changes |
+| [`docs/CODE_GUIDE.md`](docs/CODE_GUIDE.md) | You need to know how existing code and flows work | **You add, rename or remove any class or function, or change a flow** (`make code-guide-check` must pass) |
+| `docs/planning/` (00–05) | Scoping a task; checking phase order and exit criteria | Only with the owner's agreement (R44) |
+| `docs/adr/` (0001–0008) | Touching vendors, auth, hosting, data model, public APIs | A hard-to-undo decision is made or amended (R43) |
+| [`docs/runbooks/vps-deploy.md`](docs/runbooks/vps-deploy.md) | Anything about the server, Traefik, `setup.sh`, the production compose file | Deploy steps, server setup or production settings change |
+| [`docs/runbooks/deploy-and-daily-operations.md`](docs/runbooks/deploy-and-daily-operations.md) | Release, check or troubleshoot the live system | Release commands, checks or troubleshooting change |
+| [`docs/runbooks/local-setup.md`](docs/runbooks/local-setup.md) | Running the stack or the real-Postgres tests locally | Local setup changes |
+| `.env.example` | Adding or reading a setting | Every new environment variable (name only, R12) |
+
+## Decisions already made (change only with a new or amended ADR)
+
+- **ADR-0002:** Supabase for Postgres, Auth and Storage. The app connects as `saathi_app` through the **session pooler (port 5432)**, never the transaction pooler.
+- **ADR-0006:** Gemini is the primary LLM and embedding vendor (`gemini-embedding-2` at 1,536 dimensions, platform-wide, R13); Sarvam does speech (`saaras` STT, `bulbul` TTS); Cohere reranks. Any vendor plugs in through ports + registries.
+- **ADR-0007:** logins are Supabase JWTs verified against JWKS (ES256/RS256 only); the tenant and role come from `resolve_user_membership()`, exactly one membership per user; staging/production refuse to start without `AUTH_*`.
+- **ADR-0008:** production is a single Hostinger VPS (n8n template). The front door is the server's **existing Traefik, shared with n8n: never stop, replace or reconfigure Traefik or n8n.** Saathi is routed by Traefik labels from `SAATHI_BASE_DOMAIN`. Releases are **manual** (no CI system has server access).
+
+## Production facts
+
+- Live: `https://api.saathi.sahil-aisolution.cloud` (API) and `https://app.saathi.sahil-aisolution.cloud` (Bot Studio). Health check: `/health`; `/docs` is off in production.
+- Release on the server, from `~/Projects/chatbot-platform` as root: `docker compose --env-file .env -f infra/docker-compose.prod.yml down` → `git pull` → `... up -d --build`. `up` runs the migration first; the API starts only if it succeeds. Never `down -v`.
+- Today deploys are **single-server and manual**, not rolling (ADR-0008); the "rolling deploys" and "Nginx `real_ip`" wording under *Production concerns* applies once we scale. Trusted proxy headers come from Traefik via `FORWARDED_ALLOW_IPS` (the fixed Docker gateway).
+- ⚠️ Local development and production currently share the **same Supabase database**: never run destructive SQL or experimental migrations against it from a laptop. Real-Postgres tests use a throwaway database (`make test-db`), never Supabase.
+- Secrets live only in `.env` files (git-ignored) and Supabase. Never print, log, commit or paste them into chats or PRs.
+
 ## The rules you must never break
 
 - **R3:** `domain/` is plain Python: no FastAPI, SQLAlchemy, pydantic, httpx or Redis.
@@ -123,8 +151,20 @@ When working on `modules/channels/adapters/voice/` or anything on the live voice
 
 ```bash
 cd backend && uv run ruff format --check . && uv run ruff check . && uv run mypy src && uv run lint-imports && uv run pytest
-cd ../dashboard && npm run typecheck && npm test && npm run build
+cd ../dashboard && npm run typecheck && npm test && npm run build && npm run audit:ci
+cd .. && make code-guide-check
 ```
+
+Also run, **when the change touches them** (CI enforces all of these):
+
+| You changed... | Also run |
+|---|---|
+| Tables, repositories, RLS, migrations or anything tenant-isolation related | `make test-db` (real Postgres, throwaway database: see `docs/runbooks/local-setup.md`) |
+| A migration | `make schema-sql` and commit `backend/migrations/schema.sql` (CI fails if it's stale) |
+| `scripts/vps/*.sh` or `infra/docker-compose.prod.yml` | `shellcheck scripts/vps/*.sh` and `docker compose --env-file .env -f infra/docker-compose.prod.yml config -q` |
+| `.github/workflows/*` | `actionlint` |
+| Dashboard dependencies | `npm run audit:ci`; tolerate an advisory only through a reviewed, expiring entry in `dashboard/audit-exceptions.json`, approved by the owner |
+| Something on the live server's path (auth, bots, config, public widget) | After release: `make smoke-live` |
 
 Run these **before** you start (baseline) and **after** you finish, and report both results. Then walk through the §1.12 checklist in `docs/REPO_STRUCTURE.md`. Don't silence a check (`# noqa`, `# type: ignore`, a skipped test) without a comment explaining why (R42).
 
