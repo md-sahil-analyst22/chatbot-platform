@@ -17,7 +17,6 @@ async def widget_config(widget: ResolvedWidgetDep, response: Response) -> Public
     cfg = await widget.service.get(widget.tenant_id, widget.bot_id)
     response.headers["Cache-Control"] = "public, max-age=60"
     return PublicWidgetConfigOut(
-        bot_id=cfg.bot_id,
         header_title=cfg.header_title,
         header_subtitle=cfg.header_subtitle,
         footer_text=cfg.footer_text,

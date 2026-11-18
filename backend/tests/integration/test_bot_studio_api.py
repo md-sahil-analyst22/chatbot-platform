@@ -26,6 +26,17 @@ from saathi.modules.tenancy.application.config_service import (
 from saathi.platform.security.auth import Principal, Role
 
 TENANT = UUID("00000000-0000-0000-0000-0000000000cc")
+# The only fields /public/v1/widgets/{key}/config may return (R10, 02_ARCHITECTURE_AND_STACK).
+PUBLIC_WIDGET_FIELDS = {
+    "header_title",
+    "header_subtitle",
+    "footer_text",
+    "greeting",
+    "primary_color",
+    "launcher_position",
+    "logo_url",
+    "languages",
+}
 BODY = {
     "prompt": {"persona": "Warm receptionist", "banned_topics": ["medical dosage"]},
     "generation": {"model_key": "standard", "style": "precise"},
@@ -72,7 +83,8 @@ async def test_draft_publish_then_widget_reads_public_fields(ctx) -> None:  # ty
     assert r.headers["cache-control"] == "public, max-age=60"
     body = r.json()
     assert body["header_title"] == "ClinicCare"
-    assert "persona" not in body and "prompt" not in body
+    # R10 + 02_ARCHITECTURE_AND_STACK: exactly the public look - no prompts, model, plan or ids.
+    assert set(body) == PUBLIC_WIDGET_FIELDS
 
 
 async def test_invalid_branding_is_rejected(ctx) -> None:  # type: ignore[no-untyped-def]
