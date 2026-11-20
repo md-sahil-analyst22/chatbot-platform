@@ -54,7 +54,9 @@ def configure_logging(level: str = "INFO", *, json_logs: bool = True) -> None:
     structlog.configure(
         # The steps, in order:
         processors=[
+            # the shared steps (request context, level, timestamp),
             *shared,
+            # add stack information when asked for,
             structlog.processors.StackInfoRenderer(),
             # turn an exception into readable text,
             structlog.processors.format_exc_info,
@@ -73,6 +75,7 @@ def configure_logging(level: str = "INFO", *, json_logs: bool = True) -> None:
     handler = logging.StreamHandler(sys.stdout)
     # Give the handler a formatter that:
     handler.setFormatter(
+        # Formats library log lines with structlog:
         structlog.stdlib.ProcessorFormatter(
             # first adds the shared fields and the logger's name,
             foreign_pre_chain=[*shared, structlog.stdlib.add_logger_name],

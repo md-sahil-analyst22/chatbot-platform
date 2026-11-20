@@ -87,10 +87,13 @@ def _check_key(key: str) -> str:
 class SupabaseObjectStore:
     # Created by create_supabase_store() below with:
     def __init__(
+        # self = this object itself (Python passes it in automatically).
         self,
         # the shared HTTP client,
         http: httpx.AsyncClient,
+        # Everything after '*' must be passed by name, e.g. api_key=...
         *,
+        # the Supabase project address,
         project_url: str,
         # the secret key,
         service_role_key: str,

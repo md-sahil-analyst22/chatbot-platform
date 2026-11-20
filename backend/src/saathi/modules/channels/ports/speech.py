@@ -43,6 +43,7 @@ class SpeechToText(Protocol):
         self, audio: bytes, *, content_type: str, language: str | None = None
     ) -> Transcript:
         """`language=None` asks the vendor to detect it."""
+        # `...` = no body: this is only a contract.
         ...
 
 
@@ -53,4 +54,5 @@ class TextToSpeech(Protocol):
         self, text: str, *, language: str, voice: str | None = None
     ) -> SynthesizedSpeech:
         """`voice=None` uses the platform's default voice."""
+        # `...` = no body: this is only a contract.
         ...

@@ -63,10 +63,13 @@ _INVALID = "invalid or expired token"
 class JwksTokenVerifier:
     # Created once by the container with:
     def __init__(
+        # self = this object itself (Python passes it in automatically).
         self,
         # the shared HTTP client,
         http: httpx.AsyncClient,
+        # Everything after '*' must be passed by name, e.g. api_key=...
         *,
+        # where Supabase publishes its public keys,
         jwks_url: str,
         # who must have issued the token,
         issuer: str,

@@ -67,10 +67,13 @@ class GeminiSettings(BaseSettings):
 class GeminiCompletionClient:
     # Created per bot by the LLM resolver with:
     def __init__(
+        # self = this object itself (Python passes it in automatically).
         self,
         # the shared HTTP client,
         http: httpx.AsyncClient,
+        # Everything after '*' must be passed by name, e.g. api_key=...
         *,
+        # 🔒 the vendor API key,
         api_key: str,
         # the API address,
         base_url: str = DEFAULT_BASE_URL,
@@ -90,7 +93,9 @@ class GeminiCompletionClient:
     async def complete(
         # Inputs (by name, thanks to the '*'):
         self,
+        # Everything after '*' must be passed by name, e.g. api_key=...
         *,
+        # our system prompt (built by prompt_builder.py),
         system: str,
         # the conversation so far,
         messages: Sequence[ChatMessage],

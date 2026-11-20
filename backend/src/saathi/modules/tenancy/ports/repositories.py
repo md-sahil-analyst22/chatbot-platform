@@ -30,16 +30,19 @@ class BotRepository(Protocol):
     # Save a new bot.
     async def add(self, bot: Bot) -> None:
         """Raises ConflictError if the tenant already has a bot with this name."""
+        # `...` = no body: this is only a contract.
         ...
 
     # Save changes to an existing bot.
     async def update(self, bot: Bot) -> None:
         """Raises ConflictError on a duplicate name, NotFoundError if the bot is gone."""
+        # `...` = no body: this is only a contract.
         ...
 
     # Delete a bot; True if something was deleted.
     async def delete(self, tenant_id: UUID, bot_id: UUID) -> bool:
         """True if a bot was deleted. Its configs, sources, chats... go with it (FK cascade)."""
+        # `...` = no body: this is only a contract.
         ...
 
     # One bot of this tenant, or None (`...` = contract only, no body).
@@ -65,11 +68,13 @@ class BotConfigRepository(Protocol):
     # Save a new version.
     async def add(self, version: BotConfigVersion) -> None:
         """Raises ConflictError if that version number was taken concurrently."""
+        # `...` = no body: this is only a contract.
         ...
 
     # Change the status of a saved version.
     async def update_status(self, version: BotConfigVersion) -> None:
         """Raises ConflictError if it would leave two published versions (concurrent publish)."""
+        # `...` = no body: this is only a contract.
         ...
 
     # One version by number, or None.

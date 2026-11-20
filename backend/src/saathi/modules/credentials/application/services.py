@@ -46,7 +46,9 @@ class CredentialService:
     # Everything the service needs is handed in:
     def __init__(
         self,
+        # Everything after '*' must be passed by name, e.g. api_key=...
         *,
+        # key storage,
         repo: CredentialRepository,
         # the lock/unlock tool,
         cipher: SecretCipher,

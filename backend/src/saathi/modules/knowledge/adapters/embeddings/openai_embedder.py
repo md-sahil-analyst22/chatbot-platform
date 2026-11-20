@@ -48,10 +48,13 @@ class OpenAIEmbedderSettings(BaseSettings):
 class OpenAIEmbedder:
     # Created by create_openai_embedder() below with:
     def __init__(
+        # self = this object itself (Python passes it in automatically).
         self,
         # the shared HTTP client,
         http: httpx.AsyncClient,
+        # Everything after '*' must be passed by name, e.g. api_key=...
         *,
+        # 🔒 the vendor API key,
         api_key: str,
         # the model name,
         model_name: str,

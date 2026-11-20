@@ -55,6 +55,7 @@ async def set_tenant(session: AsyncSession, tenant_id: UUID) -> None:
     )
 
 
+# @asynccontextmanager lets callers write `async with tenant_session(...) as session:`.
 @asynccontextmanager
 # Open a session + transaction already locked to one tenant. Commits if all goes well, rolls
 # back on any error.

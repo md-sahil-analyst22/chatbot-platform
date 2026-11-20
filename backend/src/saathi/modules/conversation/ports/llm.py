@@ -52,8 +52,11 @@ class LLMResponse:
 class CompletionClient(Protocol):
     # Ask for one complete reply, given:
     async def complete(
+        # self = this object itself (Python passes it in automatically).
         self,
+        # Everything after '*' must be passed by name, e.g. api_key=...
         *,
+        # our system prompt (built by prompt_builder.py),
         system: str,
         # the conversation so far,
         messages: Sequence[ChatMessage],
@@ -70,8 +73,11 @@ class CompletionClient(Protocol):
 class StreamingClient(Protocol):
     # Ask for the reply word by word, given the same inputs:
     def stream(
+        # self = this object itself (Python passes it in automatically).
         self,
+        # Everything after '*' must be passed by name, e.g. api_key=...
         *,
+        # our system prompt (built by prompt_builder.py),
         system: str,
         # the conversation so far,
         messages: Sequence[ChatMessage],

@@ -82,7 +82,9 @@ class RequestContextMiddleware:
                 status = int(message["status"])
                 # Add the request id to the response headers (keeping the existing ones).
                 message["headers"] = [
+                    # all the headers the app already set,
                     *message.get("headers", []),
+                    # plus our X-Request-ID header.
                     (b"x-request-id", request_id.encode()),
                 ]
             # Pass the (possibly changed) message on to the web server.

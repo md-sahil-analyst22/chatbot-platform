@@ -49,8 +49,11 @@ class Source:
 
     # Create a Source with (all by name, thanks to the '*'):
     def __init__(
+        # self = this object itself (Python passes it in automatically).
         self,
+        # Everything after '*' must be passed by name, e.g. api_key=...
         *,
+        # the source's id,
         id: UUID,
         # 🔒 the owning workspace,
         tenant_id: UUID,

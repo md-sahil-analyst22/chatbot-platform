@@ -142,20 +142,32 @@ def default_catalog(settings: CatalogSettings | None = None) -> ModelCatalog:
     add("advanced", "Advanced - best answer quality", "gemini", s.gemini_model_large, 2000, paid)
     # 'claude-standard': Claude small model, every plan.
     add(
+        # key,
         "claude-standard",
+        # label,
         "Claude Standard - fast",
+        # vendor,
         "anthropic",
+        # model id from ANTHROPIC_MODEL_SMALL,
         s.anthropic_model_small,
+        # up to 1000 reply tokens,
         1000,
+        # every plan.
         ALL_PLANS,
     )
     # 'claude-advanced': Claude large model, paid plans only.
     add(
+        # key,
         "claude-advanced",
+        # label,
         "Claude Advanced - best quality",
+        # vendor,
         "anthropic",
+        # model id from ANTHROPIC_MODEL_LARGE,
         s.anthropic_model_large,
+        # up to 2000 reply tokens,
         2000,
+        # paid plans only.
         paid,
     )
     # Wrap the list in a ModelCatalog.

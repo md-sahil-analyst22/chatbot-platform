@@ -27,4 +27,5 @@ class ObjectStore(Protocol):
     # The public web address of a file, or None if the store is private.
     def public_url(self, key: str) -> str | None:
         """URL for public assets (logos); None for private objects (documents)."""
+        # `...` = no body: this is only a contract.
         ...

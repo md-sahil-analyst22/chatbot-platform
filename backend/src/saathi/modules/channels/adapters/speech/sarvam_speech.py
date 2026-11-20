@@ -98,10 +98,13 @@ class SarvamSettings(BaseSettings):
 class SarvamSpeechToText:
     # Built with:
     def __init__(
+        # self = this object itself (Python passes it in automatically).
         self,
         # the shared HTTP client,
         http: httpx.AsyncClient,
+        # Everything after '*' must be passed by name, e.g. api_key=...
         *,
+        # 🔒 the vendor API key,
         api_key: str,
         # the model,
         model: str = "saaras:v4",
@@ -183,10 +186,13 @@ class SarvamSpeechToText:
 class SarvamTextToSpeech:
     # Built with:
     def __init__(
+        # self = this object itself (Python passes it in automatically).
         self,
         # the shared HTTP client,
         http: httpx.AsyncClient,
+        # Everything after '*' must be passed by name, e.g. api_key=...
         *,
+        # 🔒 the vendor API key,
         api_key: str,
         # the main model,
         model: str = "bulbul:v4-flash",

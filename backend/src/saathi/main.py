@@ -80,6 +80,7 @@ def create_app() -> FastAPI:
         try:
             # Hand control to FastAPI: the app now serves requests until it is stopped.
             yield
+        # `finally` = run this even if the app stops because of an error.
         finally:
             # Shutdown: close every connection cleanly so nothing is left hanging.
             await container.aclose()

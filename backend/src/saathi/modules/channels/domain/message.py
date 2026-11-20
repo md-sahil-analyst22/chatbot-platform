@@ -56,5 +56,7 @@ class OutboundMessage:
 
     # At most 3 quick-reply buttons (WhatsApp's limit).
     def __post_init__(self) -> None:
+        # More than 3 buttons (WhatsApp's limit)...
         if len(self.buttons) > 3:
+            # ...is refused.
             raise ValueError("at most 3 reply buttons")

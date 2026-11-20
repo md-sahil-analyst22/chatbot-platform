@@ -54,10 +54,13 @@ class WhatsAppSender:
 
     # Built with:
     def __init__(
+        # self = this object itself (Python passes it in automatically).
         self,
         # the shared HTTP client,
         http: httpx.AsyncClient,
+        # Everything after '*' must be passed by name, e.g. api_key=...
         *,
+        # 🔒 the WhatsApp access token,
         access_token: str,
         # the business number's id,
         phone_number_id: str,

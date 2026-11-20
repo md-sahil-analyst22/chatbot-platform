@@ -61,8 +61,11 @@ def _utcnow() -> datetime:
 class BotConfigService:
     # Everything the service needs is handed in:
     def __init__(
+        # self = this object itself (Python passes it in automatically).
         self,
+        # Everything after '*' must be passed by name, e.g. api_key=...
         *,
+        # bot storage,
         bots: BotRepository,
         # config version storage,
         configs: BotConfigRepository,

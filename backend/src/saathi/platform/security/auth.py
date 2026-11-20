@@ -57,6 +57,7 @@ class Principal:
 
 # Contract: turn a login token into a Principal, or refuse.
 class TokenVerifier(Protocol):
+    # Check the token: return the caller, or raise an error.
     async def verify(self, token: str) -> Principal:
         """Return the principal or raise AuthenticationError. Must fail closed."""
         # `...` = no body: this is only a contract.
@@ -77,6 +78,7 @@ class Membership:
 class MembershipLookup(Protocol):
     """Which tenants a verified user belongs to (ADR-0007). Runs before any tenant context."""
 
+    # All (workspace, role) pairs of a verified user.
     async def memberships(self, auth_user_id: str) -> list[Membership]: ...
 
 
