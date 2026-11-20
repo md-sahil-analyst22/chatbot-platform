@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 # 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
-# What: The public widget endpoint: GET /public/v1/widget/{key}/config - no login needed.
+# What: The public widget endpoint: GET /public/v1/widgets/{key}/config - no login needed.
 # Security: 🔒 Returns display fields only. The tenant is found from the key on the server, never
 #           from the request.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -22,21 +22,33 @@ from saathi.modules.tenancy.api.deps import ResolvedWidgetDep
 #   PublicWidgetConfigOut = public widget response.
 from saathi.modules.tenancy.api.schemas import PublicWidgetConfigOut
 
+# Endpoints under /widgets (mounted at /public/v1, so /public/v1/widgets/...).
 router = APIRouter(prefix="/widgets", tags=["public-widget"])
 
 
 # The widget calls this when it loads on a tenant's website.
 @router.get("/{public_key}/config")
+# FastAPI resolves the key to a tenant + bot first (ResolvedWidgetDep); unknown key -> 404.
 async def widget_config(widget: ResolvedWidgetDep, response: Response) -> PublicWidgetConfigOut:
+    # Read the live, widget-safe configuration.
     cfg = await widget.service.get(widget.tenant_id, widget.bot_id)
+    # Browsers and CDNs may cache this answer for 60 seconds.
     response.headers["Cache-Control"] = "public, max-age=60"
+    # Return only display fields:
     return PublicWidgetConfigOut(
+        # title,
         header_title=cfg.header_title,
+        # subtitle,
         header_subtitle=cfg.header_subtitle,
+        # footer,
         footer_text=cfg.footer_text,
+        # greeting,
         greeting=cfg.greeting,
+        # colour,
         primary_color=cfg.primary_color,
+        # launcher side,
         launcher_position=cfg.launcher_position,
         logo_url=None,  # P4.13: ObjectStore.public_url(...) for cfg.logo_asset_id
+        # languages.
         languages=list(cfg.languages),
     )
