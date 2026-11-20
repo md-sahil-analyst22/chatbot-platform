@@ -26,9 +26,13 @@ from saathi.platform.errors import AuthorizationError
 
 # The four roles a user can have in a workspace.
 class Role(StrEnum):
+    # Can only read.
     VIEWER = "viewer"
+    # Can handle customer conversations (the human-agent role).
     AGENT = "agent"
+    # Can change bots and settings.
     ADMIN = "admin"
+    # Full control, including saving and revoking the workspace's own API keys.
     OWNER = "owner"
 
 
@@ -36,14 +40,18 @@ class Role(StrEnum):
 _RANK = {Role.VIEWER: 0, Role.AGENT: 1, Role.ADMIN: 2, Role.OWNER: 3}
 
 
+# @dataclass writes __init__ for us; frozen=True means it can't be changed afterwards.
 @dataclass(frozen=True, slots=True)
 # The verified caller: user id, tenant id and role. The tenant ALWAYS comes from here, never
 # from the request body (R8).
 class Principal:
     """Who is calling. tenant_id comes from the verified token - never from the request body."""
 
+    # The Supabase user id (the token's 'sub').
     user_id: str
+    # The caller's workspace.
     tenant_id: UUID
+    # The caller's role in that workspace.
     role: Role
 
 
@@ -51,13 +59,17 @@ class Principal:
 class TokenVerifier(Protocol):
     async def verify(self, token: str) -> Principal:
         """Return the principal or raise AuthenticationError. Must fail closed."""
+        # `...` = no body: this is only a contract.
         ...
 
 
+# Same idea: an unchangeable little data holder.
 @dataclass(frozen=True, slots=True)
 # One (workspace, role) pair a user belongs to.
 class Membership:
+    # The workspace.
     tenant_id: UUID
+    # The role in it.
     role: Role
 
 
@@ -70,5 +82,7 @@ class MembershipLookup(Protocol):
 
 # Stop with 403 if the caller's role is lower than required.
 def require_role(principal: Principal, minimum: Role) -> None:
+    # Compare the role numbers: lower than required...
     if _RANK[principal.role] < _RANK[minimum]:
+        # ...means 403 forbidden.
         raise AuthorizationError(f"requires role >= {minimum.value}")

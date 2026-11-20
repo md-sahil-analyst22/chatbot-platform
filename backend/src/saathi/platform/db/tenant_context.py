@@ -48,6 +48,8 @@ async def set_tenant(session: AsyncSession, tenant_id: UUID) -> None:
     set_config(..., is_local => true) behaves like SET LOCAL: it resets at COMMIT/ROLLBACK,
     so a pooled connection can never carry one tenant's context into another request.
     """
+    # Run Postgres' set_config(): app.tenant_id = this tenant; `true` = only until the
+    #   transaction ends.
     await session.execute(
         text("SELECT set_config('app.tenant_id', :tid, true)"), {"tid": str(tenant_id)}
     )
@@ -60,6 +62,9 @@ async def tenant_session(
     sessionmaker: async_sessionmaker[AsyncSession], tenant_id: UUID
 ) -> AsyncIterator[AsyncSession]:
     """Session + transaction with the tenant bound. Commits on success, rolls back on error."""
+    # Open a session and start a transaction (commit on success, rollback on error).
     async with sessionmaker() as session, session.begin():
+        # 🔒 Lock it to this tenant before anything else runs.
         await set_tenant(session, tenant_id)
+        # Lend the session to the caller.
         yield session

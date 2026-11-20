@@ -24,11 +24,15 @@ from typing import Any, Protocol
 
 # The contract: `span(name)` wraps one timed step.
 class Tracer(Protocol):
+    # span(name) returns a `with` block that times one step; `...` = no body in a contract.
     def span(self, name: str, **attributes: Any) -> Any: ...
 
 
 # Does nothing - lets the code call the tracer before a real one exists.
 class NoopTracer:
+    # @contextmanager turns the function below into a `with` block.
     @contextmanager
+    # Same signature as the contract, so it can stand in for a real tracer.
     def span(self, name: str, **attributes: Any) -> Iterator[None]:
+        # Do nothing; just let the code inside the `with` block run.
         yield None

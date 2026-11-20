@@ -112,33 +112,40 @@ def build_llm_resolver(
 ) -> LlmResolver:
     # Given a provider name ('gemini') and a key, create that vendor's chat client.
     def factory(provider: str, api_key: str) -> CompletionClient:
+        # Look up the vendor by name in the registry and create its client with this key.
         return completion_registry.create(provider, http=http, api_key=api_key)
 
+    # Build the resolver; with no key source given, use the platform's own keys from .env.
     return LlmResolver(factory, credentials or platform_credentials_from_env())
 
 
 # The vendor that turns text into numbers for search (default 'gemini', EMBEDDING_PROVIDER).
 def build_embedder(settings: Settings, http: httpx.AsyncClient) -> Embedder:
+    # Create the embedder named by EMBEDDING_PROVIDER (e.g. 'gemini').
     return embedder_registry.create(settings.embedding_provider, http=http)
 
 
 # The vendor that re-sorts search results by relevance (default 'cohere').
 def build_reranker(settings: Settings, http: httpx.AsyncClient) -> Reranker:
+    # Create the reranker named by RERANKER_PROVIDER (e.g. 'cohere').
     return reranker_registry.create(settings.reranker_provider, http=http)
 
 
 # Reads documents (e.g. 'pymupdf' for PDFs).
 def build_parser(name: str) -> DocumentParser:
+    # Create the document parser with this name (e.g. 'pymupdf').
     return parser_registry.create(name)
 
 
 # Speech-to-text vendor (default 'sarvam', STT_PROVIDER).
 def build_stt(settings: Settings, http: httpx.AsyncClient) -> SpeechToText:
+    # Create the speech-to-text vendor named by STT_PROVIDER (e.g. 'sarvam').
     return stt_registry.create(settings.stt_provider, http=http)
 
 
 # Text-to-speech vendor (default 'sarvam', TTS_PROVIDER).
 def build_tts(settings: Settings, http: httpx.AsyncClient) -> TextToSpeech:
+    # Create the text-to-speech vendor named by TTS_PROVIDER (e.g. 'sarvam').
     return tts_registry.create(settings.tts_provider, http=http)
 
 
@@ -146,4 +153,5 @@ def build_tts(settings: Settings, http: httpx.AsyncClient) -> TextToSpeech:
 def build_object_store(
     settings: Settings, http: httpx.AsyncClient, visibility: Literal["private", "public"]
 ) -> ObjectStore:
+    # Create the file store named by STORAGE_PROVIDER, for the private or the public bucket.
     return object_store_registry.create(settings.storage_provider, http=http, visibility=visibility)

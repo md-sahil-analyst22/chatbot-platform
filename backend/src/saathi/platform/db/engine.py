@@ -27,21 +27,29 @@ def build_engine(url: str) -> AsyncEngine:
     # Pool sized for a small instance; revisit with load-test numbers (P6.4) and the
     # managed-Postgres connection limit (use the provider's pooler in production).
     return create_async_engine(
+        # the database address (with user and password),
         url,
+        # keep up to 10 connections open,
         pool_size=10,
+        # allow 5 extra temporary ones under heavy load,
         max_overflow=5,
+        # test a connection before using it (drops dead ones),
         pool_pre_ping=True,
+        # replace connections older than 30 minutes (1800 s).
         pool_recycle=1800,
     )
 
 
 # A factory that creates a new 'session' (a unit of database work) when asked.
 def build_sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    # expire_on_commit=False: objects stay readable after a commit.
     return async_sessionmaker(engine, expire_on_commit=False)
 
 
 # One tiny query to prove the database answers (used by /ready).
 async def ping_database(engine: AsyncEngine) -> None:
     """Readiness probe: one round trip. Raises if the database is unreachable."""
+    # Borrow a connection from the pool...
     async with engine.connect() as conn:
+        # ...and run the smallest possible query. An error means the database isn't answering.
         await conn.execute(text("SELECT 1"))

@@ -61,17 +61,24 @@ def create_app() -> FastAPI:
     # 'lifespan' = code that runs once at start-up (before `yield`) and once at shutdown (after
     # it).
     @asynccontextmanager
+    # Code before `yield` runs at start-up; code after it runs at shutdown.
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Build the shared toolbox ONCE: database pool, Redis, HTTP client, login checker, model
         # list.
         container = Container.build(settings)
         # Publish narrow resources; request handlers never see the whole container.
         app.state.sessionmaker = container.sessionmaker
+        # Put the login checker where request helpers (api/deps.py) can find it.
         app.state.token_verifier = container.token_verifier
+        # Put the shared HTTP client there too.
         app.state.http = container.http
+        # And the list of AI models tenants may choose.
         app.state.model_catalog = container.model_catalog
+        # And the checks that /ready runs (database, Redis).
         app.state.readiness_checks = container.readiness_checks()
+        # `try/finally` guarantees the clean-up below runs even if the app crashes.
         try:
+            # Hand control to FastAPI: the app now serves requests until it is stopped.
             yield
         finally:
             # Shutdown: close every connection cleanly so nothing is left hanging.
@@ -79,20 +86,31 @@ def create_app() -> FastAPI:
 
     # Create the web application object itself.
     app = FastAPI(
+        # Name shown in the API docs.
         title="Saathi AI API",
+        # Version shown in the API docs.
         version=settings.app_version,
+        # Use the start-up/shutdown function defined above.
         lifespan=lifespan,
+        # 🔒 Interactive API docs only outside production (/docs is off live).
         docs_url=None if is_prod else "/docs",
+        # Turn off the second docs page (ReDoc) everywhere.
         redoc_url=None,
+        # 🔒 The machine-readable API description is also hidden in production.
         openapi_url=None if is_prod else "/openapi.json",
     )
+    # Add the CORS layer: which websites' browsers may call this API.
     app.add_middleware(
         # CORS = which other websites may call this API from a browser. Only Bot Studio's
         # address is allowed (from settings); cookies are never sent.
         CORSMiddleware,
+        # Only the websites listed in CORS_ALLOWED_ORIGINS.
         allow_origins=settings.cors_allowed_origins,
+        # 🔒 Browsers may not send cookies; logins travel in the Authorization header instead.
         allow_credentials=False,
+        # The HTTP methods browsers may use.
         allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        # The request headers browsers may send.
         allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key"],
     )
     # Give every request an id and write one log line per request (see api/middleware.py).
@@ -102,4 +120,5 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     # Attach all the URLs: /health, /ready, /api/v1/... and /public/v1/... (api/router.py).
     app.include_router(build_api_router())
+    # Return the finished app (uvicorn runs it).
     return app

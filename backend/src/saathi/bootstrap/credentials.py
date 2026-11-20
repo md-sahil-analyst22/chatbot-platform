@@ -32,17 +32,20 @@ from saathi.modules.conversation.adapters.llm.gemini_llm import GeminiSettings
 
 # Unwrap a hidden secret value (or return None if it isn't set).
 def _reveal(secret: SecretStr | None) -> str | None:
+    # The hidden value as plain text, or None if the setting is empty.
     return secret.get_secret_value() if secret else None
 
 
 # Holds the platform's keys per provider name.
 class PlatformCredentialSource:
+    # `keys` maps vendor name -> API key, e.g. {'gemini': '...'}.
     def __init__(self, keys: Mapping[str, str | None]) -> None:
         # Drop empty keys, so an unset key counts as 'no key' (fail closed).
         self._keys = {provider: key for provider, key in keys.items() if key}
 
     # 'Which key should tenant X use for provider Y?' Today: the platform key.
     async def api_key_for(self, tenant_id: str, provider: str) -> str | None:
+        # Today every tenant uses the platform's key for that vendor (None if we have none).
         return self._keys.get(provider)
 
 
@@ -50,8 +53,11 @@ class PlatformCredentialSource:
 def platform_credentials_from_env() -> PlatformCredentialSource:
     # One line per LLM provider adapter.
     return PlatformCredentialSource(
+        # A dictionary of vendor -> key:
         {
+            # the Gemini key from GEMINI_API_KEY,
             "gemini": _reveal(GeminiSettings().api_key),
+            # the Anthropic key from ANTHROPIC_API_KEY.
             "anthropic": _reveal(AnthropicSettings().api_key),
         }
     )

@@ -30,11 +30,14 @@ from saathi.platform.config.settings import get_settings
 
 # Runs once when the worker starts: load the settings so jobs can use them.
 async def startup(ctx: dict[str, Any]) -> None:
+    # Load the settings once and keep them in the worker's shared `ctx` dictionary for every
+    #   job.
     ctx["settings"] = get_settings()
 
 
 # Runs once when the worker stops. Nothing to clean up yet.
 async def shutdown(ctx: dict[str, Any]) -> None:
+    # Nothing to clean up yet.
     return None
 
 
@@ -42,7 +45,9 @@ async def shutdown(ctx: dict[str, Any]) -> None:
 class WorkerSettings:
     # The list of jobs this worker can run.
     functions: ClassVar[list[Any]] = [ingest_source]
+    # Run startup() when the worker starts.
     on_startup = startup
+    # Run shutdown() when the worker stops.
     on_shutdown = shutdown
     # Where the job queue lives (Redis address from the settings).
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url.get_secret_value())

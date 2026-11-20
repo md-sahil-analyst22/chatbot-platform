@@ -30,6 +30,7 @@ from saathi.modules.tenancy.api.routes import router as tenancy_router
 
 # Builds the URL map. Each module contributes its own routes; this file only groups them.
 def build_api_router() -> APIRouter:
+    # The top-level router everything is attached to.
     root = APIRouter()
     root.include_router(health_router)  # unversioned: /health
 
@@ -48,5 +49,7 @@ def build_api_router() -> APIRouter:
     public = APIRouter(prefix="/public/v1")
     # The widget's public look - no login, only safe fields (public_routes.py).
     public.include_router(public_widget_router)
+    # Attach the public group to the top-level router.
     root.include_router(public)
+    # Return the complete router to main.py.
     return root
