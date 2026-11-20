@@ -26,19 +26,29 @@ import { PlaygroundPage } from "../features/playground/PlaygroundPage";
 
 // React Query caches server data for 30 s and retries a failed request once.
 const queryClient = new QueryClient({
+  // Retry a failed request once; treat loaded data as fresh for 30 seconds.
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
 
 // Every page is shown inside the shared Layout (sidebar + content).
 export function App() {
+  // Return the page structure (JSX: HTML-like code that React turns into the page):
   return (
+    // Every page can use the data cache.
     <QueryClientProvider client={queryClient}>
+      {/* Turn on navigation by URL. */}
       <BrowserRouter>
+        {/* The list of URL -> page rules: */}
         <Routes>
+          {/* All pages below are shown inside the shared Layout (sidebar + content). */}
           <Route element={<Layout />}>
+            {/* / -> the bots list. */}
             <Route index element={<BotsPage />} />
+            {/* /bots/<id>/config -> the Bot Studio editor. */}
             <Route path="bots/:botId/config" element={<ConfigEditorPage />} />
+            {/* /bots/<id>/playground -> the test chat. */}
             <Route path="bots/:botId/playground" element={<PlaygroundPage />} />
+            {/* /settings/api-keys -> the API keys page. */}
             <Route path="settings/api-keys" element={<CredentialsPage />} />
           </Route>
         </Routes>

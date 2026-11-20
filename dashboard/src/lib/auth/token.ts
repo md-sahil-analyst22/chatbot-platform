@@ -10,10 +10,14 @@
  */
 let accessToken: string | null = null;
 
+// Remember a new token (or null after logging out).
 export function setAccessToken(token: string | null): void {
+  // Store it.
   accessToken = token;
 }
 
+// The current token (null if not logged in).
 export function getAccessToken(): string | null {
+  // Return it.
   return accessToken;
 }

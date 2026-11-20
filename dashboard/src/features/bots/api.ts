@@ -14,15 +14,21 @@ import type { Bot, BotCreate } from "../../lib/api/types";
 
 // Load the bots list.
 export function useBots() {
+  // Load GET /api/v1/bots, cached under the name 'bots'.
   return useQuery({ queryKey: ["bots"], queryFn: () => api<Bot[]>("/api/v1/bots") });
 }
 
 // Create a bot, then refresh the list.
 export function useCreateBot() {
+  // Access to the data cache.
   const queryClient = useQueryClient();
+  // Return a 'mutation' (an action that changes data):
   return useMutation({
+    // what it does: send the new bot...
     mutationFn: (body: BotCreate) =>
+      // ...as POST /api/v1/bots with a JSON body;
       api<Bot>("/api/v1/bots", { method: "POST", body: JSON.stringify(body) }),
+    // afterwards: mark the cached bots list stale so it reloads.
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bots"] }),
   });
 }
