@@ -30,14 +30,22 @@ _MAX_MEMBERSHIPS = 20
 class SqlAlchemyMembershipLookup:
     """Implements MembershipLookup with its own short session (no tenant bound)."""
 
+    # Gets the session factory (it opens its own short session per lookup).
     def __init__(self, sessionmaker: async_sessionmaker[AsyncSession]) -> None:
+        # Remember it.
         self._sessionmaker = sessionmaker
 
     # User id -> list of (tenant, role).
     async def memberships(self, auth_user_id: str) -> list[Membership]:
+        # Open a short session (no tenant context yet).
         async with self._sessionmaker() as session:
+            # Run:
             rows = await session.execute(
+                # 🔒 the narrow lookup function, at most _MAX_MEMBERSHIPS rows,
                 text("SELECT tenant_id, role FROM resolve_user_membership(:uid) LIMIT :max"),
+                # with the user id and the limit passed as parameters (never pasted into the
+                #   SQL).
                 {"uid": auth_user_id, "max": _MAX_MEMBERSHIPS},
             )
+            # Turn each row into a Membership (role text -> Role).
             return [Membership(tenant_id=r.tenant_id, role=Role(r.role)) for r in rows]

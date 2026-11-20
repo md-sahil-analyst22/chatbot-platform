@@ -34,13 +34,19 @@ from saathi.modules.tenancy.ports.repositories import PublicBotRef
 
 # Calls the database function resolve_bot_public_key().
 class SqlAlchemyPublicBotLookup:
+    # Works with a plain session (no tenant yet).
     def __init__(self, session: AsyncSession) -> None:
+        # Remember it.
         self._session = session
 
     # Key -> (tenant, bot), or None if the key is unknown.
     async def resolve(self, public_key: str) -> PublicBotRef | None:
+        # 🔒 Call the narrow database function with the key as a parameter (never pasted into
+        #   the SQL).
         result = await self._session.execute(
             text("SELECT tenant_id, bot_id FROM resolve_bot_public_key(:k)"), {"k": public_key}
         )
+        # The first (and only) row, or None.
         row = result.first()
+        # Found: (tenant, bot). Not found: None.
         return PublicBotRef(tenant_id=row.tenant_id, bot_id=row.bot_id) if row else None

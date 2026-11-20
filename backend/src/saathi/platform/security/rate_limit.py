@@ -28,6 +28,10 @@ from redis.exceptions import RedisError
 
 # Uses Redis server TIME so app-server clock skew cannot be abused.
 # A small script that runs INSIDE Redis, so checking and taking a token is one atomic step.
+# How the Redis script below works: read the bucket (tokens left + last time), add the tokens
+#   earned since then (time x refill rate, never above the capacity), take `cost` tokens if
+#   there are enough (allowed=1, otherwise 0), save the bucket, let it expire once it would be
+#   full again anyway, and return allowed.
 _BUCKET_SCRIPT_LUA = """
 local cap  = tonumber(ARGV[1])
 local rate = tonumber(ARGV[2])
@@ -49,28 +53,40 @@ return allowed
 """
 
 
+# @dataclass writes __init__; frozen=True makes the policy unchangeable.
 @dataclass(frozen=True, slots=True)
 # Bucket size, refill speed, and what to do if Redis is down (security limits: deny).
 class BucketPolicy:
+    # How many requests may burst at once (bucket size).
     capacity: int
+    # How many tokens are added back per second.
     refill_per_second: float
+    # If Redis is down: 'deny' (safe default for security limits) or 'allow'.
     on_backend_error: Literal["deny", "allow"] = "deny"
 
 
 # The limiter itself.
 class RedisTokenBucket:
+    # Built once with the Redis client.
     def __init__(self, redis: Redis) -> None:
+        # Load the script into Redis once; later calls run it by its fingerprint.
         self._script = redis.register_script(_BUCKET_SCRIPT_LUA)
 
     # 'May this subject make one more request?' Keys always include the tenant.
     async def allow(
         self, *, scope: str, tenant_id: str, subject: str, policy: BucketPolicy, cost: int = 1
     ) -> bool:
+        # 🔒 The bucket's Redis key always includes the tenant, e.g. rl:widget:<tenant>:<ip>.
         key = f"rl:{scope}:{tenant_id}:{subject}"
+        # Try to run the script...
         try:
+            # ...on this bucket, with capacity, refill rate and cost.
             result = await self._script(
                 keys=[key], args=[policy.capacity, policy.refill_per_second, cost]
             )
+        # Redis is down or failed:
         except RedisError:
+            # follow the policy's choice (allow only if it says 'allow').
             return policy.on_backend_error == "allow"
+        # The script returns 1 for allowed, 0 for denied.
         return int(result) == 1

@@ -37,24 +37,35 @@ from saathi.platform.db.base import Base, created_at, tenant_fk, updated_at, uui
 
 # Table `leads`.
 class LeadRow(Base):
+    # The real table name in Postgres.
     __tablename__ = "leads"
+    # Table-wide rules:
     __table_args__ = (
         # Deleting a contact (delete-my-data) deletes their leads too.
         ForeignKeyConstraint(
             ["tenant_id", "contact_id"], ["contacts.tenant_id", "contacts.id"], ondelete="CASCADE"
         ),
+        # CRM sync status must be pending, synced or failed;
         CheckConstraint("crm_sync_status IN ('pending', 'synced', 'failed')", name="crm_sync"),
         # serves: leads list for a tenant, newest first
         Index("ix_leads_tenant_created", "tenant_id", text("created_at DESC")),
     )
 
+    # id: random UUID primary key.
     id: Mapped[uuid.UUID] = uuid_pk()
+    # 🔒 tenant_id: which workspace owns the row.
     tenant_id: Mapped[uuid.UUID] = tenant_fk()
+    # contact_id: who the lead is.
     contact_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    # conversation_id: where it came from (cleared if that conversation is deleted).
     conversation_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="SET NULL")
     )
+    # fields: what the customer filled in, as JSON.
     fields: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    # crm_sync_status: starts as 'pending'.
     crm_sync_status: Mapped[str] = mapped_column(String(20), server_default="pending")
+    # When it was created.
     created_at: Mapped[datetime] = created_at()
+    # When it last changed.
     updated_at: Mapped[datetime] = updated_at()

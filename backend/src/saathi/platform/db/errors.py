@@ -19,6 +19,9 @@ from sqlalchemy.exc import IntegrityError
 # Returns the name of the broken constraint (e.g. 'uq_bots_tenant_name'), or None.
 def violated_constraint(exc: IntegrityError) -> str | None:
     """Name of the violated constraint or unique index, if the driver reports it (asyncpg does)."""
+    # Dig out the database driver's original error.
     cause = getattr(exc.orig, "__cause__", None) or exc.orig
+    # The name of the broken rule, if the driver reported one.
     name = getattr(cause, "constraint_name", None)
+    # Return it only if it really is text.
     return name if isinstance(name, str) else None

@@ -16,42 +16,54 @@ No HTTP status codes here - the domain does not know it is served over HTTP.
 # Parent of all our errors. Every error has a short machine-readable `code` and a human
 # `message`.
 class SaathiError(Exception):
+    # Default code; each child class sets its own.
     code: str = "internal_error"
 
+    # Create the error with a message, and optionally a custom code.
     def __init__(self, message: str = "", *, code: str | None = None) -> None:
+        # Let Python's own Exception store the message too.
         super().__init__(message)
+        # Keep the message (sent to the caller for 4xx errors).
         self.message = message
+        # If a custom code was given...
         if code:
+            # ...use it instead of the class default.
             self.code = code
 
 
 # Errors about business rules.
 class DomainError(SaathiError):
+    # Code sent in the JSON error body.
     code = "domain_error"
 
 
 # Input breaks a rule (e.g. bot name too long).
 class ValidationError(DomainError):
+    # Code sent in the JSON error body.
     code = "validation_error"
 
 
 # Doesn't exist - or belongs to another tenant (we don't reveal which).
 class NotFoundError(DomainError):
+    # Code sent in the JSON error body.
     code = "not_found"
 
 
 # Clashes with existing data, e.g. duplicate name or a publish race.
 class ConflictError(DomainError):
+    # Code sent in the JSON error body.
     code = "conflict"
 
 
 # We don't know who you are (missing/invalid login).
 class AuthenticationError(SaathiError):
+    # Code sent in the JSON error body.
     code = "unauthenticated"
 
 
 # We know who you are, but your role isn't allowed to do this.
 class AuthorizationError(SaathiError):
+    # Code sent in the JSON error body.
     code = "forbidden"
 
 
@@ -59,29 +71,35 @@ class AuthorizationError(SaathiError):
 class TenantIsolationError(SaathiError):
     """Raised when a request would cross tenant boundaries. Always logged as a security event."""
 
+    # Shown as 'forbidden'; the HTTP answer is 404 so nothing is revealed.
     code = "forbidden"
 
 
 # Too many requests.
 class RateLimitError(SaathiError):
+    # Code sent in the JSON error body.
     code = "rate_limited"
 
 
 # An outside AI/vendor service failed.
 class ProviderError(SaathiError):
+    # Code sent in the JSON error body.
     code = "provider_error"
 
 
 # An outside service was too slow.
 class ProviderTimeoutError(ProviderError):
+    # Code sent in the JSON error body.
     code = "provider_timeout"
 
 
 # Something on our side broke (database, encryption...).
 class InfrastructureError(SaathiError):
+    # Code sent in the JSON error body.
     code = "infrastructure_error"
 
 
 # A setting is missing or wrong (e.g. no API key).
 class ConfigurationError(InfrastructureError):
+    # Code sent in the JSON error body.
     code = "configuration_error"

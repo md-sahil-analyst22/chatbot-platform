@@ -15,11 +15,14 @@ import "./styles/global.css";
 
 // The spot in index.html where the app is drawn.
 const root = document.getElementById("root");
+// If it's missing, stop with a clear error (index.html is broken).
 if (!root) throw new Error("#root element missing");
 
 // Start React. StrictMode adds extra checks while developing.
 createRoot(root).render(
+  // StrictMode: extra development-time checks around the whole app.
   <StrictMode>
+    {/* The app itself (app/App.tsx). */}
     <App />
   </StrictMode>,
 );

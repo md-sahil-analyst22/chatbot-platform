@@ -29,29 +29,47 @@ from saathi.modules.tenancy.domain.entities import Bot
 from saathi.platform.config.model_catalog import ALL_PLANS, ModelCatalog, ModelOption
 
 
+# Build a valid test bot (random ids; optional tenant and name).
 def make_bot(tenant_id: UUID | None = None, name: str = "Mitra") -> Bot:
+    # A Bot with:
     return Bot(
+        # a random id,
         id=uuid4(),
+        # the given tenant, or a random one,
         tenant_id=tenant_id or uuid4(),
+        # the name,
         name=name,
+        # no persona,
         persona="",
+        # English only,
         languages=("en",),
+        # a random valid widget key.
         public_key="pk_" + uuid4().hex,
     )
 
 
+# Build a valid test configuration.
 def make_config(model_key: str = "standard", title: str = "TaxMitra") -> BotConfig:
+    # A BotConfig with:
     return BotConfig(
+        # a persona,
         prompt=PromptSettings(persona="Polite and precise"),
+        # the chosen model key,
         generation=GenerationSettings(model_key=model_key),
+        # a title and a footer.
         branding=Branding(header_title=title, footer_text="Powered by Saathi"),
     )
 
 
+# Build a small catalog with two test models.
 def make_catalog() -> ModelCatalog:
+    # A catalog of:
     return ModelCatalog(
+        # these options:
         [
+            # 'standard', allowed on every plan,
             ModelOption("standard", "Standard", "anthropic", "small-model", 1000, ALL_PLANS),
+            # 'advanced', allowed only on 'pro'.
             ModelOption(
                 "advanced", "Advanced", "anthropic", "large-model", 2000, frozenset({"pro"})
             ),
@@ -59,4 +77,5 @@ def make_catalog() -> ModelCatalog:
     )
 
 
+# A fixed moment in time, so tests are repeatable.
 NOW = datetime(2026, 11, 12, tzinfo=UTC)

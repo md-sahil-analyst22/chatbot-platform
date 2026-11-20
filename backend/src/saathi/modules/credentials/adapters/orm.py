@@ -29,25 +29,41 @@ from saathi.platform.db.base import Base, created_at, tenant_fk, uuid_pk
 
 # 🔒 One row per saved key; `ciphertext` is the encrypted key, never plain text.
 class ProviderCredentialRow(Base):
+    # The real table name in Postgres.
     __tablename__ = "provider_credentials"
+    # Table-wide rules:
     __table_args__ = (
+        # status must be active or revoked;
         CheckConstraint("status IN ('active', 'revoked')", name="status"),
+        # key_last4 must be exactly 4 characters;
         CheckConstraint("char_length(key_last4) = 4", name="key_last4"),
         # At most one active key per tenant + provider; also serves the lookup by provider.
         Index(
+            # its name,
             "uq_provider_credentials_one_active",
+            # first column: tenant,
             "tenant_id",
+            # second column: vendor,
             "provider",
+            # unique,
             unique=True,
+            # but only among active keys (so one active key per tenant + vendor).
             postgresql_where=text("status = 'active'"),
         ),
     )
 
+    # id: random UUID primary key.
     id: Mapped[uuid.UUID] = uuid_pk()
+    # 🔒 tenant_id: which workspace owns the key.
     tenant_id: Mapped[uuid.UUID] = tenant_fk()
+    # provider: the vendor name.
     provider: Mapped[str] = mapped_column(String(30))
     ciphertext: Mapped[str] = mapped_column(Text)  # AES-GCM token, never the plaintext key
+    # key_last4: for display.
     key_last4: Mapped[str] = mapped_column(String(4))
+    # status: active / revoked.
     status: Mapped[str] = mapped_column(String(20))
+    # created_by: who added it.
     created_by: Mapped[str] = mapped_column(String(100))
+    # When it was added.
     created_at: Mapped[datetime] = created_at()

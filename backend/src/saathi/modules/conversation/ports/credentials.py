@@ -14,4 +14,5 @@ class CredentialSource(Protocol):
     vault first, then the platform key if the plan allows a fallback.
     """
 
+    # The key for this tenant + vendor, or None.
     async def api_key_for(self, tenant_id: str, provider: str) -> str | None: ...

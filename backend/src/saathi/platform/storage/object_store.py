@@ -15,12 +15,17 @@ from typing import Protocol
 
 # Any storage vendor must provide these four operations.
 class ObjectStore(Protocol):
+    # Save bytes under a key (file path).
     async def put(self, key: str, data: bytes, content_type: str) -> None: ...
 
+    # Read the bytes stored under a key.
     async def get(self, key: str) -> bytes: ...
 
+    # Delete the file at a key.
     async def delete(self, key: str) -> None: ...
 
+    # The public web address of a file, or None if the store is private.
     def public_url(self, key: str) -> str | None:
         """URL for public assets (logos); None for private objects (documents)."""
+        # `...` = no body: this is only a contract.
         ...

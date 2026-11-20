@@ -75,68 +75,104 @@ from saathi.platform.security.auth import TokenVerifier
 from saathi.platform.security.jwt_verifier import JwksTokenVerifier
 
 
+# @dataclass writes the __init__ for us from the fields below; slots=True saves memory.
 @dataclass(slots=True)
 # The toolbox. `@dataclass` just means 'a class that mainly holds these fields'.
 class Container:
+    # The app's settings (from .env).
     settings: Settings
+    # The database connection pool.
     engine: AsyncEngine
+    # The factory that opens database sessions.
     sessionmaker: async_sessionmaker[AsyncSession]
+    # The Redis client.
     redis: Redis
+    # The shared HTTP client for calling vendors.
     http: httpx.AsyncClient
+    # The list of AI models tenants may choose.
     model_catalog: ModelCatalog
+    # The login checker (None = every /api/v1 call is refused).
     token_verifier: TokenVerifier | None
 
+    # A classmethod is called on the class itself: Container.build(settings).
     @classmethod
     # Create every tool from the settings. Nothing connects yet - connections open on first use.
     def build(cls, settings: Settings) -> Container:
+        # Create the database pool, using the secret DATABASE_URL.
         engine = build_engine(settings.database_url.get_secret_value())
+        # Create the session factory on top of that pool.
         sessionmaker = build_sessionmaker(engine)
+        # Create the shared HTTP client.
         http = build_http_client()
+        # Create the container holding:
         return cls(
+            # the settings,
             settings=settings,
+            # the pool,
             engine=engine,
+            # the session factory,
             sessionmaker=sessionmaker,
+            # a Redis client (decode_responses=True gives text instead of raw bytes),
             redis=Redis.from_url(settings.redis_url.get_secret_value(), decode_responses=True),
+            # the HTTP client,
             http=http,
+            # the model catalog,
             model_catalog=default_catalog(),
+            # and the login checker.
             token_verifier=build_token_verifier(settings, http, sessionmaker),
         )
 
     # Which checks /ready runs: can we reach the database and Redis?
     def readiness_checks(self) -> Mapping[str, Callable[[], Awaitable[object]]]:
         """Dependencies the API needs before it can serve traffic (used by /ready)."""
+        # Two checks, by name: is the database answering, and is Redis answering?
         return {"database": self._ping_database, "redis": self._ping_redis}
 
     # One tiny `SELECT 1` round trip.
     async def _ping_database(self) -> None:
+        # Run one tiny query against the database.
         await ping_database(self.engine)
 
     # One Redis PING.
     async def _ping_redis(self) -> None:
+        # Ask Redis 'PING'; it answers 'PONG' if healthy.
         await self.redis.ping()
 
     # Close everything at shutdown, in reverse order of importance.
     async def aclose(self) -> None:
+        # Close the HTTP client's open connections.
         await self.http.aclose()
+        # Close the Redis connection.
         await self.redis.aclose()
+        # Close every database connection in the pool.
         await self.engine.dispose()
 
 
 # 🔒 Decide how logins are checked (ADR-0007).
 def build_token_verifier(
+    # the app settings,
     settings: Settings,
+    # the HTTP client (to download Supabase's public keys),
     http: httpx.AsyncClient,
+    # the session factory (to look up the user's workspace).
     sessionmaker: async_sessionmaker[AsyncSession],
 ) -> TokenVerifier | None:
     """ADR-0007. None means every /api/v1 call is refused (fail closed, R16)."""
+    # Unpack the three login settings into three short names.
     url, issuer, audience = settings.auth_jwks_url, settings.auth_issuer, settings.auth_audience
     # All three login settings present: check Supabase tokens and look up the user's workspace.
     if url and issuer and audience:
+        # Build the real login checker with:
         return JwksTokenVerifier(
+            # the HTTP client,
             http,
+            # where Supabase publishes its public keys,
             jwks_url=url,
+            # who must have issued the token,
             issuer=issuer,
+            # who the token must be meant for,
             audience=audience,
+            # and how to find a user's workspace.
             memberships=SqlAlchemyMembershipLookup(sessionmaker),
         )
     # 🔒 A live server that can't check logins is a mistake - refuse to start rather than run

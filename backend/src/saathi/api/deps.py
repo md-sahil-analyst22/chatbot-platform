@@ -63,43 +63,56 @@ _bearer = HTTPBearer(auto_error=False)
 
 # Gives the database session factory that main.py put on app.state.
 async def get_sessionmaker(request: Request) -> async_sessionmaker[AsyncSession]:
+    # The session factory that main.py stored on the app at start-up.
     sessionmaker: async_sessionmaker[AsyncSession] = request.app.state.sessionmaker
+    # Hand it to whoever asked.
     return sessionmaker
 
 
 # Gives the login checker (or None if login isn't configured).
 async def get_token_verifier(request: Request) -> TokenVerifier | None:
+    # The login checker stored at start-up (None if login isn't configured).
     verifier: TokenVerifier | None = request.app.state.token_verifier
+    # Hand it over.
     return verifier
 
 
 # Gives the list of AI models tenants may choose from.
 async def get_model_catalog(request: Request) -> ModelCatalog:
+    # The model catalog stored at start-up.
     catalog: ModelCatalog = request.app.state.model_catalog
+    # Hand it over.
     return catalog
 
 
 # Gives the one shared HTTP client for calling outside services.
 async def get_http_client(request: Request) -> httpx.AsyncClient:
+    # The shared HTTP client stored at start-up.
     http: httpx.AsyncClient = request.app.state.http
+    # Hand it over.
     return http
 
 
 # 🔒 Works out WHO is calling. Every /api/v1 route depends on this.
 async def get_principal(
+    # FastAPI supplies the login checker...
     verifier: Annotated[TokenVerifier | None, Depends(get_token_verifier)],
+    # ...and the token from the 'Authorization: Bearer ...' header (None if missing).
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
 ) -> Principal:
     # No token at all -> 401.
     if credentials is None:
+        # Stop with 401.
         raise AuthenticationError("missing bearer token")
     # Login isn't configured on this server -> refuse everyone (fail closed).
     if verifier is None:  # fail closed until P1.7 wires a verifier
+        # Stop with 401: never let anyone in when we can't check logins.
         raise AuthenticationError("authentication is not configured")
     # Check the token and find the user's workspace (platform/security/jwt_verifier.py).
     principal = await verifier.verify(credentials.credentials)
     # From now on, every log line of this request carries the tenant id.
     structlog.contextvars.bind_contextvars(tenant_id=str(principal.tenant_id))
+    # Hand the verified caller to the endpoint.
     return principal
 
 
@@ -110,13 +123,19 @@ PrincipalDep = Annotated[Principal, Depends(get_principal)]
 # 🔒 A database session locked to the caller's tenant: Postgres then hides every other tenant's
 # rows.
 async def get_tenant_db(
+    # FastAPI supplies the session factory...
     sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
+    # ...and the verified caller.
     principal: PrincipalDep,
 ) -> AsyncIterator[AsyncSession]:
     """DB session whose transaction is bound to the caller's tenant (RLS)."""
+    # 🔒 Open a database session locked to the caller's tenant (row-level security).
     async with tenant_session(sessionmaker, principal.tenant_id) as session:
+        # Lend the session to the endpoint; it is committed or rolled back afterwards.
         yield session
 
 
+# Short name: endpoints write `db: TenantDbDep` to get a tenant-locked session.
 TenantDbDep = Annotated[AsyncSession, Depends(get_tenant_db)]
+# Short name: endpoints write `http: HttpClientDep` to get the shared HTTP client.
 HttpClientDep = Annotated[httpx.AsyncClient, Depends(get_http_client)]

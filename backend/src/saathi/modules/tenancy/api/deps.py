@@ -83,6 +83,7 @@ from saathi.platform.errors import NotFoundError
 
 # A BotService using a tenant-locked database session.
 async def get_bot_service(db: TenantDbDep) -> BotService:
+    # A BotService that stores bots in this tenant-locked session.
     return BotService(SqlAlchemyBotRepository(db))
 
 
@@ -90,46 +91,68 @@ async def get_bot_service(db: TenantDbDep) -> BotService:
 async def get_bot_config_service(
     db: TenantDbDep, catalog: Annotated[ModelCatalog, Depends(get_model_catalog)]
 ) -> BotConfigService:
+    # Build the service with:
     return BotConfigService(
+        # bot storage,
         bots=SqlAlchemyBotRepository(db),
+        # config-version storage,
         configs=SqlAlchemyBotConfigRepository(db),
+        # tenant facts,
         tenants=SqlAlchemyTenantRepository(db),
+        # and the catalog (all sharing the same session/transaction).
         catalog=catalog,
     )
 
 
+# @dataclass writes __init__; frozen=True makes it unchangeable.
 @dataclass(frozen=True, slots=True)
 # The result of resolving a public widget key.
 class ResolvedWidget:
+    # The ready service for reading the widget config.
     service: PublicWidgetConfigService
+    # The tenant the key belongs to.
     tenant_id: UUID
+    # The bot the key belongs to.
     bot_id: UUID
 
 
 # For anonymous widget requests.
 async def get_resolved_widget(
+    # The key from the URL; it must match the pk_... format (else 422).
     public_key: Annotated[str, Path(pattern=PUBLIC_KEY_REGEX)],
+    # FastAPI supplies the session factory.
     sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
 ) -> AsyncIterator[ResolvedWidget]:
     """Anonymous widget request: resolve key -> tenant, then read inside that tenant's RLS scope."""
     # Step 1: key -> tenant (no tenant context yet; narrow lookup only).
     async with sessionmaker() as session:
+        # Look the key up with the narrow database function.
         ref = await SqlAlchemyPublicBotLookup(session).resolve(public_key)
+    # Unknown key:
     if ref is None:
+        # 404.
         raise NotFoundError("widget not found")
     # 🔒 Step 2: read the config inside THAT tenant's row-level security.
     async with tenant_session(sessionmaker, ref.tenant_id) as session:
+        # Lend the result to the endpoint:
         yield ResolvedWidget(
+            # a service whose storage uses this tenant-locked session,
             service=PublicWidgetConfigService(
+                # bot storage,
                 bots=SqlAlchemyBotRepository(session),
+                # config storage,
                 configs=SqlAlchemyBotConfigRepository(session),
             ),
+            # the tenant,
             tenant_id=ref.tenant_id,
+            # the bot.
             bot_id=ref.bot_id,
         )
 
 
 # Short names routes use to ask for these services.
 BotServiceDep = Annotated[BotService, Depends(get_bot_service)]
+# Endpoints write `service: BotConfigServiceDep` to get a ready BotConfigService.
 BotConfigServiceDep = Annotated[BotConfigService, Depends(get_bot_config_service)]
+# Endpoints write `widget: ResolvedWidgetDep` to get a resolved widget.
 ResolvedWidgetDep = Annotated[ResolvedWidget, Depends(get_resolved_widget)]

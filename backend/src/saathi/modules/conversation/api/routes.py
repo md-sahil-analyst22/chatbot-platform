@@ -15,4 +15,5 @@ Public widget calls authenticate with the bot's public key + CORS allowlist + ra
 #   group of related endpoints.
 from fastapi import APIRouter
 
+# The (future) chat endpoints; not mounted yet.
 router = APIRouter(tags=["chat"])

@@ -17,8 +17,10 @@ import httpx
 
 # Timeouts (10 s, 3 s to connect), max 100 connections, no redirects.
 def build_http_client() -> httpx.AsyncClient:
+    # Create the client with:
     return httpx.AsyncClient(
         timeout=httpx.Timeout(10.0, connect=3.0),  # adapters pass tighter per-call timeouts
+        # at most 100 connections at once, keeping 20 idle ones ready for reuse,
         limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
         follow_redirects=False,  # never follow redirects to unexpected hosts (SSRF hygiene)
     )

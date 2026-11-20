@@ -15,4 +15,5 @@ Never call the LLM inside the webhook request: Meta retries slow webhooks -> dup
 #   group of related endpoints.
 from fastapi import APIRouter
 
+# The (future) webhook endpoints; not mounted yet.
 router = APIRouter(tags=["webhooks"])

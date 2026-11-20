@@ -21,9 +21,13 @@ from collections.abc import Sequence
 # From alembic — the database migration tool: op = commands that change tables.
 from alembic import op
 
+# This migration's id.
 revision: str = "0003"
+# The migration that must run before this one: 0002.
 down_revision: str | None = "0002"
+# Not used (no parallel migration branches).
 branch_labels: str | Sequence[str] | None = None
+# Not used (no extra dependencies).
 depends_on: str | Sequence[str] | None = None
 
 
@@ -32,6 +36,10 @@ def upgrade() -> None:
     # serves: login -> membership lookup on every authenticated request
     op.create_index("ix_user_accounts_auth_user_id", "user_accounts", ["auth_user_id"])
     # Returns ids and roles only - nothing that could leak tenant data. search_path is pinned.
+    # Create resolve_user_membership(user id): returns (tenant, role) pairs for that user,
+    #   oldest first. SECURITY DEFINER = it runs with the owner's rights, so it can read
+    #   user_accounts without a tenant set; search_path is pinned so it can't be tricked into
+    #   using other tables.
     op.execute(
         """
         CREATE FUNCTION resolve_user_membership(p_auth_user_id text)
@@ -46,7 +54,10 @@ def upgrade() -> None:
         $$
         """
     )
+    # 🔒 Nobody may call it by default...
     op.execute("REVOKE ALL ON FUNCTION resolve_user_membership(text) FROM PUBLIC")
+    # 🔒 ...then: let saathi_app call it, and make sure Supabase's public roles (anon,
+    #   authenticated) can't. Each step runs only if that role exists.
     op.execute(
         """
         DO $$
@@ -66,5 +77,7 @@ def upgrade() -> None:
 
 # Remove them again.
 def downgrade() -> None:
+    # Remove the function...
     op.execute("DROP FUNCTION IF EXISTS resolve_user_membership(text)")
+    # ...and the index.
     op.drop_index("ix_user_accounts_auth_user_id", table_name="user_accounts")
