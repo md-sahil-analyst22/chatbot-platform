@@ -3,15 +3,31 @@
 # What it tests: The rules of Bot and Source (validation, allowed status changes) and the guard.
 # How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# dataclasses — quick classes that mainly hold data.
 import dataclasses
+
+# From uuid — unique ids (UUIDs): uuid4 = makes a random id.
 from uuid import uuid4
 
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.builders — one-line builders for test objects: make_bot = builds a test bot.
 from tests.fakes.builders import make_bot
 
+# From saathi.modules.conversation.application.nodes.guard — the first chat step (blocks bad
+#   messages): MAX_MESSAGE_CHARS = longest allowed customer message; guard_node = the guard step.
 from saathi.modules.conversation.application.nodes.guard import MAX_MESSAGE_CHARS, guard_node
+
+# From saathi.modules.knowledge.domain.entities — the document (Source) business object: Source
+#   = one document/web page; SourceStatus = queued/processing/ready/failed.
 from saathi.modules.knowledge.domain.entities import Source, SourceStatus
+
+# From saathi.modules.tenancy.domain.entities — the Bot business object: Bot = one chatbot.
 from saathi.modules.tenancy.domain.entities import Bot
+
+# From saathi.platform.errors — our error types: ConflictError = 409 clash with existing data;
+#   ValidationError = 422 invalid input.
 from saathi.platform.errors import ConflictError, ValidationError
 
 

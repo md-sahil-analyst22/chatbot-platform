@@ -3,8 +3,14 @@
 # What: Channel-neutral messages: the same shape whether the customer writes on the website or
 #       WhatsApp.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you; field = per-field options such as a default empty list.
 from dataclasses import dataclass, field
+
+# From datetime — dates and times: datetime = a date + time value.
 from datetime import datetime
+
+# From enum — fixed sets of named values: StrEnum = a fixed set of named text values.
 from enum import StrEnum
 
 

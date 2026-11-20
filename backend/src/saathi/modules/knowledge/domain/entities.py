@@ -9,9 +9,13 @@
 methods, so the lifecycle rules cannot be bypassed by assigning a field.
 """
 
+# From enum — fixed sets of named values: StrEnum = a fixed set of named text values.
 from enum import StrEnum
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From saathi.platform.errors — our error types: ConflictError = 409 clash with existing data.
 from saathi.platform.errors import ConflictError
 
 

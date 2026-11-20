@@ -3,14 +3,29 @@
 # What it tests: The rules every reranker must follow.
 # How to run: cd backend && uv run pytest tests/contracts.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# json — reads and writes JSON text.
 import json
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.providers — fake vendor adapters: FakeReranker = fake reranker; Mode = which
+#   failure a fake should simulate.
 from tests.fakes.providers import FakeReranker, Mode
 
+# From saathi.modules.knowledge.adapters.rerankers.cohere_reranker — the Cohere reranker:
+#   CohereReranker = the Cohere reranker.
 from saathi.modules.knowledge.adapters.rerankers.cohere_reranker import CohereReranker
+
+# From saathi.modules.knowledge.ports.providers — parser, embedder and reranker contracts:
+#   Reranker = contract: best documents first.
 from saathi.modules.knowledge.ports.providers import Reranker
+
+# From saathi.platform.errors — our error types: ProviderError = a vendor failed;
+#   ProviderTimeoutError = a vendor was too slow.
 from saathi.platform.errors import ProviderError, ProviderTimeoutError
 
 DOCS = ["gst registration documents", "office hours", "itr filing fees", "clinic timings"]

@@ -3,7 +3,11 @@
 // What: Test chat against your draft before publishing.
 // Status: 🟡 Placeholder - works once chat exists (Phase 3).
 // ────────────────────────────────────────────────────────────────────────────────────────────
+// From react — React, the library that draws the user interface: useState = remembers a value
+//   between redraws.
 import { useState } from "react";
+// From react-router-dom — page navigation by URL: useParams = reads values from the URL (e.g.
+//   botId).
 import { useParams } from "react-router-dom";
 
 /**

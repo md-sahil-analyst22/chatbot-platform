@@ -13,6 +13,8 @@ DELETE /api/v1/credentials/{id}         -> 204 (revoke)                         
 The api_key field is write-only: it is never echoed, logged or included in validation errors.
 """
 
+# From fastapi — the web framework that turns Python functions into web endpoints: APIRouter = a
+#   group of related endpoints.
 from fastapi import APIRouter
 
 router = APIRouter(prefix="/credentials", tags=["credentials"])

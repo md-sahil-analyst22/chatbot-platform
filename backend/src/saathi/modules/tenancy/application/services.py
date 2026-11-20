@@ -5,14 +5,32 @@
 #          contract. The tenant always comes from the verified caller.
 # Called by: api/routes.py.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# secrets — secure random values.
 import secrets
+
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you; field = per-field options such as a default empty list.
 from dataclasses import dataclass, field
+
+# From typing — type-hint helpers: Any = any type.
 from typing import Any
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type; uuid4 = makes a random id.
 from uuid import UUID, uuid4
 
+# From saathi.modules.tenancy.domain.entities — the Bot business object: Bot = one chatbot.
 from saathi.modules.tenancy.domain.entities import Bot
+
+# From saathi.modules.tenancy.ports.repositories — tenancy storage contracts: BotRepository =
+#   contract: store bots.
 from saathi.modules.tenancy.ports.repositories import BotRepository
+
+# From saathi.platform.errors — our error types: NotFoundError = 404 not found.
 from saathi.platform.errors import NotFoundError
+
+# From saathi.platform.security.auth — who is calling and what they may do: Principal = the
+#   verified caller; Role = viewer/agent/admin/owner; require_role = stops with 403 if the role is
+#   too low.
 from saathi.platform.security.auth import Principal, Role, require_role
 
 

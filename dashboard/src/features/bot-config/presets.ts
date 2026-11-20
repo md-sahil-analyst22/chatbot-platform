@@ -3,6 +3,8 @@
 // What: The answer-style choices shown in Bot Studio (precise, balanced, friendly) with help
 //       text.
 // ────────────────────────────────────────────────────────────────────────────────────────────
+// From ../../lib/api/types — the API data types: ResponseStyle = precise/balanced/friendly
+//   type.
 import type { ResponseStyle } from "../../lib/api/types";
 
 /** Plain-language presets for non-technical users. Temperatures match the backend. */

@@ -3,9 +3,14 @@
 # What: The contracts the credentials module needs: encryption, key checking with the vendor,
 #       and storage.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# From typing — type-hint helpers: Protocol = an interface: any class with these methods fits.
 from typing import Protocol
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From saathi.modules.credentials.domain.credential — the saved-API-key business object:
+#   ProviderCredential = one saved key's details.
 from saathi.modules.credentials.domain.credential import ProviderCredential
 
 

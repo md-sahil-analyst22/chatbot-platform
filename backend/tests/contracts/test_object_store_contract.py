@@ -3,12 +3,26 @@
 # What it tests: The rules every file store must follow (put/get/delete, safe paths).
 # How to run: cd backend && uv run pytest tests/contracts.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.providers — fake vendor adapters: InMemoryObjectStore = file storage in a
+#   dict.
 from tests.fakes.providers import InMemoryObjectStore
 
+# From saathi.platform.errors — our error types: NotFoundError = 404 not found; ProviderError =
+#   a vendor failed; ValidationError = 422 invalid input.
 from saathi.platform.errors import NotFoundError, ProviderError, ValidationError
+
+# From saathi.platform.storage — file storage contract and registry: ObjectStore = the file
+#   storage contract.
 from saathi.platform.storage import ObjectStore
+
+# From saathi.platform.storage.supabase_store — Supabase file storage: SupabaseObjectStore =
+#   Supabase file storage.
 from saathi.platform.storage.supabase_store import SupabaseObjectStore
 
 KEY = "t/tenant-1/docs/price-list.pdf"

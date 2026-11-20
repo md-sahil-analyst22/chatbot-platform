@@ -5,15 +5,31 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """BotRepository contract. The SQL implementation runs it on real Postgres (tests/db/)."""
 
+# From dataclasses — quick classes that mainly hold data: fields = lists a dataclass's fields.
 from dataclasses import fields
+
+# From typing — type-hint helpers: Any = any type.
 from typing import Any
+
+# From uuid — unique ids (UUIDs): uuid4 = makes a random id.
 from uuid import uuid4
 
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.builders — one-line builders for test objects: make_bot = builds a test bot.
 from tests.fakes.builders import make_bot
+
+# From tests.fakes.in_memory — in-memory stand-ins for the database stores:
+#   InMemoryBotRepository = bots in a dict.
 from tests.fakes.in_memory import InMemoryBotRepository
 
+# From saathi.modules.tenancy.ports.repositories — tenancy storage contracts: BotRepository =
+#   contract: store bots.
 from saathi.modules.tenancy.ports.repositories import BotRepository
+
+# From saathi.platform.errors — our error types: ConflictError = 409 clash with existing data;
+#   NotFoundError = 404 not found.
 from saathi.platform.errors import ConflictError, NotFoundError
 
 

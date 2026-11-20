@@ -2,7 +2,10 @@
 // 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
 // What: A live preview of the chat widget that updates as you type in the branding fields.
 // ────────────────────────────────────────────────────────────────────────────────────────────
+// From react-hook-form — form state and validation: useFormContext = uses the form created by a
+//   parent component.
 import { useFormContext } from "react-hook-form";
+// From ../bot-config/schema — the Bot Studio form rules: BotConfigForm = type of the form data.
 import type { BotConfigForm } from "../bot-config/schema";
 
 /** Live preview of the website widget. All tenant text is rendered as plain text. */

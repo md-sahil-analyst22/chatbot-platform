@@ -20,9 +20,15 @@ SECURITY DEFINER function created in the Phase 1 migration (P1.11):
 It returns two ids and nothing else, so it cannot be used to read tenant data.
 """
 
+# From sqlalchemy — SQLAlchemy, our database toolkit: text = a raw SQL snippet.
 from sqlalchemy import text
+
+# From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools: AsyncSession =
+#   one unit of database work.
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# From saathi.modules.tenancy.ports.repositories — tenancy storage contracts: PublicBotRef =
+#   tenant + bot for a widget key.
 from saathi.modules.tenancy.ports.repositories import PublicBotRef
 
 

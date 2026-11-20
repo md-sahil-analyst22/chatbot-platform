@@ -8,17 +8,43 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """ASGI entry point. Run with: uvicorn saathi.main:create_app --factory"""
 
+# From collections.abc — standard type names for collections: AsyncIterator = type for something
+#   looped with `async for`.
 from collections.abc import AsyncIterator
+
+# From contextlib — helpers for building `with` blocks: asynccontextmanager = turns an async
+#   function into an `async with` block.
 from contextlib import asynccontextmanager
 
+# From fastapi — the web framework that turns Python functions into web endpoints: FastAPI = the
+#   web app object.
 from fastapi import FastAPI
+
+# From fastapi.middleware.cors — browser cross-site access rules (CORS): CORSMiddleware =
+#   decides which websites' browsers may call the API.
 from fastapi.middleware.cors import CORSMiddleware
 
+# From saathi.api.errors — turns our errors into JSON error responses: register_error_handlers =
+#   installs the error -> JSON handlers.
 from saathi.api.errors import register_error_handlers
+
+# From saathi.api.middleware — per-request logging and request ids: RequestContextMiddleware =
+#   adds a request id and access log to every request.
 from saathi.api.middleware import RequestContextMiddleware
+
+# From saathi.api.router — puts all endpoint groups together: build_api_router = builds the
+#   /api/v1 router.
 from saathi.api.router import build_api_router
+
+# From saathi.bootstrap.container — builds the app's shared objects once at start-up: Container
+#   = holds the shared objects (database, Redis, HTTP client...).
 from saathi.bootstrap.container import Container
+
+# From saathi.platform.config.settings — the app's core settings: get_settings = the settings,
+#   read once.
 from saathi.platform.config.settings import get_settings
+
+# From saathi.platform.logging.setup — logging set-up: configure_logging = sets up logging.
 from saathi.platform.logging.setup import configure_logging
 
 

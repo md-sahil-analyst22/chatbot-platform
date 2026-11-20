@@ -12,9 +12,13 @@ Each port (LLM, Embedder, Reranker, STT ...) owns one registry. Adapters registe
 by name; the container picks one by config key. Adding a vendor = new adapter + register.
 """
 
+# From collections.abc — standard type names for collections: Callable = type for a function.
 from collections.abc import Callable
+
+# From typing — type-hint helpers: Any = any type.
 from typing import Any
 
+# From saathi.platform.errors — our error types: ConfigurationError = a setting is missing.
 from saathi.platform.errors import ConfigurationError
 
 

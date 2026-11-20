@@ -3,16 +3,36 @@
 # What it tests: The rules every embedder must follow (right count and size of vectors, errors).
 # How to run: cd backend && uv run pytest tests/contracts.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# json — reads and writes JSON text.
 import json
+
+# math — maths functions.
 import math
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.providers — fake vendor adapters: FakeEmbedder = fake embedder; Mode = which
+#   failure a fake should simulate.
 from tests.fakes.providers import FakeEmbedder, Mode
 
+# From saathi.modules.knowledge.adapters.embeddings.gemini_embedder — the Gemini embedder:
+#   MAX_BATCH = most texts per Gemini call; GeminiEmbedder = the Gemini embedder.
 from saathi.modules.knowledge.adapters.embeddings.gemini_embedder import MAX_BATCH, GeminiEmbedder
+
+# From saathi.modules.knowledge.adapters.embeddings.openai_embedder — the OpenAI embedder:
+#   OpenAIEmbedder = the OpenAI embedder.
 from saathi.modules.knowledge.adapters.embeddings.openai_embedder import OpenAIEmbedder
+
+# From saathi.modules.knowledge.ports.providers — parser, embedder and reranker contracts:
+#   Embedder = contract: text -> vectors.
 from saathi.modules.knowledge.ports.providers import Embedder
+
+# From saathi.platform.errors — our error types: ProviderError = a vendor failed;
+#   ProviderTimeoutError = a vendor was too slow.
 from saathi.platform.errors import ProviderError, ProviderTimeoutError
 
 

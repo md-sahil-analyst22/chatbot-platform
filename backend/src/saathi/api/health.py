@@ -16,11 +16,22 @@
 Neither endpoint ever returns error messages or connection details: only "ok" / "fail".
 """
 
+# asyncio — runs many waiting tasks at once (async).
 import asyncio
+
+# From collections.abc — standard type names for collections: Awaitable = type for something you
+#   can `await`; Callable = type for a function; Mapping = type for a read-only dictionary.
 from collections.abc import Awaitable, Callable, Mapping
 
+# structlog — structured logging (JSON log lines).
 import structlog
+
+# From fastapi — the web framework that turns Python functions into web endpoints: APIRouter = a
+#   group of related endpoints; Request = the incoming HTTP request.
 from fastapi import APIRouter, Request
+
+# From fastapi.responses — ready-made HTTP responses: JSONResponse = an HTTP response with a
+#   JSON body.
 from fastapi.responses import JSONResponse
 
 router = APIRouter(tags=["health"])

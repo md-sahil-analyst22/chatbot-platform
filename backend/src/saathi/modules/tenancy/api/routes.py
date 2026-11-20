@@ -6,14 +6,31 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """HTTP adapter for the tenancy use cases. Translates DTOs <-> commands/entities only."""
 
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From fastapi — the web framework that turns Python functions into web endpoints: APIRouter = a
+#   group of related endpoints; Query = rules for a ?query value; Response = the outgoing HTTP
+#   response; status = named HTTP status codes.
 from fastapi import APIRouter, Query, Response, status
 
+# From saathi.api.deps — shared request helpers: the verified caller, a tenant-locked database
+#   session: PrincipalDep = the verified caller.
 from saathi.api.deps import PrincipalDep
+
+# From saathi.modules.tenancy.api.deps — builds the tenancy services per request: BotServiceDep
+#   = a ready BotService.
 from saathi.modules.tenancy.api.deps import BotServiceDep
+
+# From saathi.modules.tenancy.api.schemas — the JSON shapes of the tenancy API: BotCreate =
+#   create-bot request body; BotOut = bot response; BotUpdate = update-bot request body.
 from saathi.modules.tenancy.api.schemas import BotCreate, BotOut, BotUpdate
+
+# From saathi.modules.tenancy.application.services — the bot use cases: CreateBotCommand = input
+#   for creating a bot; UpdateBotCommand = input for changing a bot.
 from saathi.modules.tenancy.application.services import CreateBotCommand, UpdateBotCommand
+
+# From saathi.modules.tenancy.domain.entities — the Bot business object: Bot = one chatbot.
 from saathi.modules.tenancy.domain.entities import Bot
 
 router = APIRouter(prefix="/bots", tags=["bots"])

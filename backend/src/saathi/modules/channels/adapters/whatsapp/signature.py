@@ -5,7 +5,10 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Webhook authenticity check (P4.6): X-Hub-Signature-256 = 'sha256=' + HMAC(app_secret, body)."""
 
+# hashlib — fingerprints (hashes) such as SHA-256.
 import hashlib
+
+# hmac — signatures made with a shared secret, and safe comparison.
 import hmac
 
 

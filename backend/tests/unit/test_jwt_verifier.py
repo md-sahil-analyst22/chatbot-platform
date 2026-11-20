@@ -9,22 +9,55 @@
 Real ES256 keys and real signatures; only the JWKS HTTP endpoint is simulated.
 """
 
+# base64 — turns bytes into text and back.
 import base64
+
+# hashlib — fingerprints (hashes) such as SHA-256.
 import hashlib
+
+# hmac — signatures made with a shared secret, and safe comparison.
 import hmac
+
+# json — reads and writes JSON text.
 import json
+
+# time — clocks and timers.
 import time
+
+# From typing — type-hint helpers: Any = any type.
 from typing import Any
+
+# From uuid — unique ids (UUIDs): uuid4 = makes a random id.
 from uuid import uuid4
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# jwt — PyJWT, reads and checks login tokens (JWTs).
 import jwt
+
+# pytest — the test framework.
 import pytest
+
+# From cryptography.hazmat.primitives — low-level crypto building blocks: serialization =
+#   reads/writes keys in standard formats.
 from cryptography.hazmat.primitives import serialization
+
+# From cryptography.hazmat.primitives.asymmetric — public/private key crypto: ec =
+#   elliptic-curve keys (used for ES256 test tokens).
 from cryptography.hazmat.primitives.asymmetric import ec
 
+# From saathi.platform.errors — our error types: AuthenticationError = 401 not logged in;
+#   AuthorizationError = 403 role not allowed; InfrastructureError = our side broke.
 from saathi.platform.errors import AuthenticationError, AuthorizationError, InfrastructureError
+
+# From saathi.platform.security.auth — who is calling and what they may do: Membership = one
+#   (workspace, role) pair; Role = viewer/agent/admin/owner.
 from saathi.platform.security.auth import Membership, Role
+
+# From saathi.platform.security.jwt_verifier — the login-token checker:
+#   UNKNOWN_KID_REFRESH_SECONDS = how often unknown keys may trigger a refresh; JwksTokenVerifier
+#   = the real login checker.
 from saathi.platform.security.jwt_verifier import (
     UNKNOWN_KID_REFRESH_SECONDS,
     JwksTokenVerifier,

@@ -7,8 +7,10 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """ARQ job: ingest one source. Must be idempotent and tenant scoped."""
 
+# From typing — type-hint helpers: Any = any type.
 from typing import Any
 
+# structlog — structured logging (JSON log lines).
 import structlog
 
 log = structlog.get_logger()

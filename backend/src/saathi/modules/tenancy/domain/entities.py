@@ -12,13 +12,28 @@ Bot is immutable: every change returns a new, re-validated Bot, so an invalid Bo
 exist in memory.
 """
 
+# re — regular expressions (text patterns).
 import re
+
+# From collections.abc — standard type names for collections: Mapping = type for a read-only
+#   dictionary.
 from collections.abc import Mapping
+
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you; field = per-field options such as a default empty list; replace
+#   = copies an object with some fields changed.
 from dataclasses import dataclass, field, replace
+
+# From types — special built-in types: MappingProxyType = a read-only view of a dictionary.
 from types import MappingProxyType
+
+# From typing — type-hint helpers: Any = any type.
 from typing import Any
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From saathi.platform.errors — our error types: ValidationError = 422 invalid input.
 from saathi.platform.errors import ValidationError
 
 SUPPORTED_LANGUAGES = frozenset({"en", "hi", "bn"})

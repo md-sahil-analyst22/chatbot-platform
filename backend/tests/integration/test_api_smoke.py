@@ -11,11 +11,17 @@ The lifespan is entered explicitly because httpx.ASGITransport does not run it. 
 container does not open connections (engine and Redis client connect lazily).
 """
 
+# From collections.abc — standard type names for collections: AsyncIterator = type for something
+#   looped with `async for`.
 from collections.abc import AsyncIterator
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# pytest — the test framework.
 import pytest
 
+# From saathi.main — the FastAPI app factory: create_app = builds the FastAPI app.
 from saathi.main import create_app
 
 

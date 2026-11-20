@@ -9,8 +9,16 @@
 Object storage is shared with other modules, so its port lives in saathi.platform.storage.
 """
 
+# From collections.abc — standard type names for collections: Sequence = type for a read-only
+#   list.
 from collections.abc import Sequence
+
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you; field = per-field options such as a default empty list.
 from dataclasses import dataclass, field
+
+# From typing — type-hint helpers: Any = any type; Protocol = an interface: any class with these
+#   methods fits.
 from typing import Any, Protocol
 
 

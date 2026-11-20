@@ -3,7 +3,11 @@
 // What it tests: The Bot Studio form rules (defaults accepted, bad values refused).
 // How to run: cd dashboard && npm test
 // ────────────────────────────────────────────────────────────────────────────────────────────
+// From vitest — the test framework: describe = groups tests; expect = checks a result; it = one
+//   test.
 import { describe, expect, it } from "vitest";
+// From ./schema — the Bot Studio form rules: DEFAULT_CONFIG = starting values; botConfigSchema
+//   = the form rules.
 import { DEFAULT_CONFIG, botConfigSchema } from "./schema";
 
 describe("botConfigSchema", () => {

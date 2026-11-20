@@ -13,11 +13,21 @@ maps the key to provider + model id from configuration, so vendors and model ver
 without touching any tenant's saved configuration.
 """
 
+# From collections.abc — standard type names for collections: Iterable = type for anything you
+#   can loop over.
 from collections.abc import Iterable
+
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you.
 from dataclasses import dataclass
 
+# From pydantic_settings — reads settings from environment variables and .env: BaseSettings =
+#   parent class for a group of settings; SettingsConfigDict = where settings are read from (.env,
+#   prefix).
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# From saathi.platform.errors — our error types: ConfigurationError = a setting is missing;
+#   ValidationError = 422 invalid input.
 from saathi.platform.errors import ConfigurationError, ValidationError
 
 # Every plan name. 'standard' is on all plans; 'advanced' only on growth and pro.

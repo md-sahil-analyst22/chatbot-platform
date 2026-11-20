@@ -9,12 +9,30 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Maps the internal error taxonomy to a stable API error model. Never leaks stack traces."""
 
+# structlog — structured logging (JSON log lines).
 import structlog
+
+# From fastapi — the web framework that turns Python functions into web endpoints: FastAPI = the
+#   web app object; Request = the incoming HTTP request.
 from fastapi import FastAPI, Request
+
+# From fastapi.exceptions — FastAPI's errors: RequestValidationError = raised when request data
+#   is invalid (422).
 from fastapi.exceptions import RequestValidationError
+
+# From fastapi.responses — ready-made HTTP responses: JSONResponse = an HTTP response with a
+#   JSON body.
 from fastapi.responses import JSONResponse
+
+# From starlette.exceptions — Starlette (the base FastAPI is built on) errors: HTTPException =
+#   framework errors such as 404 or 405.
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+# From saathi.platform.errors — our error types: AuthenticationError = 401 not logged in;
+#   AuthorizationError = 403 role not allowed; ConflictError = 409 clash with existing data;
+#   NotFoundError = 404 not found; ProviderError = a vendor failed; ProviderTimeoutError = a
+#   vendor was too slow; RateLimitError = 429 too many requests; SaathiError = parent of all our
+#   errors; TenantIsolationError = tried to cross tenants; ValidationError = 422 invalid input.
 from saathi.platform.errors import (
     AuthenticationError,
     AuthorizationError,

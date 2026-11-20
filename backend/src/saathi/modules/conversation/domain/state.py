@@ -3,7 +3,10 @@
 # What: The 'state' passed between the steps of a chat reply (message, language, intent, answer,
 #       citations...).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# From enum — fixed sets of named values: StrEnum = a fixed set of named text values.
 from enum import StrEnum
+
+# From typing — type-hint helpers: TypedDict = a dict with known keys.
 from typing import TypedDict
 
 

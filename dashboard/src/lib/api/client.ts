@@ -5,6 +5,7 @@
 //       page can show.
 // Setting: VITE_API_BASE_URL = the API address (falls back to http://localhost:8000).
 // ────────────────────────────────────────────────────────────────────────────────────────────
+// From ../auth/token — the login-token holder: getAccessToken = the current login token.
 import { getAccessToken } from "../auth/token";
 
 // Where the backend lives.

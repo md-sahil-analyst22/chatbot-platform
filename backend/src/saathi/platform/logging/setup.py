@@ -13,9 +13,13 @@ locally. Standard-library loggers (uvicorn, SQLAlchemy, httpx, arq) are routed t
 processors, so the platform's log collector sees one consistent shape (R18).
 """
 
+# logging — Python's built-in logging.
 import logging
+
+# sys — Python runtime details (output streams, exit codes).
 import sys
 
+# structlog — structured logging (JSON log lines).
 import structlog
 
 # Uvicorn's access log is replaced by RequestContextMiddleware's "http.request" event, which

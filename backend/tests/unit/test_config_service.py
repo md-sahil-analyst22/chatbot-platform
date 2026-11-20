@@ -3,22 +3,44 @@
 # What it tests: The Bot Studio use cases: save draft, publish, rollback, plan limits, roles.
 # How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# From uuid — unique ids (UUIDs): UUID = the unique-id type; uuid4 = makes a random id.
 from uuid import UUID, uuid4
 
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.builders — one-line builders for test objects: NOW = a fixed time for tests;
+#   make_bot = builds a test bot; make_catalog = builds a test catalog; make_config = builds a
+#   test config.
 from tests.fakes.builders import NOW, make_bot, make_catalog, make_config
+
+# From tests.fakes.in_memory — in-memory stand-ins for the database stores:
+#   InMemoryBotConfigRepository = config versions in a dict; InMemoryBotRepository = bots in a
+#   dict; InMemoryTenantRepository = tenants in a dict.
 from tests.fakes.in_memory import (
     InMemoryBotConfigRepository,
     InMemoryBotRepository,
     InMemoryTenantRepository,
 )
 
+# From saathi.modules.tenancy.application.config_service — the Bot Studio use cases:
+#   BotConfigService = the Bot Studio use cases; PublicWidgetConfigService = reads the widget-safe
+#   config.
 from saathi.modules.tenancy.application.config_service import (
     BotConfigService,
     PublicWidgetConfigService,
 )
+
+# From saathi.modules.tenancy.domain.bot_config — the bot configuration business objects:
+#   ConfigStatus = draft/published/archived.
 from saathi.modules.tenancy.domain.bot_config import ConfigStatus
+
+# From saathi.platform.errors — our error types: AuthorizationError = 403 role not allowed;
+#   NotFoundError = 404 not found; ValidationError = 422 invalid input.
 from saathi.platform.errors import AuthorizationError, NotFoundError, ValidationError
+
+# From saathi.platform.security.auth — who is calling and what they may do: Principal = the
+#   verified caller; Role = viewer/agent/admin/owner.
 from saathi.platform.security.auth import Principal, Role
 
 TENANT = UUID("00000000-0000-0000-0000-0000000000aa")

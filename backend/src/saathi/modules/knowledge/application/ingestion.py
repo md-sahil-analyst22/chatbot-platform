@@ -7,6 +7,7 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Ingestion use case (P2.2 - P2.8). Orchestrates ports; contains no vendor code."""
 
+# hashlib — fingerprints (hashes) such as SHA-256.
 import hashlib
 
 

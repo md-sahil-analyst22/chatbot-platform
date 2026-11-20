@@ -5,12 +5,24 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """build_token_verifier (ADR-0007): deployed environments refuse to start without auth."""
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# pytest — the test framework.
 import pytest
 
+# From saathi.bootstrap.container — builds the app's shared objects once at start-up:
+#   build_token_verifier = creates the login checker (production refuses to start without one).
 from saathi.bootstrap.container import build_token_verifier
+
+# From saathi.platform.config.settings — the app's core settings: Settings = the settings class.
 from saathi.platform.config.settings import Settings
+
+# From saathi.platform.errors — our error types: ConfigurationError = a setting is missing.
 from saathi.platform.errors import ConfigurationError
+
+# From saathi.platform.security.jwt_verifier — the login-token checker: JwksTokenVerifier = the
+#   real login checker.
 from saathi.platform.security.jwt_verifier import JwksTokenVerifier
 
 AUTH = {

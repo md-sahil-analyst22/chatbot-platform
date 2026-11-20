@@ -3,7 +3,9 @@
 //
 // Why not plain `npm audit --audit-level=high`? It has no way to tolerate one advisory that has no
 // fix yet without also ignoring every future one. This keeps the check strict for everything else.
+// From node:child_process — Node.js: run another program: spawnSync = runs a program and waits.
 import { spawnSync } from "node:child_process";
+// From node:fs — Node.js: read files: readFileSync = reads a file.
 import { readFileSync } from "node:fs";
 
 const BLOCKING = new Set(["high", "critical"]);

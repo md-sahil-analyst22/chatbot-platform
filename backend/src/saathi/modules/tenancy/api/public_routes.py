@@ -10,9 +10,16 @@ Returns only fields safe for anyone to read. Rate-limited per IP and per bot (P6
 for 60 s so a busy website does not hit the database on every page view.
 """
 
+# From fastapi — the web framework that turns Python functions into web endpoints: APIRouter = a
+#   group of related endpoints; Response = the outgoing HTTP response.
 from fastapi import APIRouter, Response
 
+# From saathi.modules.tenancy.api.deps — builds the tenancy services per request:
+#   ResolvedWidgetDep = a ready ResolvedWidget.
 from saathi.modules.tenancy.api.deps import ResolvedWidgetDep
+
+# From saathi.modules.tenancy.api.schemas — the JSON shapes of the tenancy API:
+#   PublicWidgetConfigOut = public widget response.
 from saathi.modules.tenancy.api.schemas import PublicWidgetConfigOut
 
 router = APIRouter(prefix="/widgets", tags=["public-widget"])

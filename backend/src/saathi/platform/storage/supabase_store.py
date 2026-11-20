@@ -13,13 +13,27 @@ here, on the server, and never sent to a browser (R17). Tenant separation is enf
 mandatory "t/{tenant_id}/..." key prefix, validated on every call.
 """
 
+# re — regular expressions (text patterns).
 import re
+
+# From typing — type-hint helpers: Literal = only these exact values.
 from typing import Literal
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# From pydantic — checks data against declared types and rules: SecretStr = text that hides
+#   itself when printed or logged.
 from pydantic import SecretStr
+
+# From pydantic_settings — reads settings from environment variables and .env: BaseSettings =
+#   parent class for a group of settings; SettingsConfigDict = where settings are read from (.env,
+#   prefix).
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# From saathi.platform.errors — our error types: ConfigurationError = a setting is missing;
+#   NotFoundError = 404 not found; ProviderError = a vendor failed; ProviderTimeoutError = a
+#   vendor was too slow; ValidationError = 422 invalid input.
 from saathi.platform.errors import (
     ConfigurationError,
     NotFoundError,
@@ -27,6 +41,9 @@ from saathi.platform.errors import (
     ProviderTimeoutError,
     ValidationError,
 )
+
+# From saathi.platform.storage — file storage contract and registry: object_store_registry =
+#   file storage vendors.
 from saathi.platform.storage import object_store_registry
 
 Visibility = Literal["private", "public"]

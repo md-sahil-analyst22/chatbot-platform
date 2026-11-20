@@ -15,18 +15,46 @@ main.py publishes each resource on app.state, so modules that use these dependen
 transitively depend on every other module's adapters (import-linter enforces this).
 """
 
+# From collections.abc — standard type names for collections: AsyncIterator = type for something
+#   looped with `async for`.
 from collections.abc import AsyncIterator
+
+# From typing — type-hint helpers: Annotated = a type plus extra info (e.g. a FastAPI
+#   dependency).
 from typing import Annotated
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# structlog — structured logging (JSON log lines).
 import structlog
+
+# From fastapi — the web framework that turns Python functions into web endpoints: Depends =
+#   asks FastAPI to hand over a ready-made object (dependency injection); Request = the incoming
+#   HTTP request.
 from fastapi import Depends, Request
+
+# From fastapi.security — helpers for reading login tokens: HTTPAuthorizationCredentials = the
+#   token it read; HTTPBearer = reads the 'Authorization: Bearer <token>' header.
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+# From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools: AsyncSession =
+#   one unit of database work; async_sessionmaker = factory that creates sessions.
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+# From saathi.platform.config.model_catalog — the list of AI models tenants may choose:
+#   ModelCatalog = the catalog.
 from saathi.platform.config.model_catalog import ModelCatalog
+
+# From saathi.platform.db.tenant_context — locks a database session to one tenant:
+#   tenant_session = a session locked to one tenant.
 from saathi.platform.db.tenant_context import tenant_session
+
+# From saathi.platform.errors — our error types: AuthenticationError = 401 not logged in.
 from saathi.platform.errors import AuthenticationError
+
+# From saathi.platform.security.auth — who is calling and what they may do: Principal = the
+#   verified caller; TokenVerifier = contract: check a login token.
 from saathi.platform.security.auth import Principal, TokenVerifier
 
 # Reads the 'Authorization: Bearer <token>' header (without failing by itself if it's missing).

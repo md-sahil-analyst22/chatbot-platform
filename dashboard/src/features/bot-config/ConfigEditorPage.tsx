@@ -4,16 +4,35 @@
 //       and publish.
 // How: One form (react-hook-form) shared by all sections; the rules come from schema.ts.
 // ────────────────────────────────────────────────────────────────────────────────────────────
+// From @hookform/resolvers/zod — connects zod rules to react-hook-form: zodResolver = checks
+//   the form with zod rules.
 import { zodResolver } from "@hookform/resolvers/zod";
+// From react — React, the library that draws the user interface: useEffect = runs code after
+//   the page draws; useState = remembers a value between redraws.
 import { useEffect, useState } from "react";
+// From react-hook-form — form state and validation: FormProvider = shares a form with child
+//   components; useForm = creates a form.
 import { FormProvider, useForm } from "react-hook-form";
+// From react-router-dom — page navigation by URL: Link = a link to another page; useParams =
+//   reads values from the URL (e.g. botId).
 import { Link, useParams } from "react-router-dom";
+// From ../../components/Field — the shared form-field component: Field = label + input + error.
 import { Field } from "../../components/Field";
+// From ../branding/BrandingEditor — the branding section: BrandingEditor = the branding
+//   component.
 import { BrandingEditor } from "../branding/BrandingEditor";
+// From ../branding/WidgetPreview — the live widget preview: WidgetPreview = the preview
+//   component.
 import { WidgetPreview } from "../branding/WidgetPreview";
+// From ./api — this feature's API hooks: useDraft = load the draft; useModelOptions = load
+//   allowed models; usePublish = publish a version; useSaveDraft = save a draft.
 import { useDraft, useModelOptions, usePublish, useSaveDraft } from "./api";
+// From ./presets — the answer-style choices: STYLE_PRESETS = the style choices.
 import { STYLE_PRESETS } from "./presets";
+// From ./schema — the Bot Studio form rules: DEFAULT_CONFIG = starting values; botConfigSchema
+//   = the form rules; BotConfigForm = type of the form data.
 import { DEFAULT_CONFIG, botConfigSchema, type BotConfigForm } from "./schema";
+// From ./VersionHistory — the version list: VersionHistory = the version list component.
 import { VersionHistory } from "./VersionHistory";
 
 // The page component; botId comes from the address bar.

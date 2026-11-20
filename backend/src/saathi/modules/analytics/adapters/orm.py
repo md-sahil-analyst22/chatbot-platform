@@ -9,14 +9,30 @@
 Billing history outlives messages: deleting a message (retention) keeps its usage row.
 """
 
+# uuid — unique ids (UUIDs).
 import uuid
+
+# From datetime — dates and times: datetime = a date + time value.
 from datetime import datetime
+
+# From decimal — exact decimal numbers: Decimal = exact decimal number (money).
 from decimal import Decimal
 
+# From sqlalchemy — SQLAlchemy, our database toolkit: CheckConstraint = a rule every row must
+#   satisfy; ForeignKey = link to a row in another table; Index = a search-speeding index; Numeric
+#   = exact-number column type; String = short text column type.
 from sqlalchemy import CheckConstraint, ForeignKey, Index, Numeric, String
+
+# From sqlalchemy.dialects.postgresql — Postgres-only column types: UUID = UUID column type.
 from sqlalchemy.dialects.postgresql import UUID
+
+# From sqlalchemy.orm — SQLAlchemy's table-class tools: Mapped = type hint for a column;
+#   mapped_column = defines one column.
 from sqlalchemy.orm import Mapped, mapped_column
 
+# From saathi.platform.db.base — shared building blocks for table classes: Base = parent of
+#   every table class; created_at = 'created at' column recipe; tenant_fk = tenant_id column
+#   recipe; uuid_pk = id column recipe.
 from saathi.platform.db.base import Base, created_at, tenant_fk, uuid_pk
 
 

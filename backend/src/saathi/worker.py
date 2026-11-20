@@ -12,11 +12,19 @@
 Runs background jobs (ingestion, webhooks retries, rollups) outside the request path.
 """
 
+# From typing — type-hint helpers: Any = any type; ClassVar = a class-level constant.
 from typing import Any, ClassVar
 
+# From arq.connections — ARQ, the background-job runner that uses Redis: RedisSettings = where
+#   the job queue's Redis lives.
 from arq.connections import RedisSettings
 
+# From saathi.modules.knowledge.workers.ingest_job — the document-processing background job:
+#   ingest_source = the job function.
 from saathi.modules.knowledge.workers.ingest_job import ingest_source
+
+# From saathi.platform.config.settings — the app's core settings: get_settings = the settings,
+#   read once.
 from saathi.platform.config.settings import get_settings
 
 

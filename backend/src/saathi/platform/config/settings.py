@@ -12,10 +12,20 @@ Provider-specific settings (API keys, model names) live next to each adapter, e.
 `AnthropicSettings` reads ANTHROPIC_*. Adding a vendor never edits this file (Open/Closed).
 """
 
+# From functools — tools for working with functions: lru_cache = remembers a function's result
+#   so the work runs once.
 from functools import lru_cache
+
+# From typing — type-hint helpers: Literal = only these exact values.
 from typing import Literal
 
+# From pydantic — checks data against declared types and rules: SecretStr = text that hides
+#   itself when printed or logged.
 from pydantic import SecretStr
+
+# From pydantic_settings — reads settings from environment variables and .env: BaseSettings =
+#   parent class for a group of settings; SettingsConfigDict = where settings are read from (.env,
+#   prefix).
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

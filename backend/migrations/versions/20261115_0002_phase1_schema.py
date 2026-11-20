@@ -18,11 +18,20 @@ Revises: 0001
 Create Date: 2026-11-15
 """
 
+# From collections.abc — standard type names for collections: Sequence = type for a read-only
+#   list.
 from collections.abc import Sequence
 
+# pgvector.sqlalchemy — pgvector support for SQLAlchemy (embedding columns).
 import pgvector.sqlalchemy
+
+# sqlalchemy (called `sa` here) — SQLAlchemy, our database toolkit.
 import sqlalchemy as sa
+
+# From alembic — the database migration tool: op = commands that change tables.
 from alembic import op
+
+# From sqlalchemy.dialects — database-specific extras: postgresql = Postgres-only column types.
 from sqlalchemy.dialects import postgresql
 
 revision: str = "0002"

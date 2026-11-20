@@ -12,11 +12,22 @@ The schema itself is created only by Alembic migrations (R25); these classes des
 ORM and must stay in sync with the latest migration.
 """
 
+# uuid — unique ids (UUIDs).
 import uuid
+
+# From datetime — dates and times: datetime = a date + time value.
 from datetime import datetime
 
+# From sqlalchemy — SQLAlchemy, our database toolkit: DateTime = date+time column type;
+#   ForeignKey = link to a row in another table; MetaData = the collection of table definitions;
+#   func = SQL functions such as now() or max(); text = a raw SQL snippet.
 from sqlalchemy import DateTime, ForeignKey, MetaData, func, text
+
+# From sqlalchemy.dialects.postgresql — Postgres-only column types: UUID = UUID column type.
 from sqlalchemy.dialects.postgresql import UUID
+
+# From sqlalchemy.orm — SQLAlchemy's table-class tools: DeclarativeBase = parent class for table
+#   classes; Mapped = type hint for a column; mapped_column = defines one column.
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Predictable names for indexes and constraints, so migrations stay readable.

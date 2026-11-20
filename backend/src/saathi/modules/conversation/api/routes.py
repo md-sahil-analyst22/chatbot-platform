@@ -11,6 +11,8 @@ POST /api/v1/chat/stream   -> Server-Sent Events: token, citations, done
 Public widget calls authenticate with the bot's public key + CORS allowlist + rate limits.
 """
 
+# From fastapi — the web framework that turns Python functions into web endpoints: APIRouter = a
+#   group of related endpoints.
 from fastapi import APIRouter
 
 router = APIRouter(tags=["chat"])

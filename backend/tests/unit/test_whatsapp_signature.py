@@ -3,9 +3,14 @@
 # What it tests: 🔒 WhatsApp webhook signatures: valid accepted, missing or wrong refused.
 # How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# hashlib — fingerprints (hashes) such as SHA-256.
 import hashlib
+
+# hmac — signatures made with a shared secret, and safe comparison.
 import hmac
 
+# From saathi.modules.channels.adapters.whatsapp.signature — WhatsApp webhook signature check:
+#   is_valid_signature = checks a WhatsApp webhook signature.
 from saathi.modules.channels.adapters.whatsapp.signature import is_valid_signature
 
 SECRET = "app-secret"

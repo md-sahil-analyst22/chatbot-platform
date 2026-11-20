@@ -4,16 +4,36 @@
 #                errors.
 # How to run: cd backend && uv run pytest tests/contracts.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# json — reads and writes JSON text.
 import json
+
+# From typing — type-hint helpers: Any = any type.
 from typing import Any
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.providers — fake vendor adapters: FakeCompletionClient = fake AI model; Mode
+#   = which failure a fake should simulate.
 from tests.fakes.providers import FakeCompletionClient, Mode
 
+# From saathi.modules.conversation.adapters.llm.anthropic_llm — the Anthropic Claude adapter:
+#   AnthropicCompletionClient = the Claude client.
 from saathi.modules.conversation.adapters.llm.anthropic_llm import AnthropicCompletionClient
+
+# From saathi.modules.conversation.adapters.llm.gemini_llm — the Google Gemini adapter:
+#   GeminiCompletionClient = the Gemini client.
 from saathi.modules.conversation.adapters.llm.gemini_llm import GeminiCompletionClient
+
+# From saathi.modules.conversation.ports.llm — AI language-model contracts: ChatMessage = one
+#   chat message; CompletionClient = contract: messages in, reply out.
 from saathi.modules.conversation.ports.llm import ChatMessage, CompletionClient
+
+# From saathi.platform.errors — our error types: ProviderError = a vendor failed;
+#   ProviderTimeoutError = a vendor was too slow.
 from saathi.platform.errors import ProviderError, ProviderTimeoutError
 
 MSGS = [ChatMessage(role="user", content="ar price koto?")]

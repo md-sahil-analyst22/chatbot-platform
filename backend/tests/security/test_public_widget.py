@@ -14,20 +14,52 @@ the right tenant's look only, published versions only, public fields only, and n
 unknown key from an unpublished bot.
 """
 
+# From collections.abc — standard type names for collections: AsyncIterator = type for something
+#   looped with `async for`.
 from collections.abc import AsyncIterator
+
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you.
 from dataclasses import dataclass
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type; uuid4 = makes a random id.
 from uuid import UUID, uuid4
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# pytest — the test framework.
 import pytest
+
+# From sqlalchemy — SQLAlchemy, our database toolkit: text = a raw SQL snippet.
 from sqlalchemy import text
+
+# From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools: AsyncEngine =
+#   the async connection pool; AsyncSession = one unit of database work; async_sessionmaker =
+#   factory that creates sessions.
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+
+# From tests.db_fixtures — real-Postgres test helpers: requires_db = skips the test when no real
+#   Postgres is available.
 from tests.db_fixtures import requires_db
+
+# From tests.fakes.builders — one-line builders for test objects: make_catalog = builds a test
+#   catalog.
 from tests.fakes.builders import make_catalog
+
+# From tests.integration.test_bot_studio_api — the Bot Studio API tests: PUBLIC_WIDGET_FIELDS =
+#   the only fields the widget may see.
 from tests.integration.test_bot_studio_api import PUBLIC_WIDGET_FIELDS
 
+# From saathi.api.deps — shared request helpers: the verified caller, a tenant-locked database
+#   session: get_principal = verifies the login token.
 from saathi.api.deps import get_principal
+
+# From saathi.main — the FastAPI app factory: create_app = builds the FastAPI app.
 from saathi.main import create_app
+
+# From saathi.platform.security.auth — who is calling and what they may do: Principal = the
+#   verified caller; Role = viewer/agent/admin/owner.
 from saathi.platform.security.auth import Principal, Role
 
 pytestmark = [pytest.mark.integration, requires_db]

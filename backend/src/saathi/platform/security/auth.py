@@ -7,11 +7,20 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Authenticated principal + role checks. The JWT verifier adapter is plugged in at P1.7."""
 
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you.
 from dataclasses import dataclass
+
+# From enum — fixed sets of named values: StrEnum = a fixed set of named text values.
 from enum import StrEnum
+
+# From typing — type-hint helpers: Protocol = an interface: any class with these methods fits.
 from typing import Protocol
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From saathi.platform.errors — our error types: AuthorizationError = 403 role not allowed.
 from saathi.platform.errors import AuthorizationError
 
 

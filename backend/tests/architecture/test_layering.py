@@ -6,7 +6,10 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Fast, dependency-free boundary checks (import-linter does the full job in CI)."""
 
+# ast — reads Python source code as a tree.
 import ast
+
+# From pathlib — file and folder paths: Path = a file or folder path.
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "saathi"

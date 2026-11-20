@@ -10,14 +10,22 @@ LangGraph is used only here for orchestration; nodes stay plain functions over C
 the orchestrator could be replaced without touching node logic.
 """
 
+# From typing — type-hint helpers: Any = any type.
 from typing import Any
 
+# From saathi.modules.conversation.application.nodes.guard — the first chat step (blocks bad
+#   messages): guard_node = the guard step.
 from saathi.modules.conversation.application.nodes.guard import guard_node
+
+# From saathi.modules.conversation.domain.state — the data passed between chat steps: ChatState
+#   = the data passed between chat steps.
 from saathi.modules.conversation.domain.state import ChatState
 
 
 # Builds the flow. LangGraph is imported only here, so it stays optional.
 def build_graph() -> Any:
+    # From langgraph.graph — LangGraph, which connects chat steps into a flow: END = the 'flow
+    #   finished' marker; StateGraph = the flow builder.
     from langgraph.graph import END, StateGraph  # lazy: optional dependency
 
     graph = StateGraph(ChatState)

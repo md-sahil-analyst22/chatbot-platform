@@ -11,10 +11,19 @@ Key format: rl:{scope}:{tenant_id}:{subject}  - always tenant scoped.
 Failure policy is explicit: security limits DENY when Redis is down; business quotas may ALLOW.
 """
 
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you.
 from dataclasses import dataclass
+
+# From typing — type-hint helpers: Literal = only these exact values.
 from typing import Literal
 
+# From redis.asyncio — async client for Redis, the fast in-memory store: Redis = the Redis
+#   client.
 from redis.asyncio import Redis
+
+# From redis.exceptions — errors from Redis: RedisError = raised when Redis fails or can't be
+#   reached.
 from redis.exceptions import RedisError
 
 # Uses Redis server TIME so app-server clock skew cannot be abused.

@@ -19,14 +19,29 @@ Generate one with:
     python -c "import os,base64;print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
 """
 
+# base64 — turns bytes into text and back.
 import base64
+
+# os — talks to the operating system (environment variables, files).
 import os
+
+# re — regular expressions (text patterns).
 import re
+
+# From collections.abc — standard type names for collections: Mapping = type for a read-only
+#   dictionary.
 from collections.abc import Mapping
 
+# From cryptography.exceptions — errors from the cryptography library: InvalidTag = raised when
+#   encrypted data was changed or the key is wrong.
 from cryptography.exceptions import InvalidTag
+
+# From cryptography.hazmat.primitives.ciphers.aead — encryption that also detects tampering:
+#   AESGCM = AES-256-GCM encryption.
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+# From saathi.platform.errors — our error types: ConfigurationError = a setting is missing;
+#   InfrastructureError = our side broke.
 from saathi.platform.errors import ConfigurationError, InfrastructureError
 
 _KID = re.compile(r"[a-z0-9]{1,16}")

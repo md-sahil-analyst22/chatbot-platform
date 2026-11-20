@@ -2,6 +2,8 @@
 // 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
 // What: A reusable form field: label, the input itself, an optional hint and an error message.
 // ────────────────────────────────────────────────────────────────────────────────────────────
+// From react — React, the library that draws the user interface: ReactNode = type for anything
+//   React can draw.
 import type { ReactNode } from "react";
 
 // What a Field needs: label, optional hint/error, and the input inside it.

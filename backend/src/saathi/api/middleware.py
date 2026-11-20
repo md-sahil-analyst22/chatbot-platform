@@ -13,11 +13,21 @@ Binds a request id to every log line and emits one "http.request" access event p
 (method, path, status, duration). Query strings are never logged: they can carry tokens or PII.
 """
 
+# re — regular expressions (text patterns).
 import re
+
+# time — clocks and timers.
 import time
+
+# From uuid — unique ids (UUIDs): uuid4 = makes a random id.
 from uuid import uuid4
 
+# structlog — structured logging (JSON log lines).
 import structlog
+
+# From starlette.types — low-level ASGI web-server types: ASGIApp = an ASGI web app; Message =
+#   one ASGI event; Receive = reads ASGI events; Scope = details of the current request; Send =
+#   writes ASGI events.
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 # What a safe request id looks like: 8-64 letters, digits or dashes.

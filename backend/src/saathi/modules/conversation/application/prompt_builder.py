@@ -16,8 +16,15 @@ tenant's text can never close or escape its own section.
     4. <context>                       retrieved document chunks (untrusted data)
 """
 
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you; field = per-field options such as a default empty list.
 from dataclasses import dataclass, field
+
+# From functools — tools for working with functions: lru_cache = remembers a function's result
+#   so the work runs once.
 from functools import lru_cache
+
+# From pathlib — file and folder paths: Path = a file or folder path.
 from pathlib import Path
 
 # Folder with the platform rules files (prompts/platform_rules_v1.md).

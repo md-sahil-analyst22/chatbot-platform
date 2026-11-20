@@ -7,16 +7,35 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Alembic environment (async). URL from MIGRATION_DATABASE_URL (schema-owner role)."""
 
+# asyncio — runs many waiting tasks at once (async).
 import asyncio
+
+# importlib — imports a module by name while the program runs.
 import importlib
+
+# os — talks to the operating system (environment variables, files).
 import os
+
+# From logging.config — logging set-up helpers: fileConfig = loads logging settings from
+#   alembic.ini.
 from logging.config import fileConfig
 
+# From alembic — the database migration tool: context = details of the migration being run.
 from alembic import context
+
+# From sqlalchemy — SQLAlchemy, our database toolkit: pool = connection-pool options.
 from sqlalchemy import pool
+
+# From sqlalchemy.engine — low-level database connection types: Connection = one open database
+#   connection.
 from sqlalchemy.engine import Connection
+
+# From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools:
+#   async_engine_from_config = builds a connection pool from settings.
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+# From saathi.platform.db.base — shared building blocks for table classes: Base = parent of
+#   every table class.
 from saathi.platform.db.base import Base
 
 # Register every module's tables on Base.metadata (add a module here when it gets tables).

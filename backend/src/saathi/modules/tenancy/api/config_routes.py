@@ -6,13 +6,31 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Bot Studio endpoints. Thin: translate DTOs <-> domain, call BotConfigService."""
 
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From fastapi — the web framework that turns Python functions into web endpoints: APIRouter = a
+#   group of related endpoints; Query = rules for a ?query value; status = named HTTP status
+#   codes.
 from fastapi import APIRouter, Query, status
 
+# From saathi.api.deps — shared request helpers: the verified caller, a tenant-locked database
+#   session: PrincipalDep = the verified caller.
 from saathi.api.deps import PrincipalDep
+
+# From saathi.modules.tenancy.api.deps — builds the tenancy services per request:
+#   BotConfigServiceDep = a ready BotConfigService.
 from saathi.modules.tenancy.api.deps import BotConfigServiceDep
+
+# From saathi.modules.tenancy.api.schemas — the JSON shapes of the tenancy API: BotConfigIn =
+#   config request body; BotConfigVersionOut = config version response; ModelOptionOut = model
+#   option response.
 from saathi.modules.tenancy.api.schemas import BotConfigIn, BotConfigVersionOut, ModelOptionOut
+
+# From saathi.modules.tenancy.domain.bot_config — the bot configuration business objects:
+#   BotConfig = one full configuration; BotConfigVersion = one saved version; Branding = how the
+#   widget looks; GenerationSettings = model and answer style; PromptSettings = the tenant's
+#   instructions; ResponseStyle = precise/balanced/friendly.
 from saathi.modules.tenancy.domain.bot_config import (
     BotConfig,
     BotConfigVersion,

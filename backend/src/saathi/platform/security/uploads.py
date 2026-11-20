@@ -9,8 +9,11 @@
 Logos: PNG, JPEG or WebP only. SVG is rejected because it can carry scripts.
 """
 
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you.
 from dataclasses import dataclass
 
+# From saathi.platform.errors — our error types: ValidationError = 422 invalid input.
 from saathi.platform.errors import ValidationError
 
 # Logos may be at most 512 KB.

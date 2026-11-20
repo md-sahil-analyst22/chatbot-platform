@@ -7,19 +7,44 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Bot Studio use cases: save draft, publish, roll back, read versions, list allowed models."""
 
+# From collections.abc — standard type names for collections: Callable = type for a function.
 from collections.abc import Callable
+
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you.
 from dataclasses import dataclass
+
+# From datetime — dates and times: UTC = the UTC time zone; datetime = a date + time value.
 from datetime import UTC, datetime
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type; uuid4 = makes a random id.
 from uuid import UUID, uuid4
 
+# From saathi.modules.tenancy.domain.bot_config — the bot configuration business objects:
+#   BotConfig = one full configuration; BotConfigVersion = one saved version; ConfigStatus =
+#   draft/published/archived.
 from saathi.modules.tenancy.domain.bot_config import BotConfig, BotConfigVersion, ConfigStatus
+
+# From saathi.modules.tenancy.ports.repositories — tenancy storage contracts:
+#   BotConfigRepository = contract: store config versions; BotRepository = contract: store bots;
+#   TenantRepository = contract: tenant facts.
 from saathi.modules.tenancy.ports.repositories import (
     BotConfigRepository,
     BotRepository,
     TenantRepository,
 )
+
+# From saathi.platform.config.model_catalog — the list of AI models tenants may choose:
+#   ModelCatalog = the catalog; ModelOption = one choosable model.
 from saathi.platform.config.model_catalog import ModelCatalog, ModelOption
+
+# From saathi.platform.errors — our error types: NotFoundError = 404 not found; ValidationError
+#   = 422 invalid input.
 from saathi.platform.errors import NotFoundError, ValidationError
+
+# From saathi.platform.security.auth — who is calling and what they may do: Principal = the
+#   verified caller; Role = viewer/agent/admin/owner; require_role = stops with 403 if the role is
+#   too low.
 from saathi.platform.security.auth import Principal, Role, require_role
 
 Clock = Callable[[], datetime]

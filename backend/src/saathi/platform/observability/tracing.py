@@ -9,8 +9,16 @@ Kept behind a tiny interface so business code calls `tracer.span(...)` without i
 Langfuse SDK. Every span carries tenant_id, bot_id, conversation_id - never message text with PII.
 """
 
+# From collections.abc — standard type names for collections: Iterator = type for a one-pass
+#   loop source.
 from collections.abc import Iterator
+
+# From contextlib — helpers for building `with` blocks: contextmanager = turns a function into a
+#   `with` block.
 from contextlib import contextmanager
+
+# From typing — type-hint helpers: Any = any type; Protocol = an interface: any class with these
+#   methods fits.
 from typing import Any, Protocol
 
 

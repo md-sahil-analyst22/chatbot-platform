@@ -5,7 +5,10 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Server-Sent Events formatting for the widget stream."""
 
+# json — reads and writes JSON text.
 import json
+
+# From typing — type-hint helpers: Any = any type.
 from typing import Any
 
 

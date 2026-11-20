@@ -4,6 +4,7 @@
 // Note: 🔒 The backend checks everything again - these rules are a convenience, not the
 //       security.
 // ────────────────────────────────────────────────────────────────────────────────────────────
+// From zod — zod, describes and checks data rules: z = builder for data rules.
 import { z } from "zod";
 
 /** Mirrors backend validation (domain/bot_config.py + api/schemas.py). Backend is authoritative. */

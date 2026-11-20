@@ -5,13 +5,23 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Standard-library logs (uvicorn, SQLAlchemy, ...) come out as the same structured JSON."""
 
+# json — reads and writes JSON text.
 import json
+
+# logging — Python's built-in logging.
 import logging
+
+# From collections.abc — standard type names for collections: Iterator = type for a one-pass
+#   loop source.
 from collections.abc import Iterator
 
+# pytest — the test framework.
 import pytest
+
+# structlog — structured logging (JSON log lines).
 import structlog
 
+# From saathi.platform.logging.setup — logging set-up: configure_logging = sets up logging.
 from saathi.platform.logging.setup import configure_logging
 
 

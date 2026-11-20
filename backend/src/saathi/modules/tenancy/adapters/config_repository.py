@@ -6,16 +6,38 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """SQLAlchemy implementation of BotConfigRepository. Session must be tenant-bound (RLS)."""
 
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From sqlalchemy — SQLAlchemy, our database toolkit: func = SQL functions such as now() or
+#   max(); select = builds a SELECT query; update = builds an UPDATE query.
 from sqlalchemy import func, select, update
+
+# From sqlalchemy.exc — database errors: IntegrityError = a database rule was broken (e.g.
+#   duplicate).
 from sqlalchemy.exc import IntegrityError
+
+# From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools: AsyncSession =
+#   one unit of database work.
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# From saathi.modules.tenancy.adapters.config_mapper — BotConfig <-> JSON conversion:
+#   config_from_json = JSON -> BotConfig; config_to_json = BotConfig -> JSON.
 from saathi.modules.tenancy.adapters.config_mapper import config_from_json, config_to_json
+
+# From saathi.modules.tenancy.adapters.orm — the tenancy table classes: BotConfigVersionRow =
+#   bot_config_versions table.
 from saathi.modules.tenancy.adapters.orm import BotConfigVersionRow
+
+# From saathi.modules.tenancy.domain.bot_config — the bot configuration business objects:
+#   BotConfigVersion = one saved version; ConfigStatus = draft/published/archived.
 from saathi.modules.tenancy.domain.bot_config import BotConfigVersion, ConfigStatus
+
+# From saathi.platform.db.errors — reads which database rule was broken: violated_constraint =
+#   name of the broken rule.
 from saathi.platform.db.errors import violated_constraint
+
+# From saathi.platform.errors — our error types: ConflictError = 409 clash with existing data.
 from saathi.platform.errors import ConflictError
 
 _CONFLICTS = {

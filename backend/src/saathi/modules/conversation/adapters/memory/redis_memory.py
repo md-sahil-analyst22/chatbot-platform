@@ -7,12 +7,22 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Session memory (P3.4): last N turns per conversation in Redis. Keys are tenant scoped."""
 
+# json — reads and writes JSON text.
 import json
+
+# From collections.abc — standard type names for collections: Awaitable = type for something you
+#   can `await`.
 from collections.abc import Awaitable
+
+# From typing — type-hint helpers: cast = tells the type checker the real type.
 from typing import cast
 
+# From redis.asyncio — async client for Redis, the fast in-memory store: Redis = the Redis
+#   client.
 from redis.asyncio import Redis
 
+# From saathi.modules.conversation.ports.llm — AI language-model contracts: ChatMessage = one
+#   chat message.
 from saathi.modules.conversation.ports.llm import ChatMessage
 
 MAX_TURNS = 6  # user+assistant pairs kept verbatim

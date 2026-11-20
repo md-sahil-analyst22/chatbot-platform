@@ -13,11 +13,20 @@ Phase 8 (Pro): wrap with the tenant vault (modules/credentials): tenant key firs
 platform key only if the tenant's plan allows a fallback.
 """
 
+# From collections.abc — standard type names for collections: Mapping = type for a read-only
+#   dictionary.
 from collections.abc import Mapping
 
+# From pydantic — checks data against declared types and rules: SecretStr = text that hides
+#   itself when printed or logged.
 from pydantic import SecretStr
 
+# From saathi.modules.conversation.adapters.llm.anthropic_llm — the Anthropic Claude adapter:
+#   AnthropicSettings = ANTHROPIC_* settings.
 from saathi.modules.conversation.adapters.llm.anthropic_llm import AnthropicSettings
+
+# From saathi.modules.conversation.adapters.llm.gemini_llm — the Google Gemini adapter:
+#   GeminiSettings = GEMINI_* settings.
 from saathi.modules.conversation.adapters.llm.gemini_llm import GeminiSettings
 
 
