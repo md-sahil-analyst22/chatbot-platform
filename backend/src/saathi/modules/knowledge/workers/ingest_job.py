@@ -13,13 +13,16 @@ from typing import Any
 # structlog — structured logging (JSON log lines).
 import structlog
 
+# The logger for this file.
 log = structlog.get_logger()
 
 
 # Called by the worker with the tenant and source id; tags logs with both.
 async def ingest_source(ctx: dict[str, Any], tenant_id: str, source_id: str) -> None:
     """Placeholder for P2.2. Re-running the same job must not duplicate chunks (hash check)."""
+    # Tag every log line of this job with the tenant and the source.
     structlog.contextvars.bind_contextvars(tenant_id=tenant_id, source_id=source_id)
+    # Log that the job started.
     log.info("ingest.started")
     # Phase 2: open tenant_session(...), call application.ingestion with injected ports.
     log.info("ingest.noop", reason="not implemented until Phase 2")

@@ -16,22 +16,29 @@ from dataclasses import dataclass
 from typing import Protocol
 
 
+# @dataclass writes __init__ for us; frozen=True means objects can't be changed after
+#   creation.
 @dataclass(frozen=True, slots=True)
 # The text heard, plus the detected language.
 class Transcript:
+    # The words heard.
     text: str
     language: str | None  # detected (or requested) language; None if the vendor can't tell
 
 
+# @dataclass writes __init__ for us; frozen=True means objects can't be changed after
+#   creation.
 @dataclass(frozen=True, slots=True)
 # Generated audio bytes and their format.
 class SynthesizedSpeech:
+    # The audio bytes.
     audio: bytes
     content_type: str  # e.g. "audio/wav"
 
 
 # Contract: audio -> text.
 class SpeechToText(Protocol):
+    # Audio bytes + their type (+ optional language hint) -> Transcript.
     async def transcribe(
         self, audio: bytes, *, content_type: str, language: str | None = None
     ) -> Transcript:
@@ -41,6 +48,7 @@ class SpeechToText(Protocol):
 
 # Contract: text -> audio.
 class TextToSpeech(Protocol):
+    # Text + language (+ optional voice) -> audio.
     async def synthesize(
         self, text: str, *, language: str, voice: str | None = None
     ) -> SynthesizedSpeech:

@@ -13,5 +13,7 @@ from saathi.modules.channels.ports.speech import SpeechToText, TextToSpeech
 #   vendor adapters.
 from saathi.platform.providers import ProviderRegistry
 
+# Phone book of speech-to-text vendors.
 stt_registry: ProviderRegistry[SpeechToText] = ProviderRegistry("speech-to-text")
+# Phone book of text-to-speech vendors.
 tts_registry: ProviderRegistry[TextToSpeech] = ProviderRegistry("text-to-speech")

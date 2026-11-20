@@ -14,6 +14,9 @@ from saathi.modules.knowledge.ports.providers import DocumentParser, Embedder, R
 #   vendor adapters.
 from saathi.platform.providers import ProviderRegistry
 
+# Phone book of document parsers.
 parser_registry: ProviderRegistry[DocumentParser] = ProviderRegistry("parser")
+# Phone book of embedders.
 embedder_registry: ProviderRegistry[Embedder] = ProviderRegistry("embedder")
+# Phone book of rerankers.
 reranker_registry: ProviderRegistry[Reranker] = ProviderRegistry("reranker")

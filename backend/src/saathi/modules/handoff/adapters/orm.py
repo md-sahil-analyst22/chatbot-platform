@@ -36,34 +36,54 @@ from saathi.platform.db.base import Base, created_at, tenant_fk, uuid_pk
 class HandoffRow(Base):
     """Bot -> human escalation. States: requested -> notified -> human -> closed | after_hours."""
 
+    # The real table name in Postgres.
     __tablename__ = "handoffs"
+    # Table-wide rules:
     __table_args__ = (
+        # 🔒 the conversation must belong to the same tenant; deleting it deletes its handoffs:
         ForeignKeyConstraint(
+            # these columns...
             ["tenant_id", "conversation_id"],
+            # ...point at these columns,
             ["conversations.tenant_id", "conversations.id"],
+            # delete together;
             ondelete="CASCADE",
         ),
+        # status must be one of these five values:
         CheckConstraint(
+            # the allowed values,
             "status IN ('requested', 'notified', 'human', 'closed', 'after_hours')",
+            # the rule's name;
             name="status",
         ),
         # At most one open handoff per conversation.
         Index(
+            # its name,
             "uq_handoffs_one_open",
+            # the column it covers,
             "conversation_id",
+            # unique (at most one open handoff per conversation),
             unique=True,
+            # counting only handoffs that are still open;
             postgresql_where=text("status NOT IN ('closed', 'after_hours')"),
         ),
         # serves: agent inbox - open handoffs for a tenant, oldest first
         Index("ix_handoffs_tenant_status_created", "tenant_id", "status", "created_at"),
     )
 
+    # id: random UUID primary key.
     id: Mapped[uuid.UUID] = uuid_pk()
+    # 🔒 tenant_id: which workspace owns the row.
     tenant_id: Mapped[uuid.UUID] = tenant_fk()
+    # conversation_id: which conversation.
     conversation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    # reason: why it was handed over.
     reason: Mapped[str] = mapped_column(String(100))
     summary: Mapped[str | None] = mapped_column(Text)  # AI summary for the agent
+    # status: starts as 'requested'.
     status: Mapped[str] = mapped_column(String(20), server_default="requested")
     agent_id: Mapped[str | None] = mapped_column(String(100))  # auth user id of the agent
+    # When it was requested.
     created_at: Mapped[datetime] = created_at()
+    # When it was resolved (empty until then).
     resolved_at: Mapped[datetime | None]

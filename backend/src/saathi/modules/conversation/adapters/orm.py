@@ -53,114 +53,181 @@ from saathi.platform.db.base import Base, created_at, tenant_fk, updated_at, uui
 class ContactRow(Base):
     """An end user of a tenant's bot (website visitor or WhatsApp number)."""
 
+    # The real table name in Postgres.
     __tablename__ = "contacts"
+    # Table-wide rules:
     __table_args__ = (
         UniqueConstraint("tenant_id", "id", name="uq_contacts_tenant_id_id"),  # composite FK target
         # serves: find the contact for an inbound WhatsApp number / known email
         Index(
+            # its name,
             "uq_contacts_tenant_phone",
+            # first column: tenant,
             "tenant_id",
+            # second column: phone,
             "phone",
+            # unique (one contact per phone number per tenant),
             unique=True,
+            # but only where a phone number is set;
             postgresql_where=text("phone IS NOT NULL"),
         ),
+        # the same for email:
         Index(
+            # its name,
             "uq_contacts_tenant_email",
+            # first column: tenant,
             "tenant_id",
+            # second column: email,
             "email",
+            # unique,
             unique=True,
+            # but only where an email is set.
             postgresql_where=text("email IS NOT NULL"),
         ),
     )
 
+    # id: random UUID primary key.
     id: Mapped[uuid.UUID] = uuid_pk()
+    # 🔒 tenant_id: which workspace owns the row.
     tenant_id: Mapped[uuid.UUID] = tenant_fk()
     phone: Mapped[str | None] = mapped_column(String(20))  # E.164
+    # email: optional.
     email: Mapped[str | None] = mapped_column(String(320))
+    # name: optional.
     name: Mapped[str | None] = mapped_column(String(200))
+    # When first seen.
     created_at: Mapped[datetime] = created_at()
+    # When last changed.
     updated_at: Mapped[datetime] = updated_at()
 
 
 # Table `conversations`: one chat thread and its status.
 class ConversationRow(Base):
+    # The real table name in Postgres.
     __tablename__ = "conversations"
+    # Table-wide rules:
     __table_args__ = (
+        # 🔒 (tenant_id, bot_id) must point at a bot of the SAME tenant; deleting the bot
+        #   deletes these rows;
         ForeignKeyConstraint(
             ["tenant_id", "bot_id"], ["bots.tenant_id", "bots.id"], ondelete="CASCADE"
         ),
+        # (tenant, id) unique, so other tables can link to a conversation of the same tenant;
         UniqueConstraint(
             "tenant_id", "id", name="uq_conversations_tenant_id_id"
         ),  # composite FK target
+        # channel must be web, whatsapp or voice;
         CheckConstraint("channel IN ('web', 'whatsapp', 'voice')", name="channel"),
+        # status must be open, handed_off or closed;
         CheckConstraint("status IN ('open', 'handed_off', 'closed')", name="status"),
+        # satisfaction score, if given, is 1-5;
         CheckConstraint("csat IS NULL OR csat BETWEEN 1 AND 5", name="csat"),
         # serves: Conversations screen - a bot's conversations, most recent activity first
         Index(
+            # its name,
             "ix_conversations_tenant_bot_last",
+            # tenant,
             "tenant_id",
+            # bot,
             "bot_id",
+            # most recent first;
             text("last_message_at DESC"),
         ),
         # serves: resume the open conversation for a widget session / WhatsApp number
         Index(
+            # its name,
             "ix_conversations_tenant_bot_external_user",
+            # tenant,
             "tenant_id",
+            # bot,
             "bot_id",
+            # the visitor/phone id.
             "external_user_id",
         ),
     )
 
+    # id: random UUID primary key.
     id: Mapped[uuid.UUID] = uuid_pk()
+    # 🔒 tenant_id: which workspace owns the row.
     tenant_id: Mapped[uuid.UUID] = tenant_fk()
+    # bot_id: which bot answered.
     bot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     # Kept if the contact is deleted (delete-my-data): the conversation loses its owner link.
     contact_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="SET NULL")
     )
+    # channel: web / whatsapp / voice.
     channel: Mapped[str] = mapped_column(String(20))
     external_user_id: Mapped[str] = mapped_column(String(100))  # widget session id / phone
+    # status: starts as 'open'.
     status: Mapped[str] = mapped_column(String(20), server_default="open")
     outcome: Mapped[str | None] = mapped_column(String(30))  # resolved, unanswered, lead, ...
+    # csat: satisfaction score 1-5, if the customer gave one.
     csat: Mapped[int | None] = mapped_column(SmallInteger)
     config_version: Mapped[int | None]  # published bot config version that answered
+    # language: e.g. 'hi'.
     language: Mapped[str | None] = mapped_column(String(10))
+    # When it started.
     started_at: Mapped[datetime] = created_at()
+    # When the last message arrived.
     last_message_at: Mapped[datetime] = created_at()
+    # When it was closed (empty while open).
     closed_at: Mapped[datetime | None]
 
 
 # Table `messages`: each message in a conversation.
 class MessageRow(Base):
+    # The real table name in Postgres.
     __tablename__ = "messages"
+    # Table-wide rules:
     __table_args__ = (
+        # 🔒 the conversation must belong to the same tenant; deleting it deletes its messages:
         ForeignKeyConstraint(
+            # these columns...
             ["tenant_id", "conversation_id"],
+            # ...point at these columns,
             ["conversations.tenant_id", "conversations.id"],
+            # delete together.
             ondelete="CASCADE",
         ),
+        # role: user, assistant, agent or system;
         CheckConstraint("role IN ('user', 'assistant', 'agent', 'system')", name="role"),
+        # confidence, if set, is between 0 and 1;
         CheckConstraint("confidence IS NULL OR confidence BETWEEN 0 AND 1", name="confidence"),
         # serves: transcript of a conversation in order
         Index("ix_messages_conversation_created", "conversation_id", "created_at"),
         # serves: drop duplicate webhook deliveries (P4.7)
         Index(
+            # its name,
             "uq_messages_tenant_external_id",
+            # tenant,
             "tenant_id",
+            # the channel's message id,
             "external_message_id",
+            # unique (the same WhatsApp message is never stored twice),
             unique=True,
+            # but only where that id is set.
             postgresql_where=text("external_message_id IS NOT NULL"),
         ),
     )
 
+    # id: random UUID primary key.
     id: Mapped[uuid.UUID] = uuid_pk()
+    # 🔒 tenant_id: which workspace owns the row.
     tenant_id: Mapped[uuid.UUID] = tenant_fk()
+    # conversation_id: which conversation.
     conversation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    # role: who wrote it.
     role: Mapped[str] = mapped_column(String(20))
+    # content: the text.
     content: Mapped[str] = mapped_column(Text)
+    # citations: sources the answer used, [] by default.
     citations: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, server_default=text("'[]'::jsonb")
     )
+    # confidence: how sure the bot was (0-1), if known.
     confidence: Mapped[float | None]
+    # external_message_id: the channel's own message id (for de-duplication).
     external_message_id: Mapped[str | None] = mapped_column(String(200))
+    # When it was written.
     created_at: Mapped[datetime] = created_at()

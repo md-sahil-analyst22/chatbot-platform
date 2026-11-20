@@ -13,5 +13,6 @@ from saathi.modules.conversation.ports.llm import CompletionClient
 #   vendor adapters.
 from saathi.platform.providers import ProviderRegistry
 
+# Phone book of AI language-model vendors (gemini, anthropic...).
 completion_registry: ProviderRegistry[CompletionClient] = ProviderRegistry("llm-completion")
 # P3.8: streaming_registry: ProviderRegistry[StreamingClient] = ProviderRegistry("llm-streaming")

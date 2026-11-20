@@ -15,11 +15,15 @@ MAX_MESSAGE_CHARS = 2000
 
 # Returns blocked=True with a reason, or the cleaned message.
 def guard_node(state: ChatState) -> ChatState:
+    # The customer's message without surrounding spaces ('' if missing).
     text = (state.get("user_message") or "").strip()
     # Empty message -> blocked.
     if not text:
+        # Stop: empty message.
         return {"blocked": True, "block_reason": "empty_message"}
     # Too long -> blocked (protects cost and the model).
     if len(text) > MAX_MESSAGE_CHARS:
+        # Stop: too long.
         return {"blocked": True, "block_reason": "message_too_long"}
+    # Let it through, cleaned.
     return {"blocked": False, "block_reason": None, "user_message": text}

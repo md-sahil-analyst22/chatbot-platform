@@ -18,4 +18,5 @@ Uploads: size limit, extension + magic-byte check, never trust the client filena
 #   group of related endpoints.
 from fastapi import APIRouter
 
+# The (future) knowledge endpoints; not mounted yet.
 router = APIRouter(tags=["knowledge"])

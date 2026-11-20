@@ -12,6 +12,8 @@ from saathi.modules.channels.domain.message import Channel, OutboundMessage
 
 # Implemented per channel (e.g. WhatsApp).
 class ChannelSender(Protocol):
+    # Which channel this sender serves.
     channel: Channel
 
+    # Send one reply to a recipient (e.g. a phone number) for a tenant.
     async def send(self, tenant_id: str, recipient: str, message: OutboundMessage) -> None: ...

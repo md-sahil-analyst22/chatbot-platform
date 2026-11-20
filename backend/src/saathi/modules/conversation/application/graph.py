@@ -28,9 +28,13 @@ def build_graph() -> Any:
     #   finished' marker; StateGraph = the flow builder.
     from langgraph.graph import END, StateGraph  # lazy: optional dependency
 
+    # A new flow that passes ChatState between steps.
     graph = StateGraph(ChatState)
+    # Add the 'guard' step.
     graph.add_node("guard", guard_node)
+    # Every chat starts at the guard.
     graph.set_entry_point("guard")
     # P3.2 - P3.6: add language, rewrite, intent, rag, answer, handoff nodes + conditional edges.
     graph.add_edge("guard", END)
+    # Turn the description into a runnable flow.
     return graph.compile()

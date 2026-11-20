@@ -22,47 +22,67 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 
+# @dataclass writes __init__ for us; frozen=True means objects can't be changed after
+#   creation.
 @dataclass(frozen=True, slots=True)
 # Text of one page of a document.
 class ParsedPage:
+    # Page number.
     number: int
+    # The page's text.
     text: str
 
 
+# @dataclass writes __init__ for us; frozen=True means objects can't be changed after
+#   creation.
 @dataclass(frozen=True, slots=True)
 # All pages of a parsed document.
 class ParsedDocument:
+    # All pages in order.
     pages: list[ParsedPage]
+    # Extra facts (title, author...), empty by default.
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    # @property: read it like a field (doc.text).
     @property
+    # The whole document's text...
     def text(self) -> str:
+        # ...pages joined with blank lines.
         return "\n\n".join(p.text for p in self.pages)
 
 
+# @dataclass writes __init__ for us; frozen=True means objects can't be changed after
+#   creation.
 @dataclass(frozen=True, slots=True)
 # One result after reranking: which document and its score.
 class RerankResult:
+    # Position of the document in the list that was sent.
     index: int
+    # How relevant it is (higher = better).
     score: float
 
 
 # Contract: file bytes -> text.
 class DocumentParser(Protocol):
+    # File types this parser understands, e.g. {'.pdf'}.
     supported_extensions: frozenset[str]
 
+    # File bytes + name -> parsed document.
     def parse(self, data: bytes, filename: str) -> ParsedDocument: ...
 
 
 # Contract: texts -> number vectors.
 class Embedder(Protocol):
+    # Which model it uses (stored with the vectors).
     model_name: str
 
+    # One vector (list of numbers) per text, in the same order.
     async def embed(self, texts: Sequence[str]) -> list[list[float]]: ...
 
 
 # Contract: question + documents -> best documents first.
 class Reranker(Protocol):
+    # Question + documents -> the best `top_n`, best first.
     async def rerank(
         self, query: str, documents: Sequence[str], top_n: int
     ) -> list[RerankResult]: ...

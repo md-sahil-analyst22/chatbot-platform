@@ -14,5 +14,7 @@ from typing import Any
 
 # Turn an event name + data into the text format browsers understand.
 def sse_event(event: str, data: Any) -> str:
+    # The data as JSON (ensure_ascii=False keeps Hindi/Bengali readable).
     payload = json.dumps(data, ensure_ascii=False)
+    # The SSE text format: an 'event:' line, a 'data:' line and a blank line.
     return f"event: {event}\ndata: {payload}\n\n"

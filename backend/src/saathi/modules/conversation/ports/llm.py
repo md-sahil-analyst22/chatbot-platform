@@ -22,43 +22,63 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 
+# @dataclass writes __init__ for us; frozen=True means objects can't be changed after
+#   creation.
 @dataclass(frozen=True, slots=True)
 # One message: who said it (role) and what (content).
 class ChatMessage:
+    # Who said it: the customer ('user') or the bot ('assistant').
     role: Literal["user", "assistant"]
+    # The text.
     content: str
 
 
+# @dataclass writes __init__ for us; frozen=True means objects can't be changed after
+#   creation.
 @dataclass(frozen=True, slots=True)
 # The model's reply plus token counts (for cost tracking).
 class LLMResponse:
+    # The reply text.
     text: str
+    # Which model actually answered.
     model: str
+    # Tokens sent (for cost tracking).
     tokens_in: int
+    # Tokens received.
     tokens_out: int
 
 
 # Contract: messages in, complete reply out.
 class CompletionClient(Protocol):
+    # Ask for one complete reply, given:
     async def complete(
         self,
         *,
         system: str,
+        # the conversation so far,
         messages: Sequence[ChatMessage],
+        # the vendor's model id,
         model: str,
+        # creativity (0-1),
         temperature: float,
+        # the longest reply allowed.
         max_tokens: int,
     ) -> LLMResponse: ...
 
 
 # Contract: messages in, reply word-by-word (used from Phase 3).
 class StreamingClient(Protocol):
+    # Ask for the reply word by word, given the same inputs:
     def stream(
         self,
         *,
         system: str,
+        # the conversation so far,
         messages: Sequence[ChatMessage],
+        # the vendor's model id,
         model: str,
+        # creativity,
         temperature: float,
+        # the longest reply allowed.
         max_tokens: int,
     ) -> AsyncIterator[str]: ...

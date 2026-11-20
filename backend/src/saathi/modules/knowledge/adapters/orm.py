@@ -50,6 +50,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 #   recipe; updated_at = 'updated at' column recipe; uuid_pk = id column recipe.
 from saathi.platform.db.base import Base, created_at, tenant_fk, updated_at, uuid_pk
 
+# Numbers per embedding vector (must match the embedder, R13).
 EMBEDDING_DIMENSIONS = 1536
 
 
@@ -57,30 +58,46 @@ EMBEDDING_DIMENSIONS = 1536
 class SourceRow(Base):
     """A document or URL a bot learns from. Lifecycle: queued -> processing -> ready | failed."""
 
+    # The real table name in Postgres.
     __tablename__ = "sources"
+    # Table-wide rules:
     __table_args__ = (
+        # 🔒 (tenant_id, bot_id) must point at a bot of the SAME tenant; deleting the bot
+        #   deletes these rows;
         ForeignKeyConstraint(
             ["tenant_id", "bot_id"], ["bots.tenant_id", "bots.id"], ondelete="CASCADE"
         ),
         UniqueConstraint("tenant_id", "id", name="uq_sources_tenant_id_id"),  # composite FK target
+        # the same file/URL only once per bot;
         UniqueConstraint("tenant_id", "bot_id", "uri", name="uq_sources_tenant_bot_uri"),
+        # kind must be file or url;
         CheckConstraint("kind IN ('file', 'url')", name="kind"),
+        # status must be one of the four states;
         CheckConstraint("status IN ('queued', 'processing', 'ready', 'failed')", name="status"),
         # serves: list a bot's sources, newest first
         Index("ix_sources_tenant_bot_created", "tenant_id", "bot_id", text("created_at DESC")),
     )
 
+    # id: random UUID primary key.
     id: Mapped[uuid.UUID] = uuid_pk()
+    # 🔒 tenant_id: which workspace owns the row.
     tenant_id: Mapped[uuid.UUID] = tenant_fk()
+    # bot_id: which bot learns from it.
     bot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    # kind: file or url.
     kind: Mapped[str] = mapped_column(String(10))
     uri: Mapped[str] = mapped_column(String(2000))  # storage key or https URL
+    # title: optional display name.
     title: Mapped[str | None] = mapped_column(String(300))
+    # status: starts as 'queued'.
     status: Mapped[str] = mapped_column(String(20), server_default="queued")
     content_hash: Mapped[str | None] = mapped_column(String(64))  # sha256: skip unchanged files
     error: Mapped[str | None] = mapped_column(String(500))  # safe summary, never a stack trace
+    # synced_at: when it was last processed (empty until then).
     synced_at: Mapped[datetime | None]
+    # When it was added.
     created_at: Mapped[datetime] = created_at()
+    # When it last changed.
     updated_at: Mapped[datetime] = updated_at()
 
 
@@ -88,22 +105,32 @@ class SourceRow(Base):
 class ChunkRow(Base):
     """A searchable passage: vector (semantic) + tsvector (keyword) for hybrid retrieval."""
 
+    # The real table name in Postgres.
     __tablename__ = "chunks"
+    # Table-wide rules:
     __table_args__ = (
+        # 🔒 the source must belong to the same tenant; deleting the source deletes its chunks;
         ForeignKeyConstraint(
             ["tenant_id", "source_id"], ["sources.tenant_id", "sources.id"], ondelete="CASCADE"
         ),
+        # 🔒 (tenant_id, bot_id) must point at a bot of the SAME tenant; deleting the bot
+        #   deletes these rows;
         ForeignKeyConstraint(
             ["tenant_id", "bot_id"], ["bots.tenant_id", "bots.id"], ondelete="CASCADE"
         ),
         # re-ingesting a source replaces its chunks by position (idempotent, R33)
         UniqueConstraint("source_id", "chunk_index", name="uq_chunks_source_index"),
+        # chunk numbers start at 0;
         CheckConstraint("chunk_index >= 0", name="chunk_index"),
         # serves: semantic search (cosine distance)
         Index(
+            # its name,
             "ix_chunks_embedding_hnsw",
+            # the vector column,
             "embedding",
+            # an HNSW index (fast 'find the most similar vectors' search),
             postgresql_using="hnsw",
+            # compared by cosine similarity;
             postgresql_ops={"embedding": "vector_cosine_ops"},
         ),
         # serves: keyword search half of hybrid retrieval
@@ -112,27 +139,41 @@ class ChunkRow(Base):
         Index("ix_chunks_tenant_bot", "tenant_id", "bot_id"),
     )
 
+    # id: random UUID primary key.
     id: Mapped[uuid.UUID] = uuid_pk()
+    # 🔒 tenant_id: which workspace owns the row.
     tenant_id: Mapped[uuid.UUID] = tenant_fk()
+    # bot_id: which bot.
     bot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    # source_id: which document it came from.
     source_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    # chunk_index: its position in the document (0, 1, 2...).
     chunk_index: Mapped[int]
+    # content: the chunk's text.
     content: Mapped[str] = mapped_column(Text)
+    # embedding: its vector (1536 numbers).
     embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIMENSIONS))
     # 'simple' config: no language-specific stemming, so Bengali/Hindi/English all work.
     tsv: Mapped[str] = mapped_column(
         TSVECTOR, Computed("to_tsvector('simple', content)", persisted=True)
     )
+    # metadata: extra JSON (page, heading...), {} by default; named metadata_ in Python
+    #   because 'metadata' is reserved.
     metadata_: Mapped[dict[str, Any]] = mapped_column(
         "metadata", JSONB, server_default=text("'{}'::jsonb")
     )
+    # When it was created.
     created_at: Mapped[datetime] = created_at()
 
 
 # Table `faqs`: hand-written question/answer pairs.
 class FaqRow(Base):
+    # The real table name in Postgres.
     __tablename__ = "faqs"
+    # Table-wide rules:
     __table_args__ = (
+        # 🔒 (tenant_id, bot_id) must point at a bot of the SAME tenant; deleting the bot
+        #   deletes these rows;
         ForeignKeyConstraint(
             ["tenant_id", "bot_id"], ["bots.tenant_id", "bots.id"], ondelete="CASCADE"
         ),
@@ -140,11 +181,19 @@ class FaqRow(Base):
         Index("ix_faqs_tenant_bot", "tenant_id", "bot_id"),
     )
 
+    # id: random UUID primary key.
     id: Mapped[uuid.UUID] = uuid_pk()
+    # 🔒 tenant_id: which workspace owns the row.
     tenant_id: Mapped[uuid.UUID] = tenant_fk()
+    # bot_id: which bot.
     bot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    # question: up to 1000 characters.
     question: Mapped[str] = mapped_column(String(1000))
+    # answer: up to 4000 characters.
     answer: Mapped[str] = mapped_column(String(4000))
+    # is_active: switched on by default.
     is_active: Mapped[bool] = mapped_column(server_default=text("true"))
+    # When it was created.
     created_at: Mapped[datetime] = created_at()
+    # When it last changed.
     updated_at: Mapped[datetime] = updated_at()

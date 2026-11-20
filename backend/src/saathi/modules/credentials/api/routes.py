@@ -17,4 +17,5 @@ The api_key field is write-only: it is never echoed, logged or included in valid
 #   group of related endpoints.
 from fastapi import APIRouter
 
+# Endpoints will live under /credentials (not mounted yet).
 router = APIRouter(prefix="/credentials", tags=["credentials"])

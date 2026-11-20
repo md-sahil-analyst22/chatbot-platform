@@ -14,6 +14,7 @@ import hashlib
 # A fingerprint (SHA-256) of a file: same file = same fingerprint.
 def content_hash(data: bytes) -> str:
     """Stable file fingerprint used for idempotent re-sync."""
+    # SHA-256 of the bytes, written as hex text.
     return hashlib.sha256(data).hexdigest()
 
 
