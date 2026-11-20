@@ -1,8 +1,14 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Channel-neutral messages: the same shape whether the customer writes on the website or
+#       WhatsApp.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 
 
+# Where a message came from.
 class Channel(StrEnum):
     WEB = "web"
     WHATSAPP = "whatsapp"
@@ -10,6 +16,7 @@ class Channel(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+# A message FROM a customer.
 class InboundMessage:
     tenant_id: str
     bot_id: str
@@ -22,10 +29,12 @@ class InboundMessage:
 
 
 @dataclass(frozen=True, slots=True)
+# A message TO a customer.
 class OutboundMessage:
     text: str
     buttons: tuple[str, ...] = field(default_factory=tuple)  # WhatsApp: max 3
 
+    # At most 3 quick-reply buttons (WhatsApp's limit).
     def __post_init__(self) -> None:
         if len(self.buttons) > 3:
             raise ValueError("at most 3 reply buttons")

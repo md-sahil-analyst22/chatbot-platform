@@ -1,5 +1,10 @@
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+// What: A reusable form field: label, the input itself, an optional hint and an error message.
+// ────────────────────────────────────────────────────────────────────────────────────────────
 import type { ReactNode } from "react";
 
+// What a Field needs: label, optional hint/error, and the input inside it.
 interface FieldProps {
   label: string;
   hint?: string;
@@ -7,6 +12,7 @@ interface FieldProps {
   children: ReactNode;
 }
 
+// Draws the label, input, hint and error in a consistent way.
 export function Field({ label, hint, error, children }: FieldProps) {
   return (
     <label className="field">

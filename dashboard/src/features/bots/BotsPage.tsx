@@ -1,15 +1,21 @@
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+// What: The home page: lists your bots and has a small form to create a new one.
+// ────────────────────────────────────────────────────────────────────────────────────────────
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Field } from "../../components/Field";
 import type { Language } from "../../lib/api/types";
 import { useBots, useCreateBot } from "./api";
 
+// The languages a bot can speak.
 const LANGUAGES: { value: Language; label: string }[] = [
   { value: "en", label: "English" },
   { value: "hi", label: "Hindi" },
   { value: "bn", label: "Bengali" },
 ];
 
+// The page component.
 export function BotsPage() {
   const bots = useBots();
   const createBot = useCreateBot();
@@ -17,12 +23,14 @@ export function BotsPage() {
   const [name, setName] = useState("");
   const [languages, setLanguages] = useState<Language[]>(["en"]);
 
+  // Tick/untick a language.
   function toggle(lang: Language) {
     setLanguages((current) =>
       current.includes(lang) ? current.filter((l) => l !== lang) : [...current, lang],
     );
   }
 
+  // Create the bot, then open its Bot Studio editor.
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     const bot = await createBot.mutateAsync({ name: name.trim(), languages });

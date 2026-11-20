@@ -1,3 +1,8 @@
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+// What: TypeScript descriptions of the data the API sends and receives (must match the
+//       backend's schemas.py).
+// ────────────────────────────────────────────────────────────────────────────────────────────
 /**
  * DTOs mirroring backend/src/saathi/modules/tenancy/api/schemas.py.
  * Later: generate these from the backend OpenAPI spec (openapi-typescript) in CI.

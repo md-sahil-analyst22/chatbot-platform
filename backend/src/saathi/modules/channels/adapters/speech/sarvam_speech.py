@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Speech for Indian languages using Sarvam: 'saaras' turns audio into text, 'bulbul' turns
+#       text into audio (ADR-0006).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Sarvam AI speech adapters: speech-to-text (Saaras) and text-to-speech (Bulbul).
 
 Implements SpeechToText and TextToSpeech. Settings: SARVAM_*.
@@ -37,6 +42,7 @@ _EXTENSIONS = {
 _UNSUPPORTED: dict[str, frozenset[str]] = {"bulbul:v4-flash": frozenset({"ml-IN", "od-IN"})}
 
 
+# SARVAM_* settings from .env.
 class SarvamSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SARVAM_", env_file=".env", extra="ignore")
 
@@ -52,6 +58,7 @@ class SarvamSettings(BaseSettings):
     timeout_seconds: float = 20.0
 
 
+# Audio -> text.
 class SarvamSpeechToText:
     def __init__(
         self,
@@ -70,6 +77,7 @@ class SarvamSpeechToText:
         self._headers = {"api-subscription-key": api_key}
         self._timeout = timeout_s
 
+    # Upload audio, get the text and language back.
     async def transcribe(
         self, audio: bytes, *, content_type: str, language: str | None = None
     ) -> Transcript:
@@ -100,6 +108,7 @@ class SarvamSpeechToText:
         return Transcript(text=text, language=str(detected) if detected else language)
 
 
+# Text -> audio.
 class SarvamTextToSpeech:
     def __init__(
         self,
@@ -122,6 +131,7 @@ class SarvamTextToSpeech:
         self._headers = {"api-subscription-key": api_key}
         self._timeout = timeout_s
 
+    # Send text, get audio back.
     async def synthesize(
         self, text: str, *, language: str, voice: str | None = None
     ) -> SynthesizedSpeech:
@@ -153,6 +163,7 @@ class SarvamTextToSpeech:
         return SynthesizedSpeech(audio=audio, content_type="audio/wav")
 
 
+# Read settings; refuse to start without an API key.
 def _settings_with_key() -> tuple[SarvamSettings, str]:
     s = SarvamSettings()
     api_key = s.api_key.get_secret_value() if s.api_key else ""
@@ -161,6 +172,7 @@ def _settings_with_key() -> tuple[SarvamSettings, str]:
     return s, api_key
 
 
+# Register speech-to-text under the name 'sarvam'.
 @stt_registry.register("sarvam")
 def create_sarvam_stt(http: httpx.AsyncClient) -> SarvamSpeechToText:
     s, key = _settings_with_key()
@@ -174,6 +186,7 @@ def create_sarvam_stt(http: httpx.AsyncClient) -> SarvamSpeechToText:
     )
 
 
+# Register text-to-speech under the name 'sarvam'.
 @tts_registry.register("sarvam")
 def create_sarvam_tts(http: httpx.AsyncClient) -> SarvamTextToSpeech:
     s, key = _settings_with_key()

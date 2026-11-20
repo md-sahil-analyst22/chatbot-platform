@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: A tiny 'tracer' interface for timing each step of a chat reply.
+# Status: 🟡 Only a do-nothing version today; Langfuse plugs in here in Phase 3.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Tracing / cost hooks (Langfuse in P3.9, Sentry in P6.10).
 
 Kept behind a tiny interface so business code calls `tracer.span(...)` without importing the
@@ -9,10 +14,12 @@ from contextlib import contextmanager
 from typing import Any, Protocol
 
 
+# The contract: `span(name)` wraps one timed step.
 class Tracer(Protocol):
     def span(self, name: str, **attributes: Any) -> Any: ...
 
 
+# Does nothing - lets the code call the tracer before a real one exists.
 class NoopTracer:
     @contextmanager
     def span(self, name: str, **attributes: Any) -> Iterator[None]:

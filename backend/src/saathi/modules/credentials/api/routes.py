@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Future web endpoints for tenants' own API keys (listed in the text below).
+# Status: 🟡 Placeholder - built in a later phase (see
+#         docs/planning/05_PHASEWISE_DEVELOPMENT_PLAN.md).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """BYOK endpoints (Phase 8.1). Not mounted until implemented.
 
 PUT    /api/v1/credentials/{provider}   body {api_key} -> 200 {provider, masked, status}   OWNER

@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Migration 1: switches on the `vector` extension (pgvector), needed to store and search
+#       embeddings.
+# Plain words: A migration = a numbered, reversible change to the database structure. upgrade()
+#              applies it, downgrade() undoes it.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Baseline: enable pgvector. Tables + RLS policies arrive in the Phase 1 migration (P1.5/P1.6).
 
 Revision ID: 0001

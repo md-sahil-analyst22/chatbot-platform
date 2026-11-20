@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Converts a BotConfig to JSON for storage and back again.
+# Why: Configs are stored as JSON. The `schema` number lets future code still read old saved
+#      configs (R22).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """BotConfig <-> JSON (stored in bot_config_versions.config). `schema` allows future migrations."""
 
 from typing import Any
@@ -14,6 +20,7 @@ from saathi.modules.tenancy.domain.bot_config import (
 SCHEMA_VERSION = 1
 
 
+# BotConfig -> dict (stored in the database).
 def config_to_json(config: BotConfig) -> dict[str, Any]:
     p, g, b = config.prompt, config.generation, config.branding
     return {
@@ -42,6 +49,7 @@ def config_to_json(config: BotConfig) -> dict[str, Any]:
     }
 
 
+# dict from the database -> BotConfig (missing fields get defaults).
 def config_from_json(data: dict[str, Any]) -> BotConfig:
     p, g, b = data["prompt"], data["generation"], data["branding"]
     return BotConfig(

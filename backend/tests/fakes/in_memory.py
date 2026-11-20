@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: In-memory versions of the repositories (a dict instead of a database table).
+# How to run: Used automatically by the tests; nothing to run directly.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 from uuid import UUID
 
 from saathi.modules.credentials.domain.credential import CredentialStatus, ProviderCredential

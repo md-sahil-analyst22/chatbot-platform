@@ -1,7 +1,14 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: The 'state' passed between the steps of a chat reply (message, language, intent, answer,
+#       citations...).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 from enum import StrEnum
 from typing import TypedDict
 
 
+# What the customer wants: FAQ, lead, booking, order status, complaint, human, chit-chat or
+# out of scope.
 class Intent(StrEnum):
     FAQ = "faq"
     LEAD = "lead"
@@ -13,12 +20,14 @@ class Intent(StrEnum):
     OUT_OF_SCOPE = "out_of_scope"
 
 
+# A source the answer was based on.
 class Citation(TypedDict):
     source_id: str
     title: str
     page: int | None
 
 
+# Everything known about one chat turn; every field optional (total=False).
 class ChatState(TypedDict, total=False):
     tenant_id: str
     bot_id: str

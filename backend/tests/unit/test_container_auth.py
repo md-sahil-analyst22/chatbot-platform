@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: 🔒 Production refuses to start without login settings.
+# How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """build_token_verifier (ADR-0007): deployed environments refuse to start without auth."""
 
 import httpx

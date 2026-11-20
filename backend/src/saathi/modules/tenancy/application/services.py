@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: The use cases for bots: create, list, read, update, delete.
+# Pattern: Each method: 1) check the caller's role, 2) do the work through the repository
+#          contract. The tenant always comes from the verified caller.
+# Called by: api/routes.py.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 import secrets
 from dataclasses import dataclass, field
 from typing import Any
@@ -10,6 +17,7 @@ from saathi.platform.security.auth import Principal, Role, require_role
 
 
 @dataclass(frozen=True, slots=True)
+# The input needed to create a bot.
 class CreateBotCommand:
     name: str
     persona: str
@@ -18,6 +26,7 @@ class CreateBotCommand:
 
 
 @dataclass(frozen=True, slots=True)
+# The input for changing a bot; empty fields mean 'leave as is'.
 class UpdateBotCommand:
     """Partial update: None means "leave unchanged"."""
 
@@ -27,10 +36,12 @@ class UpdateBotCommand:
     settings: dict[str, Any] | None = None
 
 
+# The bot use cases.
 class BotService:
     def __init__(self, repo: BotRepository) -> None:
         self._repo = repo
 
+    # Admins and owners only.
     async def create_bot(self, principal: Principal, cmd: CreateBotCommand) -> Bot:
         require_role(principal, Role.ADMIN)
         bot = Bot(
@@ -45,10 +56,12 @@ class BotService:
         await self._repo.add(bot)
         return bot
 
+    # Anyone in the workspace may list bots.
     async def list_bots(self, principal: Principal, limit: int = 50) -> list[Bot]:
         require_role(principal, Role.VIEWER)
         return await self._repo.list_for_tenant(principal.tenant_id, min(limit, 100))
 
+    # Missing (or another tenant's) bot -> 404.
     async def get_bot(self, principal: Principal, bot_id: UUID) -> Bot:
         require_role(principal, Role.VIEWER)
         bot = await self._repo.get(principal.tenant_id, bot_id)
@@ -56,6 +69,7 @@ class BotService:
             raise NotFoundError("bot not found")
         return bot
 
+    # Admins and owners only; builds a changed copy of the bot.
     async def update_bot(self, principal: Principal, bot_id: UUID, cmd: UpdateBotCommand) -> Bot:
         require_role(principal, Role.ADMIN)
         bot = await self.get_bot(principal, bot_id)  # 404 for another tenant's bot (R29)
@@ -70,6 +84,7 @@ class BotService:
         await self._repo.update(bot)
         return bot
 
+    # Admins and owners only.
     async def delete_bot(self, principal: Principal, bot_id: UUID) -> None:
         """Deletes the bot and everything that belongs to it (configs, sources, chats)."""
         require_role(principal, Role.ADMIN)

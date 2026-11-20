@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Alembic's start-up file: connects to the database and runs the migrations.
+# Security: 🔒 Uses MIGRATION_DATABASE_URL (the table-owner role), never the app's own login
+#           (R24).
+# Run: In production this runs automatically before the API starts (the `migrate` service).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Alembic environment (async). URL from MIGRATION_DATABASE_URL (schema-owner role)."""
 
 import asyncio
@@ -32,6 +39,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+# Read the migration database address; stop if it's missing.
 def _url() -> str:
     url = os.environ.get("MIGRATION_DATABASE_URL")
     if not url:
@@ -39,18 +47,21 @@ def _url() -> str:
     return url
 
 
+# Write the SQL out instead of running it (used by `make schema-sql`).
 def run_migrations_offline() -> None:
     context.configure(url=_url(), target_metadata=target_metadata, literal_binds=True)
     with context.begin_transaction():
         context.run_migrations()
 
 
+# Run the migrations on an open connection, in one transaction.
 def _run(connection: Connection) -> None:
     context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
     with context.begin_transaction():
         context.run_migrations()
 
 
+# Normal mode: connect and apply the migrations.
 async def run_migrations_online() -> None:
     engine = async_engine_from_config(
         {"sqlalchemy.url": _url()}, prefix="sqlalchemy.", poolclass=pool.NullPool

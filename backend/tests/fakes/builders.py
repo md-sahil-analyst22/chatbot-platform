@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Small helpers to build test objects (bots, configs, callers) in one line.
+# How to run: Used automatically by the tests; nothing to run directly.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Small builders so tests read like the domain."""
 
 from datetime import UTC, datetime

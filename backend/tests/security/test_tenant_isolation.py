@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: 🔒 Tenant A can never read or change tenant B's data, enforced by the database
+#                itself.
+# How to run: make test-db (needs a throwaway real Postgres - never Supabase; see
+#             docs/runbooks/local-setup.md). Skipped otherwise.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Phase 1 exit criterion: tenant A cannot read or change tenant B's data (P1.6, R23, R37).
 
 Runs on REAL Postgres as the non-owner app role (saathi_app, NOBYPASSRLS). The owner role

@@ -1,3 +1,8 @@
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+// What: Page for tenants' own API keys.
+// Status: 🟡 Placeholder - built in Phase 8.
+// ────────────────────────────────────────────────────────────────────────────────────────────
 /**
  * Own provider API keys (BYOK) - Pro tier, Phase 8.1.
  * Contract: PUT /api/v1/credentials/{provider} {api_key} (OWNER) -> {provider, masked, status}.

@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: Tenants' own API keys: save, revoke, encryption, roles.
+# How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 import base64
 import os
 from uuid import UUID

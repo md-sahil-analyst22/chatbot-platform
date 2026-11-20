@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: The Bot Studio use cases: save draft, publish, rollback, plan limits, roles.
+# How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 from uuid import UUID, uuid4
 
 import pytest

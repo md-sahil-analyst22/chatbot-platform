@@ -1,7 +1,12 @@
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+// What: A live preview of the chat widget that updates as you type in the branding fields.
+// ────────────────────────────────────────────────────────────────────────────────────────────
 import { useFormContext } from "react-hook-form";
 import type { BotConfigForm } from "../bot-config/schema";
 
 /** Live preview of the website widget. All tenant text is rendered as plain text. */
+// Reads the branding values from the shared form.
 export function WidgetPreview() {
   const { watch } = useFormContext<BotConfigForm>();
   const b = watch("branding");

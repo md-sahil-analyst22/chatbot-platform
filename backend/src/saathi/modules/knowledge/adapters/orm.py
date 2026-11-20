@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Python descriptions of the knowledge tables: sources, chunks (with vectors) and FAQs.
+# Note: Created by migration 0002. The vector column has 1,536 numbers (Gemini embeddings).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """SQLAlchemy tables for the knowledge module (sources, chunks, FAQs). Created by migration 0002.
 
 Embedding size is fixed platform-wide (R13): gemini-embedding-2 shortened to 1,536 dimensions.
@@ -26,6 +31,7 @@ from saathi.platform.db.base import Base, created_at, tenant_fk, updated_at, uui
 EMBEDDING_DIMENSIONS = 1536
 
 
+# Table `sources`: one uploaded file or crawled URL.
 class SourceRow(Base):
     """A document or URL a bot learns from. Lifecycle: queued -> processing -> ready | failed."""
 
@@ -56,6 +62,7 @@ class SourceRow(Base):
     updated_at: Mapped[datetime] = updated_at()
 
 
+# Table `chunks`: small pieces of a source, each with its embedding vector for search.
 class ChunkRow(Base):
     """A searchable passage: vector (semantic) + tsvector (keyword) for hybrid retrieval."""
 
@@ -100,6 +107,7 @@ class ChunkRow(Base):
     created_at: Mapped[datetime] = created_at()
 
 
+# Table `faqs`: hand-written question/answer pairs.
 class FaqRow(Base):
     __tablename__ = "faqs"
     __table_args__ = (

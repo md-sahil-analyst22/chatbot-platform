@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: Every vendor adapter registers itself, and missing keys give clear errors.
+# How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Importing bootstrap registers every adapter; resolvers fail clearly without keys."""
 
 from pathlib import Path

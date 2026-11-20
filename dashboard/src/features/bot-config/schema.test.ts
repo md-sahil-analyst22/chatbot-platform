@@ -1,3 +1,8 @@
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+// What it tests: The Bot Studio form rules (defaults accepted, bad values refused).
+// How to run: cd dashboard && npm test
+// ────────────────────────────────────────────────────────────────────────────────────────────
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG, botConfigSchema } from "./schema";
 

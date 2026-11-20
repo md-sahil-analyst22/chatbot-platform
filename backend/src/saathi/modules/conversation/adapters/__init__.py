@@ -1,3 +1,7 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: The registry ('phone book') of AI language model adapters.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Provider registries for this module. Adapters register themselves when imported
 (bootstrap/providers.py imports them explicitly)."""
 

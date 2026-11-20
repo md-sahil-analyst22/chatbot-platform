@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: The rules of Bot and Source (validation, allowed status changes) and the guard.
+# How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 import dataclasses
 from uuid import uuid4
 

@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: The exact shapes of JSON the API accepts and returns for bots and configs.
+# Security: 🔒 Input models forbid unknown fields (so nobody can sneak in a tenant_id) and limit
+#           every length (R19).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 from datetime import datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
@@ -8,10 +14,12 @@ Language = Literal["en", "hi", "bn"]
 PUBLIC_KEY_REGEX = r"^pk_[A-Za-z0-9_-]{16,64}$"
 
 
+# Parent for input models: unknown fields -> 422 error.
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")  # reject unknown fields (e.g. a smuggled tenant_id)
 
 
+# Body of POST /api/v1/bots.
 class BotCreate(_Strict):
     name: str = Field(min_length=1, max_length=100)
     persona: str = Field(default="", max_length=2000)
@@ -19,6 +27,7 @@ class BotCreate(_Strict):
     settings: dict[str, Any] = Field(default_factory=dict)
 
 
+# Body of PATCH /api/v1/bots/{id}; at least one field required.
 class BotUpdate(_Strict):
     """PATCH body: send only the fields to change."""
 
@@ -37,6 +46,7 @@ class BotUpdate(_Strict):
         return self
 
 
+# What the API returns for a bot.
 class BotOut(BaseModel):
     id: UUID
     name: str
@@ -73,12 +83,14 @@ class BrandingIn(_Strict):
     logo_asset_id: UUID | None = None
 
 
+# Body for saving a configuration draft.
 class BotConfigIn(_Strict):
     prompt: PromptSettingsIn = Field(default_factory=PromptSettingsIn)
     generation: GenerationSettingsIn = Field(default_factory=GenerationSettingsIn)
     branding: BrandingIn
 
 
+# What the API returns for a config version.
 class BotConfigVersionOut(BaseModel):
     version: int
     status: Literal["draft", "published", "archived"]
@@ -87,11 +99,13 @@ class BotConfigVersionOut(BaseModel):
     config: BotConfigIn
 
 
+# One choosable model (no vendor model ids).
 class ModelOptionOut(BaseModel):
     key: str
     label: str
 
 
+# 🔒 What the public widget gets: display fields only (R10).
 class PublicWidgetConfigOut(BaseModel):
     """Public look of a widget only (R10): no prompts, model, plan or internal ids."""
 

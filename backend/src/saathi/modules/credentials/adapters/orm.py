@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Python description of the provider_credentials table (encrypted keys).
+# Status: 🟡 Placeholder - built in a later phase (see
+#         docs/planning/05_PHASEWISE_DEVELOPMENT_PLAN.md).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """provider_credentials table (tenants' own API keys, Phase 8). Created by migration 0002."""
 
 import uuid
@@ -9,6 +15,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from saathi.platform.db.base import Base, created_at, tenant_fk, uuid_pk
 
 
+# 🔒 One row per saved key; `ciphertext` is the encrypted key, never plain text.
 class ProviderCredentialRow(Base):
     __tablename__ = "provider_credentials"
     __table_args__ = (

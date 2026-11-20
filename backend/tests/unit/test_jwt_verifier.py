@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: 🔒 Every way a login token can be wrong is refused (expired, wrong signer, wrong
+#                algorithm...).
+# How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """JwksTokenVerifier (ADR-0007): every way a token can be wrong must be refused (R16).
 
 Real ES256 keys and real signatures; only the JWKS HTTP endpoint is simulated.

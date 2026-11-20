@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: The /api/v1/bots endpoints (create, list, read, update, delete;
+#                401/403/404/422).
+# How to run: cd backend && uv run pytest tests/integration (no real database: services are
+#             swapped for in-memory fakes).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Route tests with the use-case service swapped for an in-memory repository (no DB).
 
 Possible only because routes depend on BotService via `get_bot_service` (Dependency Inversion).

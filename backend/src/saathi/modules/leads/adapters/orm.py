@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Python description of the leads table: contact details a customer left (migration 0002).
+# Status: 🟡 Placeholder - built in a later phase (see
+#         docs/planning/05_PHASEWISE_DEVELOPMENT_PLAN.md).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """leads table (Phase 5 lead capture). Created by migration 0002."""
 
 import uuid
@@ -11,6 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from saathi.platform.db.base import Base, created_at, tenant_fk, updated_at, uuid_pk
 
 
+# Table `leads`.
 class LeadRow(Base):
     __tablename__ = "leads"
     __table_args__ = (

@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Checks that docs/CODE_GUIDE.md mentions every class and function in the backend.
+# Run: make code-guide-check (CI runs it too). Fails with a list of missing names.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """List backend classes/functions that docs/CODE_GUIDE.md doesn't mention yet.
 
 Usage (from the repo root):  make code-guide-check
@@ -18,6 +23,7 @@ SRC = ROOT / "backend" / "src" / "saathi"
 GUIDE = ROOT / "docs" / "CODE_GUIDE.md"
 
 
+# All class and function names defined in one Python file.
 def names_in(path: Path) -> list[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"))
     found: list[str] = []
@@ -35,6 +41,7 @@ def names_in(path: Path) -> list[str]:
     return found
 
 
+# Compare the code's names with the guide's and report what's missing.
 def main() -> int:
     guide = GUIDE.read_text(encoding="utf-8")
     words = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", guide))

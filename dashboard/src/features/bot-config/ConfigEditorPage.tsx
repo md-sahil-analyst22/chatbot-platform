@@ -1,3 +1,9 @@
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+// What: The Bot Studio editor: instructions, model, answer style, branding, live preview, save
+//       and publish.
+// How: One form (react-hook-form) shared by all sections; the rules come from schema.ts.
+// ────────────────────────────────────────────────────────────────────────────────────────────
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
@@ -10,6 +16,7 @@ import { STYLE_PRESETS } from "./presets";
 import { DEFAULT_CONFIG, botConfigSchema, type BotConfigForm } from "./schema";
 import { VersionHistory } from "./VersionHistory";
 
+// The page component; botId comes from the address bar.
 export function ConfigEditorPage() {
   const { botId = "" } = useParams();
   const draft = useDraft(botId);
@@ -19,12 +26,14 @@ export function ConfigEditorPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [bannedText, setBannedText] = useState("");
 
+  // Create the form with the browser-side rules and default values.
   const form = useForm<BotConfigForm>({
     resolver: zodResolver(botConfigSchema),
     defaultValues: DEFAULT_CONFIG,
   });
   const { register, handleSubmit, reset, watch, setValue, formState } = form;
 
+  // When the saved draft arrives, fill the form with it.
   useEffect(() => {
     if (draft.data) {
       reset(draft.data.config);
@@ -32,12 +41,15 @@ export function ConfigEditorPage() {
     }
   }, [draft.data, reset]);
 
+  // Watch the advanced temperature field to show its current value.
   const override = watch("generation.temperature_override");
 
+  // Check the form, then save it as a new draft.
   const onSave = handleSubmit(async (values) => {
     await saveDraft.mutateAsync(values);
   });
 
+  // The version number the Publish button will make live.
   const latestDraftVersion = saveDraft.data?.version ?? draft.data?.version;
 
   return (

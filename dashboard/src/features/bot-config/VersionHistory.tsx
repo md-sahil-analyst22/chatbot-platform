@@ -1,5 +1,10 @@
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+// What: The list of saved versions with their status, and a button to roll back to any of them.
+// ────────────────────────────────────────────────────────────────────────────────────────────
 import { useRollback, useVersions } from "./api";
 
+// Shows the versions of one bot.
 export function VersionHistory({ botId }: { botId: string }) {
   const versions = useVersions(botId);
   const rollback = useRollback(botId);

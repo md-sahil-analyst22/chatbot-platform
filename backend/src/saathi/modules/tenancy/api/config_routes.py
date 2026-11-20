@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: The Bot Studio endpoints: model options, save draft, list versions, draft, published,
+#       publish, rollback.
+# Style: Thin: JSON <-> domain objects; all rules live in BotConfigService.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Bot Studio endpoints. Thin: translate DTOs <-> domain, call BotConfigService."""
 
 from uuid import UUID
@@ -20,6 +26,7 @@ router = APIRouter(prefix="/bots/{bot_id}/config", tags=["bot-config"])
 options_router = APIRouter(tags=["bot-config"])
 
 
+# Request JSON -> domain BotConfig.
 def to_domain(body: BotConfigIn) -> BotConfig:
     p, g, b = body.prompt, body.generation, body.branding
     return BotConfig(
@@ -47,6 +54,7 @@ def to_domain(body: BotConfigIn) -> BotConfig:
     )
 
 
+# Domain version -> API response.
 def to_out(v: BotConfigVersion) -> BotConfigVersionOut:
     c = v.config
     return BotConfigVersionOut.model_validate(
@@ -83,6 +91,7 @@ def to_out(v: BotConfigVersion) -> BotConfigVersionOut:
 
 
 @options_router.get("/model-options")
+# GET the models the caller's plan allows.
 async def list_model_options(
     principal: PrincipalDep, service: BotConfigServiceDep
 ) -> list[ModelOptionOut]:
@@ -91,6 +100,7 @@ async def list_model_options(
     ]
 
 
+# Save a new draft.
 @router.post("/versions", status_code=status.HTTP_201_CREATED)
 async def save_draft(
     bot_id: UUID, body: BotConfigIn, principal: PrincipalDep, service: BotConfigServiceDep
@@ -98,6 +108,7 @@ async def save_draft(
     return to_out(await service.save_draft(principal, bot_id, to_domain(body)))
 
 
+# Version history.
 @router.get("/versions")
 async def list_versions(
     bot_id: UUID,
@@ -108,6 +119,7 @@ async def list_versions(
     return [to_out(v) for v in await service.list_versions(principal, bot_id, limit)]
 
 
+# Newest draft.
 @router.get("/draft")
 async def get_draft(
     bot_id: UUID, principal: PrincipalDep, service: BotConfigServiceDep
@@ -115,6 +127,7 @@ async def get_draft(
     return to_out(await service.get_draft(principal, bot_id))
 
 
+# Live version.
 @router.get("/published")
 async def get_published(
     bot_id: UUID, principal: PrincipalDep, service: BotConfigServiceDep
@@ -122,6 +135,7 @@ async def get_published(
     return to_out(await service.get_published(principal, bot_id))
 
 
+# Make a version live.
 @router.post("/versions/{version}/publish")
 async def publish(
     bot_id: UUID, version: int, principal: PrincipalDep, service: BotConfigServiceDep
@@ -129,6 +143,7 @@ async def publish(
     return to_out(await service.publish(principal, bot_id, version))
 
 
+# Go back to an old version.
 @router.post("/versions/{version}/rollback")
 async def rollback(
     bot_id: UUID, version: int, principal: PrincipalDep, service: BotConfigServiceDep

@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: Bot Studio + widget endpoints: draft -> publish -> widget sees only public
+#                fields; invalid branding refused; model options listed.
+# How to run: cd backend && uv run pytest tests/integration (no real database: services are
+#             swapped for in-memory fakes).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Bot Studio + public widget endpoints with in-memory fakes (no DB)."""
 
 from collections.abc import AsyncIterator

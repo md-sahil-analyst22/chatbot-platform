@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Python description of the handoffs table: a chat handed to a human agent (migration
+#       0002).
+# Status: 🟡 Placeholder - built in a later phase (see
+#         docs/planning/05_PHASEWISE_DEVELOPMENT_PLAN.md).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """handoffs table (Phase 5 state machine). Created by migration 0002."""
 
 import uuid
@@ -10,6 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from saathi.platform.db.base import Base, created_at, tenant_fk, uuid_pk
 
 
+# Table `handoffs`.
 class HandoffRow(Base):
     """Bot -> human escalation. States: requested -> notified -> human -> closed | after_hours."""
 

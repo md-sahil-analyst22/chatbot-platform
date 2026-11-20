@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Future WhatsApp webhook endpoints (details in the text below).
+# Status: 🟡 Placeholder - built in a later phase (see
+#         docs/planning/05_PHASEWISE_DEVELOPMENT_PLAN.md).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """WhatsApp webhook (P4.6). Not mounted until implemented.
 
 GET  /api/v1/webhooks/whatsapp  - subscription challenge (hub.verify_token must match)

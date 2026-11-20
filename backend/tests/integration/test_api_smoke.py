@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: Basic HTTP checks: /health works and protected endpoints refuse calls without
+#                login.
+# How to run: cd backend && uv run pytest tests/integration (no real database: services are
+#             swapped for in-memory fakes).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """HTTP smoke tests. No DB needed: /health has no dependencies and auth fails closed first.
 
 The lifespan is entered explicitly because httpx.ASGITransport does not run it. Building the

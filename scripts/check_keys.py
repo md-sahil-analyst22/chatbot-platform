@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Checks that every API key in your .env really works, by making one tiny harmless call to
+#       each vendor.
+# Run: make check-keys. Prints OK/FAIL per vendor; never prints the keys themselves.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Phase 0 exit check: verify every configured API key with one cheap call.
 
 Usage (from repo root):
@@ -23,6 +29,7 @@ TIMEOUT = httpx.Timeout(10.0)
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+# Read .env into the environment (without overwriting values already set).
 def load_dotenv(path: Path) -> None:
     if not path.exists():
         return
@@ -35,6 +42,7 @@ def load_dotenv(path: Path) -> None:
         os.environ.setdefault(key.strip(), value)
 
 
+# One setting's value ('' if missing).
 def env(name: str) -> str:
     return os.environ.get(name, "").strip()
 
@@ -42,6 +50,7 @@ def env(name: str) -> str:
 Check = Callable[[httpx.AsyncClient], Awaitable[str]]
 
 
+# Each check_* function calls one vendor and returns a short result.
 async def check_anthropic(c: httpx.AsyncClient) -> str:
     r = await c.get(
         "https://api.anthropic.com/v1/models",
@@ -162,6 +171,7 @@ async def check_whatsapp_token(c: httpx.AsyncClient) -> str:
     return "phone number id readable"
 
 
+# Optional: actually sends a WhatsApp test message (only with --send-whatsapp).
 async def send_whatsapp_hello(c: httpx.AsyncClient) -> str:
     version = env("WHATSAPP_GRAPH_VERSION") or "v21.0"
     r = await c.post(
@@ -196,6 +206,7 @@ CHECKS: list[tuple[str, tuple[str, ...], Check]] = [
 ]
 
 
+# Run all checks at the same time and print a table.
 async def run(send_whatsapp: bool) -> int:
     checks = list(CHECKS)
     if send_whatsapp:
@@ -229,6 +240,7 @@ async def run(send_whatsapp: bool) -> int:
     return 1 if any(r[1] == "FAIL" for r in results) else 0
 
 
+# Command-line entry point.
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--send-whatsapp", action="store_true")

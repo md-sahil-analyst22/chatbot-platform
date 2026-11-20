@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Python descriptions of the chat tables: contacts, conversations and messages (migration
+#       0002).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """SQLAlchemy tables for the conversation module. Created by migration 0002.
 
 contacts / messages hold personal data (phone, email, message text): never log them (R18), and
@@ -25,6 +30,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from saathi.platform.db.base import Base, created_at, tenant_fk, updated_at, uuid_pk
 
 
+# Table `contacts`: a customer who chatted (web visitor or WhatsApp number).
 class ContactRow(Base):
     """An end user of a tenant's bot (website visitor or WhatsApp number)."""
 
@@ -57,6 +63,7 @@ class ContactRow(Base):
     updated_at: Mapped[datetime] = updated_at()
 
 
+# Table `conversations`: one chat thread and its status.
 class ConversationRow(Base):
     __tablename__ = "conversations"
     __table_args__ = (
@@ -104,6 +111,7 @@ class ConversationRow(Base):
     closed_at: Mapped[datetime | None]
 
 
+# Table `messages`: each message in a conversation.
 class MessageRow(Base):
     __tablename__ = "messages"
     __table_args__ = (

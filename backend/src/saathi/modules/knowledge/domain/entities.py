@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: A 'Source' = one document or web page a bot learns from, and its life cycle.
+# Life cycle: queued -> processing -> ready or failed; ready/failed can be queued again (re-sync
+#             / retry). Any other jump is refused.
+# Pattern: A small 'state machine': the object protects its own rules.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Knowledge domain. Source is an aggregate: its state changes only through intention-revealing
 methods, so the lifecycle rules cannot be bypassed by assigning a field.
 """
@@ -8,6 +15,7 @@ from uuid import UUID
 from saathi.platform.errors import ConflictError
 
 
+# The possible states of a source.
 class SourceStatus(StrEnum):
     QUEUED = "queued"
     PROCESSING = "processing"
@@ -15,6 +23,7 @@ class SourceStatus(StrEnum):
     FAILED = "failed"
 
 
+# Which state may follow which. Everything not listed is forbidden.
 _ALLOWED: dict[SourceStatus, frozenset[SourceStatus]] = {
     SourceStatus.QUEUED: frozenset({SourceStatus.PROCESSING}),
     SourceStatus.PROCESSING: frozenset({SourceStatus.READY, SourceStatus.FAILED}),
@@ -23,6 +32,7 @@ _ALLOWED: dict[SourceStatus, frozenset[SourceStatus]] = {
 }
 
 
+# One document/web page. Its status can only change through the methods below.
 class Source:
     __slots__ = ("_content_hash", "_status", "bot_id", "id", "kind", "tenant_id", "uri")
 
@@ -53,23 +63,29 @@ class Source:
     def content_hash(self) -> str | None:
         return self._content_hash
 
+    # queued -> processing.
     def start_processing(self) -> None:
         self._transition(SourceStatus.PROCESSING)
 
+    # processing -> ready, remembering the file's fingerprint.
     def mark_ready(self, content_hash: str) -> None:
         self._transition(SourceStatus.READY)
         self._content_hash = content_hash
 
+    # processing -> failed.
     def mark_failed(self) -> None:
         self._transition(SourceStatus.FAILED)
 
+    # ready/failed -> queued again.
     def requeue(self) -> None:
         self._transition(SourceStatus.QUEUED)
 
+    # Same fingerprint as last time? Then there's nothing to redo.
     def is_unchanged(self, new_hash: str) -> bool:
         """P2.8: re-uploading an identical file must create zero new chunks."""
         return self._content_hash == new_hash
 
+    # The single place where status changes; illegal moves -> 409 conflict.
     def _transition(self, new: SourceStatus) -> None:
         if new not in _ALLOWED[self._status]:
             raise ConflictError(f"source cannot go from {self._status} to {new}")

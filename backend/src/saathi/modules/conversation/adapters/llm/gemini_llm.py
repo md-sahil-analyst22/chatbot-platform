@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Talks to Google Gemini to generate chat replies (the primary AI vendor, ADR-0006).
+# Safety: Timeouts and vendor errors become typed errors; the API key is sent in a header, never
+#         in the URL.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Google Gemini generateContent adapter (implements CompletionClient).
 
 Constructed per API key (platform key today, the tenant's own key in Phase 8). Model and
@@ -21,6 +27,7 @@ DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 _ROLES = {"user": "user", "assistant": "model"}
 
 
+# GEMINI_* settings from .env.
 class GeminiSettings(BaseSettings):
     """Platform-level defaults. GEMINI_API_KEY is the PLATFORM key, not a tenant key."""
 
@@ -31,6 +38,7 @@ class GeminiSettings(BaseSettings):
     timeout_seconds: float = 20.0
 
 
+# The Gemini chat client.
 class GeminiCompletionClient:
     def __init__(
         self,
@@ -45,6 +53,7 @@ class GeminiCompletionClient:
         self._headers = {"x-goog-api-key": api_key}
         self._timeout = timeout_s
 
+    # Send the conversation, return the reply and token counts.
     async def complete(
         self,
         *,
@@ -91,6 +100,7 @@ class GeminiCompletionClient:
             raise ProviderError("LLM request failed") from exc
 
 
+# Register under the name 'gemini'.
 @completion_registry.register("gemini")
 def create_gemini_completion_client(
     http: httpx.AsyncClient, api_key: str

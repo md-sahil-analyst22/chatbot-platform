@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: 🔒 Checks uploaded files by their real content (first bytes), never by their name or
+#       claimed type.
+# Why: Attackers rename files. SVG is refused because it can contain scripts.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Upload validation by content, never by the client's filename or Content-Type header.
 
 Logos: PNG, JPEG or WebP only. SVG is rejected because it can carry scripts.
@@ -7,15 +13,18 @@ from dataclasses import dataclass
 
 from saathi.platform.errors import ValidationError
 
+# Logos may be at most 512 KB.
 MAX_LOGO_BYTES = 512 * 1024
 
 
 @dataclass(frozen=True, slots=True)
+# The detected type and file extension.
 class ImageInfo:
     content_type: str
     extension: str
 
 
+# Recognise PNG, JPEG or WebP from the file's first bytes.
 def sniff_image(data: bytes) -> ImageInfo | None:
     if data.startswith(b"\x89PNG\r\n\x1a\n"):
         return ImageInfo("image/png", ".png")
@@ -26,6 +35,7 @@ def sniff_image(data: bytes) -> ImageInfo | None:
     return None
 
 
+# Empty, too big or not an allowed image -> validation error.
 def validate_logo(data: bytes, *, max_bytes: int = MAX_LOGO_BYTES) -> ImageInfo:
     if not data:
         raise ValidationError("logo file is empty")
