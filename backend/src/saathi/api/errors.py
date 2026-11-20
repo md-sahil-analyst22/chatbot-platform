@@ -1,3 +1,12 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Turns every kind of error into ONE standard JSON answer: {"error": {code, message,
+#       request_id}}.
+# Why: Clients (Bot Studio, the widget) only need to understand one error shape, and internal
+#      details never leak.
+# Security: 🔒 Server errors (500) always say just 'An internal error occurred.' Validation
+#           errors list WHICH field failed, never the value sent (it may be personal data).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Maps the internal error taxonomy to a stable API error model. Never leaks stack traces."""
 
 import structlog
@@ -21,11 +30,13 @@ from saathi.platform.errors import (
 
 log = structlog.get_logger()
 
+# Which of our error types becomes which HTTP status code. Order matters: the first match wins.
 _STATUS: list[tuple[type[SaathiError], int]] = [
     (ValidationError, 422),
     (NotFoundError, 404),
     (ConflictError, 409),
     (AuthenticationError, 401),
+    # 🔒 Another tenant's data answers 404 'not found', so nobody can even learn it exists.
     (TenantIsolationError, 404),  # don't reveal that another tenant's object exists
     (AuthorizationError, 403),
     (RateLimitError, 429),
@@ -34,6 +45,7 @@ _STATUS: list[tuple[type[SaathiError], int]] = [
 ]
 
 
+# Look up the HTTP status for an error; anything unknown is a 500.
 def _status_for(exc: SaathiError) -> int:
     for typ, status in _STATUS:
         if isinstance(exc, typ):
@@ -41,6 +53,8 @@ def _status_for(exc: SaathiError) -> int:
     return 500
 
 
+# Build the standard error JSON, including the request id so a user can quote it when reporting
+# a problem.
 def _body(
     request: Request, code: str, message: str, details: list[dict[str, object]] | None = None
 ) -> dict[str, object]:
@@ -56,6 +70,8 @@ def _body(
 
 # Framework-raised HTTP errors (unknown route, wrong method, ...) mapped to our codes, with fixed
 # messages so nothing raised by a library is echoed back to the client.
+# Fixed codes and messages for errors raised by the web framework itself (unknown URL, wrong
+# method...).
 _HTTP_CODES: dict[int, tuple[str, str]] = {
     400: ("bad_request", "Bad request."),
     401: ("unauthenticated", "Authentication required."),
@@ -68,7 +84,9 @@ _HTTP_CODES: dict[int, tuple[str, str]] = {
 }
 
 
+# Installs one handler per error family on the app. Called once from main.py.
 def register_error_handlers(app: FastAPI) -> None:
+    # Our own errors (ValidationError, NotFoundError, ConflictError...).
     @app.exception_handler(SaathiError)
     async def handle_saathi_error(request: Request, exc: SaathiError) -> JSONResponse:
         status = _status_for(exc)
@@ -77,6 +95,7 @@ def register_error_handlers(app: FastAPI) -> None:
         message = exc.message if status < 500 else "An internal error occurred."
         return JSONResponse(status_code=status, content=_body(request, exc.code, message))
 
+    # Framework errors like 404 'no such URL' or 405 'wrong method'.
     @app.exception_handler(StarletteHTTPException)
     async def handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         code, message = _HTTP_CODES.get(exc.status_code, ("http_error", "Request failed."))
@@ -88,6 +107,7 @@ def register_error_handlers(app: FastAPI) -> None:
             headers=exc.headers,  # keeps e.g. "Allow" on 405
         )
 
+    # The request body didn't match the expected shape (422).
     @app.exception_handler(RequestValidationError)
     async def handle_request_validation(
         request: Request, exc: RequestValidationError
@@ -101,6 +121,7 @@ def register_error_handlers(app: FastAPI) -> None:
             content=_body(request, "validation_error", "Request validation failed.", details),
         )
 
+    # Anything unexpected: log the full details for us, answer a generic 500 to the client.
     @app.exception_handler(Exception)
     async def handle_unexpected(request: Request, exc: Exception) -> JSONResponse:
         log.exception("unhandled_error", path=request.url.path)

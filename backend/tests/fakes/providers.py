@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Fake AI/vendor adapters with predictable answers; `mode` can simulate timeouts and
+#       errors.
+# How to run: Used automatically by the tests; nothing to run directly.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Deterministic provider fakes. `mode` simulates failures for contract tests."""
 
 import hashlib

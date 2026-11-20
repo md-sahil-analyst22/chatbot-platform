@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: That code layers don't import what they mustn't (e.g. domain/ never imports
+#                FastAPI).
+# How to run: cd backend && uv run pytest tests/architecture.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Fast, dependency-free boundary checks (import-linter does the full job in CI)."""
 
 import ast

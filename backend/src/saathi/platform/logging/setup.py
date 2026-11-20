@@ -1,3 +1,11 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Configures logging for the whole app, once at start-up.
+# Result: Every log line has the same structure (JSON in production) and carries
+#         request_id/tenant_id automatically - including logs from uvicorn and libraries.
+# Security: 🔒 Noisy libraries that log full URLs (httpx) are limited to warnings, because URLs
+#           can contain keys.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Structured logging (structlog). request_id / tenant_id are bound per request via contextvars.
 
 Everything goes to stdout in one format: JSON outside local development, coloured console
@@ -12,6 +20,7 @@ import structlog
 
 # Uvicorn's access log is replaced by RequestContextMiddleware's "http.request" event, which
 # carries request_id/tenant_id and never logs query strings (they can contain tokens or PII).
+# Uvicorn's own access log is turned off; our middleware writes a safer one.
 _SILENCED = ("uvicorn.access",)
 # Loggers that install their own handlers; make them propagate to the root handler instead.
 _REROUTED = ("uvicorn", "uvicorn.error", "arq")
@@ -19,8 +28,10 @@ _REROUTED = ("uvicorn", "uvicorn.error", "arq")
 _WARNING_ONLY = ("httpx", "httpcore")
 
 
+# Called by main.py. `json_logs=False` gives coloured, readable logs on a laptop.
 def configure_logging(level: str = "INFO", *, json_logs: bool = True) -> None:
     log_level = logging.getLevelNamesMapping().get(level.upper(), logging.INFO)
+    # Steps applied to every log line: add request context, level and timestamp.
     shared: list[structlog.types.Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
@@ -30,6 +41,7 @@ def configure_logging(level: str = "INFO", *, json_logs: bool = True) -> None:
         structlog.processors.JSONRenderer() if json_logs else structlog.dev.ConsoleRenderer()
     )
 
+    # Settings for logs written by our own code.
     structlog.configure(
         processors=[
             *shared,
@@ -42,6 +54,7 @@ def configure_logging(level: str = "INFO", *, json_logs: bool = True) -> None:
         cache_logger_on_first_use=True,
     )
 
+    # Settings for logs written by other libraries, so they look the same.
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(
         structlog.stdlib.ProcessorFormatter(

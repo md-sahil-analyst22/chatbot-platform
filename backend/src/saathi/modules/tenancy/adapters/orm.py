@@ -1,3 +1,12 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Python descriptions of the tenancy tables: tenants, user_accounts, bots,
+#       bot_config_versions, assets, audit_logs.
+# Note: The tables themselves are created by migration 0002. These classes let SQLAlchemy read
+#       and write them.
+# Security: 🔒 Every tenant table has tenant_id and row-level security; unique rules are per
+#           tenant.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """SQLAlchemy tables for the tenancy module. Created by migration 0002 (R25).
 
 Every tenant-owned table has tenant_id NOT NULL, forced RLS (in the migration) and
@@ -23,6 +32,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from saathi.platform.db.base import Base, created_at, tenant_fk, updated_at, uuid_pk
 
 
+# Table `tenants`: one row per customer workspace.
 class TenantRow(Base):
     __tablename__ = "tenants"
     __table_args__ = (
@@ -37,6 +47,7 @@ class TenantRow(Base):
     created_at: Mapped[datetime] = created_at()
 
 
+# Table `user_accounts`: which login belongs to which workspace, with which role.
 class UserAccountRow(Base):
     """A login (Supabase Auth user) that belongs to a tenant with a role."""
 
@@ -56,6 +67,7 @@ class UserAccountRow(Base):
     created_at: Mapped[datetime] = created_at()
 
 
+# Table `bots`: one row per chatbot, with its public widget key.
 class BotRow(Base):
     __tablename__ = "bots"
     __table_args__ = (
@@ -78,6 +90,7 @@ class BotRow(Base):
     updated_at: Mapped[datetime] = updated_at()
 
 
+# Table `bot_config_versions`: every saved configuration version (JSON).
 class BotConfigVersionRow(Base):
     """Append-only configuration history. Exactly one 'published' row per bot (partial index)."""
 
@@ -109,6 +122,7 @@ class BotConfigVersionRow(Base):
     created_at: Mapped[datetime] = created_at()
 
 
+# Table `assets`: uploaded files such as logos.
 class AssetRow(Base):
     """Branding files (logos) in object storage; the row stores the key, never the bytes."""
 
@@ -133,6 +147,7 @@ class AssetRow(Base):
     created_at: Mapped[datetime] = created_at()
 
 
+# Table `audit_logs`: who did what, when.
 class AuditLogRow(Base):
     """Who did what. Append-only: the app role may INSERT/SELECT but not UPDATE/DELETE."""
 

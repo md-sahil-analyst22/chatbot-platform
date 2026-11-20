@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Migration 3: adds resolve_user_membership(), which tells the login checker which
+#       workspace and role a user has.
+# Safe: Only adds things, so it works while the old app version is still running.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Login -> tenant membership lookup (P1.7, ADR-0007).
 
 Adds resolve_user_membership(), a narrow SECURITY DEFINER function the app role calls before a
@@ -18,6 +24,7 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+# Add the lookup index and the narrow lookup function.
 def upgrade() -> None:
     # serves: login -> membership lookup on every authenticated request
     op.create_index("ix_user_accounts_auth_user_id", "user_accounts", ["auth_user_id"])
@@ -54,6 +61,7 @@ def upgrade() -> None:
     )
 
 
+# Remove them again.
 def downgrade() -> None:
     op.execute("DROP FUNCTION IF EXISTS resolve_user_membership(text)")
     op.drop_index("ix_user_accounts_auth_user_id", table_name="user_accounts")

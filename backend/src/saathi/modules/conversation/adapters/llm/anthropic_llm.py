@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Talks to Anthropic Claude to generate chat replies (an alternative vendor, chosen per
+#       bot via the model catalog).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Anthropic Messages API adapter (implements CompletionClient).
 
 Constructed per API key (platform key today, the tenant's own key in Phase 8). Model and
@@ -17,6 +22,7 @@ from saathi.platform.errors import ProviderError, ProviderTimeoutError
 DEFAULT_BASE_URL = "https://api.anthropic.com/v1"
 
 
+# ANTHROPIC_* settings from .env.
 class AnthropicSettings(BaseSettings):
     """Platform-level defaults. ANTHROPIC_API_KEY is the PLATFORM key, not a tenant key."""
 
@@ -27,6 +33,7 @@ class AnthropicSettings(BaseSettings):
     timeout_seconds: float = 20.0
 
 
+# The Claude chat client.
 class AnthropicCompletionClient:
     def __init__(
         self,
@@ -41,6 +48,7 @@ class AnthropicCompletionClient:
         self._headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
         self._timeout = timeout_s
 
+    # Send the conversation, return the reply and token counts.
     async def complete(
         self,
         *,
@@ -81,6 +89,7 @@ class AnthropicCompletionClient:
             raise ProviderError("LLM request failed") from exc
 
 
+# Register under the name 'anthropic'.
 @completion_registry.register("anthropic")
 def create_anthropic_completion_client(
     http: httpx.AsyncClient, api_key: str

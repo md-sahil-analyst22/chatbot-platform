@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: The Bot Studio use cases: save a draft, publish it, roll back, read versions, list
+#       allowed models.
+# Plus: PublicWidgetConfigService: the small, safe piece of config the public widget may read.
+# Safety: 🔒 Only admins/owners change configs; the chosen model must be on the tenant's plan.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Bot Studio use cases: save draft, publish, roll back, read versions, list allowed models."""
 
 from collections.abc import Callable
@@ -22,6 +29,7 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+# Bot Studio use cases. `clock` can be replaced in tests to control time.
 class BotConfigService:
     def __init__(
         self,
@@ -38,17 +46,21 @@ class BotConfigService:
         self._catalog = catalog
         self._clock = clock
 
+    # 404 if the bot doesn't exist in the caller's workspace.
     async def _require_bot(self, principal: Principal, bot_id: UUID) -> None:
         if await self._bots.get(principal.tenant_id, bot_id) is None:
             raise NotFoundError("bot not found")
 
+    # The caller's plan (default 'starter').
     async def _plan(self, principal: Principal) -> str:
         return await self._tenants.get_plan(principal.tenant_id) or "starter"
 
+    # The models the caller's plan allows.
     async def model_options(self, principal: Principal) -> list[ModelOption]:
         require_role(principal, Role.VIEWER)
         return self._catalog.options_for_plan(await self._plan(principal))
 
+    # Save a new draft version (always a new number - old versions are never overwritten).
     async def save_draft(
         self, principal: Principal, bot_id: UUID, config: BotConfig
     ) -> BotConfigVersion:
@@ -69,6 +81,7 @@ class BotConfigService:
         await self._configs.add(version)
         return version
 
+    # Make a version live.
     async def publish(
         self, principal: Principal, bot_id: UUID, version: int | None = None
     ) -> BotConfigVersion:
@@ -82,6 +95,7 @@ class BotConfigService:
         )
         if target is None:
             raise NotFoundError("draft version not found")
+        # Archive the currently live version first, so only one is ever published.
         current = await self._configs.published(principal.tenant_id, bot_id)
         if current is not None:
             await self._configs.update_status(current.archived())
@@ -89,6 +103,7 @@ class BotConfigService:
         await self._configs.update_status(live)
         return live
 
+    # Go back to an old version by copying it into a new draft and publishing that.
     async def rollback(self, principal: Principal, bot_id: UUID, version: int) -> BotConfigVersion:
         """Re-publish an old configuration as a NEW version (history stays intact)."""
         require_role(principal, Role.ADMIN)
@@ -98,6 +113,7 @@ class BotConfigService:
         draft = await self.save_draft(principal, bot_id, old.config)
         return await self.publish(principal, bot_id, draft.version)
 
+    # The newest draft.
     async def get_draft(self, principal: Principal, bot_id: UUID) -> BotConfigVersion:
         require_role(principal, Role.VIEWER)
         draft = await self._configs.latest_draft(principal.tenant_id, bot_id)
@@ -105,6 +121,7 @@ class BotConfigService:
             raise NotFoundError("no draft yet")
         return draft
 
+    # The live version.
     async def get_published(self, principal: Principal, bot_id: UUID) -> BotConfigVersion:
         require_role(principal, Role.VIEWER)
         live = await self._configs.published(principal.tenant_id, bot_id)
@@ -112,6 +129,7 @@ class BotConfigService:
             raise NotFoundError("bot has no published configuration")
         return live
 
+    # Version history, newest first (max 100).
     async def list_versions(
         self, principal: Principal, bot_id: UUID, limit: int = 20
     ) -> list[BotConfigVersion]:
@@ -120,6 +138,7 @@ class BotConfigService:
 
 
 @dataclass(frozen=True, slots=True)
+# 🔒 Only widget-safe fields (no prompt, no model, no plan).
 class PublicWidgetConfig:
     """Only fields that are safe for anyone on the internet to read."""
 
@@ -134,6 +153,7 @@ class PublicWidgetConfig:
     languages: tuple[str, ...]
 
 
+# Reads the live config for the public widget.
 class PublicWidgetConfigService:
     def __init__(self, *, bots: BotRepository, configs: BotConfigRepository) -> None:
         self._bots = bots

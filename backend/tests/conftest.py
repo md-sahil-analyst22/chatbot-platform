@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Shared test settings (pytest loads this first). Unit tests never need real services.
+# How to run: Used automatically by the tests; nothing to run directly.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Test defaults. Unit tests never need real services; integration tests opt in."""
 
 import os

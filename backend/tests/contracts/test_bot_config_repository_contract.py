@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: The rules every config-version store must follow (fake and real must behave the
+#                same).
+# How to run: cd backend && uv run pytest tests/contracts.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """BotConfigRepository contract. The SQL implementation runs it on real Postgres (tests/db/)."""
 
 from uuid import uuid4

@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: File storage on Supabase: a private bucket for documents and a public bucket for logos.
+# Security: 🔒 Uses the server-only secret key. Every file path must start with t/<tenant>/ and
+#           can't climb out with '..'.
+# Used by: Phase 2 (document uploads) and Phase 4 (logos).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Supabase Storage adapter (implements ObjectStore). Settings: SUPABASE_*.
 
 Two buckets: a PRIVATE one for raw uploads (documents) and a PUBLIC one for assets that the
@@ -27,9 +34,11 @@ Visibility = Literal["private", "public"]
 # "t/<tenant>/<more segments>": safe characters only. A segment can't start with ".", so
 # "." and ".." (path traversal) and empty segments never match.
 _SEGMENT = r"[A-Za-z0-9_\-][A-Za-z0-9_.\-]{0,199}"
+# Allowed file paths: t/<tenant>/<more parts>, safe characters only.
 _KEY = re.compile(rf"t/{_SEGMENT}(/{_SEGMENT})+")
 
 
+# Supabase address, secret key and bucket names from .env (SUPABASE_*).
 class SupabaseStorageSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SUPABASE_", env_file=".env", extra="ignore")
 
@@ -40,12 +49,14 @@ class SupabaseStorageSettings(BaseSettings):
     storage_timeout_seconds: float = 30.0
 
 
+# 🔒 Refuse any path that doesn't match the safe pattern.
 def _check_key(key: str) -> str:
     if not _KEY.fullmatch(key):
         raise ValidationError("invalid storage key")
     return key
 
 
+# Talks to Supabase Storage's web API.
 class SupabaseObjectStore:
     def __init__(
         self,
@@ -64,9 +75,11 @@ class SupabaseObjectStore:
         self._headers = {"Authorization": f"Bearer {service_role_key}", "apikey": service_role_key}
         self._timeout = timeout_s
 
+    # Build the full address of a file (after checking its path).
     def _url(self, key: str) -> str:
         return f"{self._base}/{self._bucket}/{_check_key(key)}"
 
+    # Upload (or overwrite) a file.
     async def put(self, key: str, data: bytes, content_type: str) -> None:
         url = self._url(key)
         try:
@@ -82,6 +95,7 @@ class SupabaseObjectStore:
         except httpx.HTTPError as exc:
             raise ProviderError("object storage upload failed") from exc
 
+    # Download a file; missing -> NotFoundError.
     async def get(self, key: str) -> bytes:
         url = self._url(key)
         try:
@@ -96,6 +110,7 @@ class SupabaseObjectStore:
             raise ProviderError("object storage download failed")
         return r.content
 
+    # Delete a file; deleting a missing file is fine.
     async def delete(self, key: str) -> None:
         url = self._url(key)
         try:
@@ -107,12 +122,14 @@ class SupabaseObjectStore:
         if r.is_error and not _is_not_found(r):  # deleting a missing object is a no-op
             raise ProviderError("object storage delete failed")
 
+    # Public address for logos; private documents have none.
     def public_url(self, key: str) -> str | None:
         if not self._public:
             return None
         return f"{self._base}/public/{self._bucket}/{_check_key(key)}"
 
 
+# Supabase reports 'not found' in two ways; recognise both.
 def _is_not_found(r: httpx.Response) -> bool:
     if r.status_code == 404:
         return True
@@ -126,6 +143,7 @@ def _is_not_found(r: httpx.Response) -> bool:
 
 
 @object_store_registry.register("supabase")
+# Registry factory: refuses to start without the URL and secret key.
 def create_supabase_store(http: httpx.AsyncClient, visibility: Visibility) -> SupabaseObjectStore:
     s = SupabaseStorageSettings()
     key = s.service_role_key.get_secret_value() if s.service_role_key else ""

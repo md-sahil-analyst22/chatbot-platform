@@ -1,3 +1,11 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: The list of AI models a tenant may choose for a bot, and which plan may use which.
+# Why: Bots store a short key like 'standard', never a vendor's model name. We can switch models
+#      later without touching any saved bot.
+# Used by: Bot configuration (model must be on the tenant's plan) and the /model-options
+#          endpoint.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Model catalog: the ONLY models tenants may choose from.
 
 Tenants store a stable catalog key (e.g. "standard"), never a raw vendor model id. The platform
@@ -12,10 +20,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from saathi.platform.errors import ConfigurationError, ValidationError
 
+# Every plan name. 'standard' is on all plans; 'advanced' only on growth and pro.
 ALL_PLANS = frozenset({"starter", "growth", "pro"})
 
 
 @dataclass(frozen=True, slots=True)
+# One choosable model. frozen=True means it can't be changed after creation.
 class ModelOption:
     key: str  # stable id stored in bot configs
     label: str  # what the Studio shows
@@ -25,6 +35,7 @@ class ModelOption:
     plans: frozenset[str]
 
 
+# The collection of options, looked up by key.
 class ModelCatalog:
     def __init__(self, options: Iterable[ModelOption]) -> None:
         self._options: dict[str, ModelOption] = {}
@@ -33,20 +44,24 @@ class ModelCatalog:
                 raise ConfigurationError(f"duplicate model catalog key '{option.key}'")
             self._options[option.key] = option
 
+    # Find a model by key; an unknown key is a validation error (422).
     def get(self, key: str) -> ModelOption:
         try:
             return self._options[key]
         except KeyError:
             raise ValidationError(f"unknown model '{key}'") from None
 
+    # Only the models a given plan may use.
     def options_for_plan(self, plan: str) -> list[ModelOption]:
         return [o for o in self._options.values() if plan in o.plans]
 
+    # 'May this plan use this model?' - True/False.
     def is_allowed(self, key: str, plan: str) -> bool:
         option = self._options.get(key)
         return option is not None and plan in option.plans
 
 
+# Reads the real model ids from .env (e.g. GEMINI_MODEL_SMALL=gemini-3.8-flash).
 class CatalogSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -56,6 +71,7 @@ class CatalogSettings(BaseSettings):
     anthropic_model_large: str | None = None
 
 
+# Builds the catalog. A model only appears if its id is configured in .env.
 def default_catalog(settings: CatalogSettings | None = None) -> ModelCatalog:
     """Options appear only when their model id is configured in the environment.
 
@@ -66,6 +82,7 @@ def default_catalog(settings: CatalogSettings | None = None) -> ModelCatalog:
     paid = frozenset({"growth", "pro"})
     options: list[ModelOption] = []
 
+    # Small helper: add one option, but only when its model id is set.
     def add(
         key: str,
         label: str,

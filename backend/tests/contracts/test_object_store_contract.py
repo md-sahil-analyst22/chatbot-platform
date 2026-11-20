@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: The rules every file store must follow (put/get/delete, safe paths).
+# How to run: cd backend && uv run pytest tests/contracts.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 import httpx
 import pytest
 from tests.fakes.providers import InMemoryObjectStore

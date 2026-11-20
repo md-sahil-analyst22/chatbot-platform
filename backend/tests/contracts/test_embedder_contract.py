@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: The rules every embedder must follow (right count and size of vectors, errors).
+# How to run: cd backend && uv run pytest tests/contracts.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 import json
 import math
 

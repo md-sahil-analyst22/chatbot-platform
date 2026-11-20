@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Exposes the ObjectStore contract and the storage registry (the phone book of storage
+#       vendors).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 from saathi.platform.providers import ProviderRegistry
 from saathi.platform.storage.object_store import ObjectStore
 

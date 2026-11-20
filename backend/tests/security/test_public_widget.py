@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: 🔒 The public widget lookup on real Postgres: only safe fields, unknown keys ->
+#                404.
+# How to run: make test-db (needs a throwaway real Postgres - never Supabase; see
+#             docs/runbooks/local-setup.md). Skipped otherwise.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """P1.11 public widget lookup, end to end on REAL Postgres as saathi_app (R10, R23, R37).
 
 GET /public/v1/widgets/{public_key}/config has no login: the public key is resolved by the narrow

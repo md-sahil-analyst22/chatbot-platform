@@ -1,3 +1,7 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: The registries ('phone books') for parsers, embedders and rerankers.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Provider registries for this module. Adapters register themselves when imported
 (bootstrap/providers.py imports them explicitly)."""
 

@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: The contracts for AI language models (LLMs): send messages, get a reply (or a stream of
+#       words).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """LLM ports, split by capability (Interface Segregation).
 
 The model, temperature and token limit are chosen PER REQUEST (from the bot's published
@@ -10,12 +15,14 @@ from typing import Literal, Protocol
 
 
 @dataclass(frozen=True, slots=True)
+# One message: who said it (role) and what (content).
 class ChatMessage:
     role: Literal["user", "assistant"]
     content: str
 
 
 @dataclass(frozen=True, slots=True)
+# The model's reply plus token counts (for cost tracking).
 class LLMResponse:
     text: str
     model: str
@@ -23,6 +30,7 @@ class LLMResponse:
     tokens_out: int
 
 
+# Contract: messages in, complete reply out.
 class CompletionClient(Protocol):
     async def complete(
         self,
@@ -35,6 +43,7 @@ class CompletionClient(Protocol):
     ) -> LLMResponse: ...
 
 
+# Contract: messages in, reply word-by-word (used from Phase 3).
 class StreamingClient(Protocol):
     def stream(
         self,

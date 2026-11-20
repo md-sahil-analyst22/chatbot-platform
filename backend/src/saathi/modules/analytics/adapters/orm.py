@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Python description of the usage_logs table: tokens and cost per reply (migration 0002).
+# Status: 🟡 Placeholder - built in a later phase (see
+#         docs/planning/05_PHASEWISE_DEVELOPMENT_PLAN.md).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """usage_logs table: tokens and cost per LLM call. Created by migration 0002.
 
 Billing history outlives messages: deleting a message (retention) keeps its usage row.
@@ -14,6 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from saathi.platform.db.base import Base, created_at, tenant_fk, uuid_pk
 
 
+# Table `usage_logs`.
 class UsageLogRow(Base):
     __tablename__ = "usage_logs"
     __table_args__ = (

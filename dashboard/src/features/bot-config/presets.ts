@@ -1,3 +1,8 @@
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+// What: The answer-style choices shown in Bot Studio (precise, balanced, friendly) with help
+//       text.
+// ────────────────────────────────────────────────────────────────────────────────────────────
 import type { ResponseStyle } from "../../lib/api/types";
 
 /** Plain-language presets for non-technical users. Temperatures match the backend. */

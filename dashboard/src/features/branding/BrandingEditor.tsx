@@ -1,7 +1,13 @@
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+// What: The branding section of Bot Studio: title, subtitle, greeting, colour, position,
+//       footer.
+// ────────────────────────────────────────────────────────────────────────────────────────────
 import { useFormContext } from "react-hook-form";
 import { Field } from "../../components/Field";
 import type { BotConfigForm } from "../bot-config/schema";
 
+// Uses the shared Bot Studio form (useFormContext).
 export function BrandingEditor() {
   const {
     register,

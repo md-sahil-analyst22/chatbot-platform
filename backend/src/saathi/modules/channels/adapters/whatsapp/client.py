@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Sends messages through the WhatsApp Cloud API.
+# Status: 🟡 Placeholder - built in a later phase (see
+#         docs/planning/05_PHASEWISE_DEVELOPMENT_PLAN.md).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """WhatsApp Cloud API sender (implements ChannelSender). Settings: WHATSAPP_*.
 
 Per-tenant tokens (encrypted at rest) replace the single test token in Phase 4.
@@ -11,6 +17,7 @@ from saathi.modules.channels.domain.message import Channel, OutboundMessage
 from saathi.platform.errors import ProviderError, ProviderTimeoutError
 
 
+# WHATSAPP_* settings from .env.
 class WhatsAppSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="WHATSAPP_", env_file=".env", extra="ignore")
 
@@ -21,6 +28,7 @@ class WhatsAppSettings(BaseSettings):
     verify_token: SecretStr | None = None
 
 
+# The WhatsApp sender.
 class WhatsAppSender:
     channel = Channel.WHATSAPP
 
@@ -38,6 +46,7 @@ class WhatsAppSender:
         self._headers = {"Authorization": f"Bearer {access_token}"}
         self._timeout = timeout_s
 
+    # Send one reply to a customer's number.
     async def send(self, tenant_id: str, recipient: str, message: OutboundMessage) -> None:
         try:
             r = await self._http.post(

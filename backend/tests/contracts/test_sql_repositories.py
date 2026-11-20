@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: The REAL database repositories pass the same rules as the fakes, on real
+#                Postgres.
+# How to run: make test-db (needs a throwaway real Postgres - never Supabase; see
+#             docs/runbooks/local-setup.md). Skipped otherwise.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """SQL repositories pass the SAME contract suites as the in-memory fakes (R35), on real Postgres.
 
 These run as the schema owner, so they prove the repositories' own tenant filters (R15, defence

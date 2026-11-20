@@ -1,12 +1,18 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Reads the text out of PDF files using the PyMuPDF library.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """PDF parser adapter (P2.3). Requires the 'ingestion' extra: uv sync --extra ingestion."""
 
 from saathi.modules.knowledge.adapters import parser_registry
 from saathi.modules.knowledge.ports.providers import ParsedDocument, ParsedPage
 
 
+# The PDF reader.
 class PyMuPdfParser:
     supported_extensions = frozenset({".pdf"})
 
+    # PDF bytes -> text per page.
     def parse(self, data: bytes, filename: str) -> ParsedDocument:
         import pymupdf  # lazy: only the worker image needs this dependency
 
@@ -19,6 +25,7 @@ class PyMuPdfParser:
         return ParsedDocument(pages=pages, metadata={"filename": filename, "needs_ocr": needs_ocr})
 
 
+# Register under the name 'pymupdf'.
 @parser_registry.register("pymupdf")
 def create_pymupdf_parser() -> PyMuPdfParser:
     return PyMuPdfParser()

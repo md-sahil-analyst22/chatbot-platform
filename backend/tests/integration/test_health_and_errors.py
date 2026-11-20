@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: Health probes, the shared error format and the access log.
+# How to run: cd backend && uv run pytest tests/integration (no real database: services are
+#             swapped for in-memory fakes).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """P1.3: probes, the shared error shape for framework errors, and the access log.
 
 Readiness checks are swapped for fakes after the lifespan starts, so no Postgres or Redis is

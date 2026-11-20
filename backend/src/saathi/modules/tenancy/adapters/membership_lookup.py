@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: 🔒 After a login is verified, finds which workspace(s) the user belongs to and with what
+#       role.
+# Why special: Runs before a tenant is known, through the narrow database function
+#              resolve_user_membership().
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Verified user -> tenant memberships, run BEFORE a tenant context exists (ADR-0007).
 
 user_accounts is under RLS, so the app role reads it through the narrow SECURITY DEFINER
@@ -13,12 +20,14 @@ from saathi.platform.security.auth import Membership, Role
 _MAX_MEMBERSHIPS = 20
 
 
+# Used by the login checker (platform/security/jwt_verifier.py).
 class SqlAlchemyMembershipLookup:
     """Implements MembershipLookup with its own short session (no tenant bound)."""
 
     def __init__(self, sessionmaker: async_sessionmaker[AsyncSession]) -> None:
         self._sessionmaker = sessionmaker
 
+    # User id -> list of (tenant, role).
     async def memberships(self, auth_user_id: str) -> list[Membership]:
         async with self._sessionmaker() as session:
             rows = await session.execute(

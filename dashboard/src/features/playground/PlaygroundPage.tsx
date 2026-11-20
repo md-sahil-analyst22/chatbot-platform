@@ -1,3 +1,8 @@
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+// What: Test chat against your draft before publishing.
+// Status: 🟡 Placeholder - works once chat exists (Phase 3).
+// ────────────────────────────────────────────────────────────────────────────────────────────
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 

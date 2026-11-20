@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: 🔒 Locks and unlocks secrets (e.g. tenants' own API keys) with AES-256-GCM encryption.
+# Extra protection: Each secret is tied to its owner ('associated data'): a secret copied to
+#                   another tenant's row can't be unlocked.
+# Key rotation: Several master keys can exist; new secrets use the first, old ones still unlock.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Authenticated encryption for tenant secrets (customer API keys, WhatsApp tokens).
 
 AES-256-GCM with key ids so keys can be rotated without downtime:
@@ -26,14 +33,17 @@ _KID = re.compile(r"[a-z0-9]{1,16}")
 _VERSION = "v1"
 
 
+# Bytes -> text (base64url) so the result can be stored in a text column.
 def _b64e(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 
+# Text -> bytes (the reverse).
 def _b64d(text: str) -> bytes:
     return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
 
 
+# The lock/unlock tool. Master keys come from CREDENTIALS_ENCRYPTION_KEYS in .env.
 class AesGcmCipher:
     def __init__(self, keys: Mapping[str, bytes], current_kid: str) -> None:
         if current_kid not in keys:
@@ -47,6 +57,7 @@ class AesGcmCipher:
         self._current = current_kid
 
     @classmethod
+    # Read 'k2:<key>,k1:<key>' from the setting; the first key is used for new secrets.
     def from_env_value(cls, value: str) -> "AesGcmCipher":
         keys: dict[str, bytes] = {}
         order: list[str] = []
@@ -65,11 +76,14 @@ class AesGcmCipher:
             raise ConfigurationError("CREDENTIALS_ENCRYPTION_KEYS is empty")
         return cls(keys, current_kid=order[0])
 
+    # Lock: a fresh random 'nonce' every time, then encrypt. Result: 'v1.<key
+    # id>.<nonce>.<ciphertext>'.
     def encrypt(self, plaintext: str, *, aad: str) -> str:
         nonce = os.urandom(12)
         ciphertext = self._keys[self._current].encrypt(nonce, plaintext.encode(), aad.encode())
         return ".".join((_VERSION, self._current, _b64e(nonce), _b64e(ciphertext)))
 
+    # Unlock. Wrong owner, tampering or unknown key -> error that never includes the secret.
     def decrypt(self, token: str, *, aad: str) -> str:
         try:
             version, kid, nonce, ciphertext = token.split(".")
@@ -81,6 +95,7 @@ class AesGcmCipher:
             # Never include the token or plaintext in the error.
             raise InfrastructureError("secret could not be decrypted") from exc
 
+    # True if this secret was locked with an older master key.
     def needs_rotation(self, token: str) -> bool:
         parts = token.split(".")
         return len(parts) != 4 or parts[1] != self._current

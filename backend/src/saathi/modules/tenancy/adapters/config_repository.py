@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: The real database code for configuration versions (table bot_config_versions).
+# Concurrency: 🔒 A database rule allows only ONE published version per bot; two simultaneous
+#              publishes -> the loser gets 409.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """SQLAlchemy implementation of BotConfigRepository. Session must be tenant-bound (RLS)."""
 
 from uuid import UUID
@@ -18,6 +24,7 @@ _CONFLICTS = {
 }
 
 
+# Duplicate version number or double publish -> 409 conflict.
 def _conflict_or_raise(exc: IntegrityError) -> None:
     message = _CONFLICTS.get(violated_constraint(exc) or "")
     if message:
@@ -25,6 +32,7 @@ def _conflict_or_raise(exc: IntegrityError) -> None:
     raise exc
 
 
+# Database row -> domain BotConfigVersion.
 def _to_domain(row: BotConfigVersionRow) -> BotConfigVersion:
     return BotConfigVersion(
         id=row.id,
@@ -38,6 +46,7 @@ def _to_domain(row: BotConfigVersionRow) -> BotConfigVersion:
     )
 
 
+# Config versions in the database.
 class SqlAlchemyBotConfigRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -47,6 +56,7 @@ class SqlAlchemyBotConfigRepository:
             BotConfigVersionRow.tenant_id == tenant_id, BotConfigVersionRow.bot_id == bot_id
         )
 
+    # The next version number for this bot (highest + 1).
     async def next_version(self, tenant_id: UUID, bot_id: UUID) -> int:
         # A concurrent save producing the same number hits UNIQUE(bot_id, version) -> retry.
         current = await self._session.scalar(
@@ -56,6 +66,7 @@ class SqlAlchemyBotConfigRepository:
         )
         return int(current or 0) + 1
 
+    # Insert a new version.
     async def add(self, version: BotConfigVersion) -> None:
         self._session.add(
             BotConfigVersionRow(
@@ -74,6 +85,7 @@ class SqlAlchemyBotConfigRepository:
         except IntegrityError as exc:
             _conflict_or_raise(exc)
 
+    # Change a version's status (draft/published/archived).
     async def update_status(self, version: BotConfigVersion) -> None:
         # The partial unique index fires on the UPDATE itself (concurrent publish).
         try:
@@ -94,6 +106,7 @@ class SqlAlchemyBotConfigRepository:
         )
         return _to_domain(row) if row else None
 
+    # The newest draft, if any.
     async def latest_draft(self, tenant_id: UUID, bot_id: UUID) -> BotConfigVersion | None:
         row = await self._session.scalar(
             self._scope(tenant_id, bot_id)
@@ -103,6 +116,7 @@ class SqlAlchemyBotConfigRepository:
         )
         return _to_domain(row) if row else None
 
+    # The live version, if any.
     async def published(self, tenant_id: UUID, bot_id: UUID) -> BotConfigVersion | None:
         row = await self._session.scalar(
             self._scope(tenant_id, bot_id).where(

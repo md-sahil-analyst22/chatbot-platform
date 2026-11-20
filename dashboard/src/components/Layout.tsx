@@ -1,5 +1,10 @@
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+// What: The frame around every page: navigation on the side, the current page in the middle.
+// ────────────────────────────────────────────────────────────────────────────────────────────
 import { NavLink, Outlet } from "react-router-dom";
 
+// <Outlet /> is where the current page appears.
 export function Layout() {
   return (
     <div className="shell">

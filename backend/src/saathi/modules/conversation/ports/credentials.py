@@ -1,6 +1,11 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Contract: 'give me the API key to use for this tenant and vendor'.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 from typing import Protocol
 
 
+# Platform key today; tenants' own keys from Phase 8.
 class CredentialSource(Protocol):
     """Where the API key for a provider comes from, for a given tenant.
 

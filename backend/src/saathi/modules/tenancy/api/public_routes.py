@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: The public widget endpoint: GET /public/v1/widget/{key}/config - no login needed.
+# Security: 🔒 Returns display fields only. The tenant is found from the key on the server, never
+#           from the request.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Public, unauthenticated widget endpoints (mounted under /public/v1).
 
 Returns only fields safe for anyone to read. Rate-limited per IP and per bot (P6.6), cacheable
@@ -12,6 +18,7 @@ from saathi.modules.tenancy.api.schemas import PublicWidgetConfigOut
 router = APIRouter(prefix="/widgets", tags=["public-widget"])
 
 
+# The widget calls this when it loads on a tenant's website.
 @router.get("/{public_key}/config")
 async def widget_config(widget: ResolvedWidgetDep, response: Response) -> PublicWidgetConfigOut:
     cfg = await widget.service.get(widget.tenant_id, widget.bot_id)

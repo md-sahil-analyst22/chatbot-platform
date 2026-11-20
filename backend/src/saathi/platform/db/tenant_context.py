@@ -1,3 +1,12 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: 🔒 The heart of tenant isolation: tells Postgres which tenant the current transaction
+#       belongs to.
+# How: Every tenant table has a Postgres 'row-level security' policy: show only rows whose
+#      tenant_id matches app.tenant_id. This file sets app.tenant_id.
+# Safety: The setting lasts only for one transaction, so a reused connection can never carry one
+#         tenant into another request.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Tenant context for Postgres Row-Level Security.
 
 Every tenant-owned table has a policy like this (migration 0002):
@@ -21,6 +30,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
+# Set app.tenant_id for the CURRENT transaction only (it resets at commit/rollback).
 async def set_tenant(session: AsyncSession, tenant_id: UUID) -> None:
     """Bind the tenant for the CURRENT transaction only.
 
@@ -33,6 +43,8 @@ async def set_tenant(session: AsyncSession, tenant_id: UUID) -> None:
 
 
 @asynccontextmanager
+# Open a session + transaction already locked to one tenant. Commits if all goes well, rolls
+# back on any error.
 async def tenant_session(
     sessionmaker: async_sessionmaker[AsyncSession], tenant_id: UUID
 ) -> AsyncIterator[AsyncSession]:

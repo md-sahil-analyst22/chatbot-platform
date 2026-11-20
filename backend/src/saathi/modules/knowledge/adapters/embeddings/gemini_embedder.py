@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Turns text into vectors using Google's Gemini embedding model (the platform default,
+#       ADR-0006).
+# Safety: Checks Gemini's answer: right count, right size (1,536), no empty vectors. Timeouts
+#         and errors become clear typed errors.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Google Gemini embeddings adapter (implements Embedder). Settings: GEMINI_*.
 
 Platform default (R13, ADR-0006): `gemini-embedding-2` (text input) shortened from 3,072 to 1,536
@@ -20,6 +27,7 @@ DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 MAX_BATCH = 100  # batchEmbedContents accepts at most 100 requests per call
 
 
+# GEMINI_* settings from .env (key, model, size, timeout).
 class GeminiEmbedderSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="GEMINI_", env_file=".env", extra="ignore")
 
@@ -30,6 +38,7 @@ class GeminiEmbedderSettings(BaseSettings):
     embedding_timeout_seconds: float = 15.0  # separate from the LLM's GEMINI_TIMEOUT_SECONDS
 
 
+# Scale each vector to length 1, so similarity scores are comparable.
 def _l2_normalise(vector: list[float]) -> list[float]:
     norm = math.sqrt(sum(x * x for x in vector))
     if norm == 0:
@@ -37,6 +46,7 @@ def _l2_normalise(vector: list[float]) -> list[float]:
     return [x / norm for x in vector]
 
 
+# The Gemini embedder.
 class GeminiEmbedder:
     def __init__(
         self,
@@ -55,12 +65,14 @@ class GeminiEmbedder:
         self._headers = {"x-goog-api-key": api_key}
         self._timeout = timeout_s
 
+    # Split the texts into batches Gemini accepts and embed each batch.
     async def embed(self, texts: Sequence[str]) -> list[list[float]]:
         vectors: list[list[float]] = []
         for start in range(0, len(texts), MAX_BATCH):
             vectors.extend(await self._embed_batch(texts[start : start + MAX_BATCH]))
         return vectors
 
+    # One call to Gemini for one batch.
     async def _embed_batch(self, texts: Sequence[str]) -> list[list[float]]:
         try:
             r = await self._http.post(
@@ -85,6 +97,7 @@ class GeminiEmbedder:
             raise ProviderTimeoutError("embedding provider timed out") from exc
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
             raise ProviderError("embedding provider failed") from exc
+        # Never trust the answer blindly: count and size must match.
         if len(raw) != len(texts):
             raise ProviderError("embedding provider returned the wrong number of vectors")
         if any(len(v) != self._dimensions for v in raw):
@@ -92,6 +105,7 @@ class GeminiEmbedder:
         return [_l2_normalise(v) for v in raw]
 
 
+# Register under the name 'gemini' (EMBEDDING_PROVIDER=gemini).
 @embedder_registry.register("gemini")
 def create_gemini_embedder(http: httpx.AsyncClient) -> GeminiEmbedder:
     s = GeminiEmbedderSettings()

@@ -1,12 +1,20 @@
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+// What: Form rules for Bot Studio, checked in the browser for instant feedback.
+// Note: 🔒 The backend checks everything again - these rules are a convenience, not the
+//       security.
+// ────────────────────────────────────────────────────────────────────────────────────────────
 import { z } from "zod";
 
 /** Mirrors backend validation (domain/bot_config.py + api/schemas.py). Backend is authoritative. */
+// Rule for short widget text: max length and no < or >.
 const uiText = (max: number) =>
   z
     .string()
     .max(max, `At most ${max} characters`)
     .refine((v) => !/[<>]/.test(v), "Must not contain < or >");
 
+// The rules for the whole config form.
 export const botConfigSchema = z.object({
   prompt: z.object({
     persona: z.string().max(1000),
@@ -31,8 +39,10 @@ export const botConfigSchema = z.object({
   }),
 });
 
+// The form's data type, derived from the rules.
 export type BotConfigForm = z.infer<typeof botConfigSchema>;
 
+// Starting values for a brand-new bot.
 export const DEFAULT_CONFIG: BotConfigForm = {
   prompt: { persona: "", brand_rules: "", custom_instructions: "", banned_topics: [] },
   generation: {

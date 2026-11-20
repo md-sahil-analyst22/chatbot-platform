@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Connects the chat steps into a flow ('graph') using LangGraph.
+# Status: 🟡 Only the guard step today; language, search, answer and handoff steps come in Phase
+#         3.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Agent graph wiring (P3.1). Requires the 'agent' extra: uv sync --extra agent.
 
 LangGraph is used only here for orchestration; nodes stay plain functions over ChatState, so
@@ -10,6 +16,7 @@ from saathi.modules.conversation.application.nodes.guard import guard_node
 from saathi.modules.conversation.domain.state import ChatState
 
 
+# Builds the flow. LangGraph is imported only here, so it stays optional.
 def build_graph() -> Any:
     from langgraph.graph import END, StateGraph  # lazy: optional dependency
 

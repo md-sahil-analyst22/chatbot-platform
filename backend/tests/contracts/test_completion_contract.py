@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What it tests: The rules every AI language model adapter must follow, including timeouts and
+#                errors.
+# How to run: cd backend && uv run pytest tests/contracts.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 import json
 from typing import Any
 

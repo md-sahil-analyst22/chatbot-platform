@@ -1,3 +1,12 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Everything a tenant edits in Bot Studio: instructions, answer style, model, colours,
+#       greeting...
+# Versions: Each save creates a numbered version: draft -> published -> archived. Only one
+#           version per bot is published (live) at a time.
+# Safety: 🔒 Text fields are checked here (length, no control characters, no HTML in UI text)
+#         before anything is saved.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Bot configuration: everything a tenant edits in Bot Studio.
 
 Configurations are immutable versions. Saving creates a new DRAFT version; publishing makes one
@@ -19,6 +28,7 @@ _HEX_COLOR = re.compile(r"#[0-9A-Fa-f]{6}")
 _MODEL_KEY = re.compile(r"[a-z0-9-]{1,40}")
 
 
+# Preset answer styles a tenant can pick (each maps to a temperature).
 class ResponseStyle(StrEnum):
     """Presets for non-technical users. Each maps to a sampling temperature."""
 
@@ -34,12 +44,14 @@ STYLE_TEMPERATURE: dict[ResponseStyle, float] = {
 }
 
 
+# The life cycle of one version: draft, published, archived.
 class ConfigStatus(StrEnum):
     DRAFT = "draft"
     PUBLISHED = "published"
     ARCHIVED = "archived"
 
 
+# Shared check for long text: max length and no hidden control characters.
 def _plain_text(value: str, field_name: str, max_len: int, *, allow_newlines: bool) -> None:
     if len(value) > max_len:
         raise ValidationError(f"{field_name} must be at most {max_len} characters")
@@ -50,6 +62,7 @@ def _plain_text(value: str, field_name: str, max_len: int, *, allow_newlines: bo
             raise ValidationError(f"{field_name} contains control characters")
 
 
+# Shared check for short text shown in the widget: also no '<' or '>' (no HTML).
 def _ui_text(value: str, field_name: str, max_len: int) -> None:
     """Short text shown in the widget. Rendered as text, and angle brackets are refused too."""
     _plain_text(value, field_name, max_len, allow_newlines=False)
@@ -58,6 +71,7 @@ def _ui_text(value: str, field_name: str, max_len: int) -> None:
 
 
 @dataclass(frozen=True, slots=True)
+# The tenant's instructions to the bot and example questions.
 class PromptSettings:
     """Tenant-authored instructions. Always placed BELOW the platform's fixed safety rules."""
 
@@ -77,6 +91,7 @@ class PromptSettings:
 
 
 @dataclass(frozen=True, slots=True)
+# Which model (catalog key), answer style and optional advanced values.
 class GenerationSettings:
     model_key: str = "standard"
     style: ResponseStyle = ResponseStyle.BALANCED
@@ -92,17 +107,20 @@ class GenerationSettings:
             raise ValidationError("max_output_tokens must be between 64 and 2000")
 
     @property
+    # The 'creativity' number actually sent to the model.
     def effective_temperature(self) -> float:
         if self.temperature_override is not None:
             return self.temperature_override
         return STYLE_TEMPERATURE[self.style]
 
     @property
+    # True if the tenant changed advanced values by hand.
     def uses_advanced_settings(self) -> bool:
         return self.temperature_override is not None
 
 
 @dataclass(frozen=True, slots=True)
+# How the widget looks: title, colours, greeting, logo, position.
 class Branding:
     header_title: str
     header_subtitle: str = ""
@@ -126,6 +144,7 @@ class Branding:
 
 
 @dataclass(frozen=True, slots=True)
+# One complete configuration = prompt + generation + branding.
 class BotConfig:
     prompt: PromptSettings
     generation: GenerationSettings
@@ -133,6 +152,7 @@ class BotConfig:
 
 
 @dataclass(frozen=True, slots=True)
+# One saved, numbered version of a BotConfig, with its status.
 class BotConfigVersion:
     id: UUID
     tenant_id: UUID
@@ -147,11 +167,13 @@ class BotConfigVersion:
         if self.version < 1:
             raise ValidationError("version must be >= 1")
 
+    # Return this version marked as live.
     def published(self) -> "BotConfigVersion":
         if self.status is not ConfigStatus.DRAFT:
             raise ConflictError("only a draft can be published")
         return replace(self, status=ConfigStatus.PUBLISHED)
 
+    # Return this version marked as old (no longer live).
     def archived(self) -> "BotConfigVersion":
         if self.status is not ConfigStatus.PUBLISHED:
             raise ConflictError("only the published version can be archived")

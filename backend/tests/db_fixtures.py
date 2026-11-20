@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Helpers that give tests a REAL Postgres database, logged in as the app role so row-level
+#       security applies.
+# How to run: Used automatically by the tests; nothing to run directly.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Fixtures for tests that need a REAL Postgres (R37): RLS, SQL repositories, migrations.
 
 Opt in with:

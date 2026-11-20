@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: The CONTRACTS for saving and loading bots, configs and tenants.
+# Why: Business code calls these contracts; the real database code (adapters/) or test fakes
+#      fulfil them.
+# Note: 🔒 Every method takes tenant_id, so a call can never forget which tenant it serves (R15).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
@@ -6,6 +13,7 @@ from saathi.modules.tenancy.domain.bot_config import BotConfigVersion
 from saathi.modules.tenancy.domain.entities import Bot
 
 
+# Save, change, delete and read bots.
 class BotRepository(Protocol):
     """Persistence port. tenant_id is explicit (defence in depth on top of RLS)."""
 
@@ -26,10 +34,12 @@ class BotRepository(Protocol):
     async def list_for_tenant(self, tenant_id: UUID, limit: int) -> list[Bot]: ...
 
 
+# Read facts about a tenant (today: its plan).
 class TenantRepository(Protocol):
     async def get_plan(self, tenant_id: UUID) -> str | None: ...
 
 
+# Save and read configuration versions.
 class BotConfigRepository(Protocol):
     """Append-only store of configuration versions."""
 
@@ -55,11 +65,13 @@ class BotConfigRepository(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+# The result of looking up a widget key: which tenant and which bot.
 class PublicBotRef:
     tenant_id: UUID
     bot_id: UUID
 
 
+# Contract: widget key -> (tenant, bot), or None.
 class PublicBotLookup(Protocol):
     """Resolves a widget's public key to its tenant BEFORE any tenant context exists."""
 

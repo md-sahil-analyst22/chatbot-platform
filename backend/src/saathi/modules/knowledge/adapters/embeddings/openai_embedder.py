@@ -1,3 +1,7 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Alternative embedder using OpenAI (only used if EMBEDDING_PROVIDER=openai).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """OpenAI embeddings adapter (implements Embedder). Settings: OPENAI_*."""
 
 from collections.abc import Sequence
@@ -10,6 +14,7 @@ from saathi.modules.knowledge.adapters import embedder_registry
 from saathi.platform.errors import ConfigurationError, ProviderError, ProviderTimeoutError
 
 
+# OPENAI_* settings from .env.
 class OpenAIEmbedderSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="OPENAI_", env_file=".env", extra="ignore")
 
@@ -19,6 +24,7 @@ class OpenAIEmbedderSettings(BaseSettings):
     timeout_seconds: float = 15.0
 
 
+# The OpenAI embedder.
 class OpenAIEmbedder:
     def __init__(
         self,
@@ -35,6 +41,7 @@ class OpenAIEmbedder:
         self._headers = {"Authorization": f"Bearer {api_key}"}
         self._timeout = timeout_s
 
+    # Send texts, get vectors back.
     async def embed(self, texts: Sequence[str]) -> list[list[float]]:
         if not texts:
             return []
@@ -57,6 +64,7 @@ class OpenAIEmbedder:
         return vectors
 
 
+# Register under the name 'openai'.
 @embedder_registry.register("openai")
 def create_openai_embedder(http: httpx.AsyncClient) -> OpenAIEmbedder:
     s = OpenAIEmbedderSettings()

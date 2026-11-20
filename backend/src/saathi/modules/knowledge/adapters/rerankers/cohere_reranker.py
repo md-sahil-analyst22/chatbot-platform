@@ -1,3 +1,7 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: Re-orders search results by relevance using Cohere (the default reranker, ADR-0006).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Cohere rerank adapter (implements Reranker). Settings: COHERE_*."""
 
 from collections.abc import Sequence
@@ -11,6 +15,7 @@ from saathi.modules.knowledge.ports.providers import RerankResult
 from saathi.platform.errors import ConfigurationError, ProviderError, ProviderTimeoutError
 
 
+# COHERE_* settings from .env.
 class CohereSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="COHERE_", env_file=".env", extra="ignore")
 
@@ -20,6 +25,7 @@ class CohereSettings(BaseSettings):
     timeout_seconds: float = 5.0
 
 
+# The Cohere reranker.
 class CohereReranker:
     def __init__(
         self,
@@ -36,6 +42,7 @@ class CohereReranker:
         self._headers = {"Authorization": f"Bearer {api_key}"}
         self._timeout = timeout_s
 
+    # Question + candidate texts -> the best `top_n`, with scores.
     async def rerank(self, query: str, documents: Sequence[str], top_n: int) -> list[RerankResult]:
         if not documents or top_n <= 0:
             return []
@@ -65,6 +72,7 @@ class CohereReranker:
         return sorted(results, key=lambda x: x.score, reverse=True)[:top_n]
 
 
+# Register under the name 'cohere'.
 @reranker_registry.register("cohere")
 def create_cohere_reranker(http: httpx.AsyncClient) -> CohereReranker:
     s = CohereSettings()

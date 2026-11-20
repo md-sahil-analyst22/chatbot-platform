@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: End-to-end check of the LIVE system after a release: health, login, bots, config, public
+#       widget.
+# Run: make smoke-live. It signs in as the owner, creates a temporary test bot and deletes it
+#      again.
+# Security: 🔒 Asks for your email and password in the terminal; never stores or prints them,
+#           or any token.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Phase 1 exit check on the LIVE API: real Supabase login, then create / configure / publish.
 
 Proves the last Phase 1 exit criterion (05_PHASEWISE_DEVELOPMENT_PLAN):
@@ -32,6 +41,7 @@ TIMEOUT = httpx.Timeout(30.0)
 failed = False
 
 
+# Read .env into the environment.
 def load_dotenv(path: Path) -> None:
     if not path.exists():
         return
@@ -44,10 +54,12 @@ def load_dotenv(path: Path) -> None:
         os.environ.setdefault(key.strip(), value)
 
 
+# One setting's value.
 def env(name: str) -> str:
     return os.environ.get(name, "").strip()
 
 
+# Print one ✅/❌ line and return whether it passed.
 def step(ok: bool, label: str, detail: str = "") -> bool:
     global failed
     failed |= not ok
@@ -55,6 +67,7 @@ def step(ok: bool, label: str, detail: str = "") -> bool:
     return ok
 
 
+# Pull the error code out of an API response for a readable message.
 def error_of(r: httpx.Response) -> str:
     """The API's own error code/message (never secrets), or the HTTP status."""
     try:
@@ -67,6 +80,7 @@ def error_of(r: httpx.Response) -> str:
     return f"HTTP {r.status_code} {err.get('code', '')}: {err.get('message', '')}".strip()
 
 
+# Show which algorithm signed the token (safe public info - never the token itself).
 def token_header(token: str) -> str:
     """Algorithm and key id from the token header (public metadata, not the token)."""
     try:
@@ -77,6 +91,7 @@ def token_header(token: str) -> str:
         return "unreadable"
 
 
+# Run every check in order; exit code 0 = all passed.
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument(

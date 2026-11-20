@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: The real database code for bots and tenants (fulfils the contracts in
+#       ports/repositories.py).
+# Safety: 🔒 Every query filters by tenant_id, AND Postgres row-level security checks again
+#         (defence in depth).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 from uuid import UUID
 
 from sqlalchemy import delete, select, update
@@ -12,18 +19,21 @@ from saathi.platform.errors import ConflictError, NotFoundError
 _DUPLICATE_NAME = "uq_bots_tenant_name"
 
 
+# Turn a duplicate-name database error into a friendly 409 conflict.
 def _conflict_or_raise(exc: IntegrityError) -> None:
     if violated_constraint(exc) == _DUPLICATE_NAME:
         raise ConflictError("a bot with this name already exists") from exc
     raise exc
 
 
+# Bots, stored in the `bots` table.
 class SqlAlchemyBotRepository:
     """Implements BotRepository. The session must come from tenant_session() (RLS bound)."""
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    # Insert a new bot.
     async def add(self, bot: Bot) -> None:
         self._session.add(
             BotRow(
@@ -41,6 +51,7 @@ class SqlAlchemyBotRepository:
         except IntegrityError as exc:
             _conflict_or_raise(exc)
 
+    # Save changes to an existing bot.
     async def update(self, bot: Bot) -> None:
         try:
             result = await self._session.execute(
@@ -58,18 +69,21 @@ class SqlAlchemyBotRepository:
         if result.rowcount == 0:  # type: ignore[attr-defined]  # CursorResult for UPDATE
             raise NotFoundError("bot not found")
 
+    # Delete; returns False if nothing was found.
     async def delete(self, tenant_id: UUID, bot_id: UUID) -> bool:
         result = await self._session.execute(
             delete(BotRow).where(BotRow.id == bot_id, BotRow.tenant_id == tenant_id)
         )
         return bool(result.rowcount)  # type: ignore[attr-defined]  # CursorResult for DELETE
 
+    # One bot, or None.
     async def get(self, tenant_id: UUID, bot_id: UUID) -> Bot | None:
         row = await self._session.scalar(
             select(BotRow).where(BotRow.id == bot_id, BotRow.tenant_id == tenant_id)
         )
         return self._to_domain(row) if row is not None else None
 
+    # All bots of a tenant, newest first.
     async def list_for_tenant(self, tenant_id: UUID, limit: int) -> list[Bot]:
         rows = await self._session.scalars(
             select(BotRow)
@@ -80,6 +94,7 @@ class SqlAlchemyBotRepository:
         return [self._to_domain(r) for r in rows]
 
     @staticmethod
+    # Database row -> domain Bot object.
     def _to_domain(row: BotRow) -> Bot:
         return Bot(
             id=row.id,
@@ -92,6 +107,7 @@ class SqlAlchemyBotRepository:
         )
 
 
+# Reads tenant facts (plan).
 class SqlAlchemyTenantRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session

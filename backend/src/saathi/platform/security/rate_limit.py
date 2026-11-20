@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
+# What: A rate limiter ('token bucket') stored in Redis, shared by all servers.
+# Plain words: Each caller has a bucket of N tokens that refills over time; each request takes
+#              one; an empty bucket = 'too many requests'.
+# Status: 🟡 Ready, used from Phase 6. Production already limits per IP at Traefik.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
 """Distributed token-bucket rate limiter (Redis + atomic Lua). Used from P6.6.
 
 Key format: rl:{scope}:{tenant_id}:{subject}  - always tenant scoped.
@@ -11,6 +18,7 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
 # Uses Redis server TIME so app-server clock skew cannot be abused.
+# A small script that runs INSIDE Redis, so checking and taking a token is one atomic step.
 _BUCKET_SCRIPT_LUA = """
 local cap  = tonumber(ARGV[1])
 local rate = tonumber(ARGV[2])
@@ -33,16 +41,19 @@ return allowed
 
 
 @dataclass(frozen=True, slots=True)
+# Bucket size, refill speed, and what to do if Redis is down (security limits: deny).
 class BucketPolicy:
     capacity: int
     refill_per_second: float
     on_backend_error: Literal["deny", "allow"] = "deny"
 
 
+# The limiter itself.
 class RedisTokenBucket:
     def __init__(self, redis: Redis) -> None:
         self._script = redis.register_script(_BUCKET_SCRIPT_LUA)
 
+    # 'May this subject make one more request?' Keys always include the tenant.
     async def allow(
         self, *, scope: str, tenant_id: str, subject: str, policy: BucketPolicy, cost: int = 1
     ) -> bool:
