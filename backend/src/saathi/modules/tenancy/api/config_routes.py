@@ -100,6 +100,7 @@ def to_out(v: BotConfigVersion) -> BotConfigVersionOut:
     c = v.config
     # Build and check the response model from a dictionary:
     return BotConfigVersionOut.model_validate(
+        # this dictionary:
         {
             # version number,
             "version": v.version,

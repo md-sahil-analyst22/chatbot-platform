@@ -140,6 +140,7 @@ class FakeCompletionClient:
         return LLMResponse(text=self._reply, model=model, tokens_in=1, tokens_out=1)
 
 
+# A fake speech-to-text.
 class FakeSpeechToText:
     """Returns the audio bytes decoded as text, so tests can control the transcript."""
 

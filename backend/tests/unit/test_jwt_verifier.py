@@ -254,6 +254,7 @@ async def test_hs256_forged_with_public_key_is_rejected() -> None:
     now = int(time.time())
     # Claims pretending to be 'admin':
     payload = b64(
+        # turned into JSON bytes:
         json.dumps(
             {"sub": "admin", "iss": ISSUER, "aud": AUDIENCE, "iat": now, "exp": now + 300}
         ).encode()
@@ -288,6 +289,7 @@ async def test_rotated_key_is_picked_up_once() -> None:
     v = _verifier(jwks, clock=clock)
     await v.verify(_token())  # caches k1
     jwks.keys = [JWK, new_jwk]  # Supabase rotates
+    # Move the clock past the one-minute refresh limit.
     clock.now += UNKNOWN_KID_REFRESH_SECONDS + 1
     # A token signed with k2 now works...
     p = await v.verify(_token(key=new_key, kid="k2"))

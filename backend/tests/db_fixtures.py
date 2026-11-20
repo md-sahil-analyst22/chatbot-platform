@@ -123,6 +123,7 @@ async def owner_engine(migrated_db: str) -> AsyncIterator[AsyncEngine]:
     # Connect as the owner.
     engine = _engine(OWNER_URL)
     async with engine.begin() as conn:  # every test starts empty
+        # Empty every tenant table (deleting tenants cascades to all their rows).
         await conn.execute(text("TRUNCATE tenants CASCADE"))
     # Lend the engine to the test.
     yield engine

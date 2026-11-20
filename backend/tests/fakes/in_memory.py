@@ -113,6 +113,7 @@ class InMemoryBotConfigRepository:
     def _of(self, tenant_id: UUID, bot_id: UUID) -> list[BotConfigVersion]:
         # Sort...
         return sorted(
+            # every stored version of this bot in this tenant,
             (v for v in self.rows.values() if v.tenant_id == tenant_id and v.bot_id == bot_id),
             # ...by version number.
             key=lambda v: v.version,
