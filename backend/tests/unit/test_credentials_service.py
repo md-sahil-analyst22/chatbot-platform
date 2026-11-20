@@ -3,17 +3,40 @@
 # What it tests: Tenants' own API keys: save, revoke, encryption, roles.
 # How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# base64 — turns bytes into text and back.
 import base64
+
+# os — talks to the operating system (environment variables, files).
 import os
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.in_memory — in-memory stand-ins for the database stores:
+#   InMemoryCredentialRepository = keys in a dict.
 from tests.fakes.in_memory import InMemoryCredentialRepository
 
+# From saathi.modules.credentials.application.services — use cases for tenants' own API keys:
+#   CredentialService = the API-key use cases.
 from saathi.modules.credentials.application.services import CredentialService
+
+# From saathi.modules.credentials.domain.credential — the saved-API-key business object:
+#   CredentialStatus = active or revoked.
 from saathi.modules.credentials.domain.credential import CredentialStatus
+
+# From saathi.platform.errors — our error types: AuthorizationError = 403 role not allowed;
+#   ValidationError = 422 invalid input.
 from saathi.platform.errors import AuthorizationError, ValidationError
+
+# From saathi.platform.security.auth — who is calling and what they may do: Principal = the
+#   verified caller; Role = viewer/agent/admin/owner.
 from saathi.platform.security.auth import Principal, Role
+
+# From saathi.platform.security.crypto — encryption of secrets: AesGcmCipher = the
+#   encrypt/decrypt tool.
 from saathi.platform.security.crypto import AesGcmCipher
 
 TENANT = UUID("00000000-0000-0000-0000-0000000000bb")

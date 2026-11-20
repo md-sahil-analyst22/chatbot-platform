@@ -9,6 +9,7 @@ Keys are always tenant-prefixed: "t/{tenant_id}/..." so a bucket policy or a bug
 two tenants' files. Adapters (Supabase Storage / S3 / R2) arrive with the first upload task.
 """
 
+# From typing — type-hint helpers: Protocol = an interface: any class with these methods fits.
 from typing import Protocol
 
 

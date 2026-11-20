@@ -3,12 +3,26 @@
 # What: In-memory versions of the repositories (a dict instead of a database table).
 # How to run: Used automatically by the tests; nothing to run directly.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From saathi.modules.credentials.domain.credential — the saved-API-key business object:
+#   CredentialStatus = active or revoked; ProviderCredential = one saved key's details.
 from saathi.modules.credentials.domain.credential import CredentialStatus, ProviderCredential
+
+# From saathi.modules.tenancy.domain.bot_config — the bot configuration business objects:
+#   BotConfigVersion = one saved version; ConfigStatus = draft/published/archived.
 from saathi.modules.tenancy.domain.bot_config import BotConfigVersion, ConfigStatus
+
+# From saathi.modules.tenancy.domain.entities — the Bot business object: Bot = one chatbot.
 from saathi.modules.tenancy.domain.entities import Bot
+
+# From saathi.modules.tenancy.ports.repositories — tenancy storage contracts: PublicBotRef =
+#   tenant + bot for a widget key.
 from saathi.modules.tenancy.ports.repositories import PublicBotRef
+
+# From saathi.platform.errors — our error types: ConflictError = 409 clash with existing data;
+#   NotFoundError = 404 not found.
 from saathi.platform.errors import ConflictError, NotFoundError
 
 

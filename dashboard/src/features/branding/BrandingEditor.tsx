@@ -3,8 +3,12 @@
 // What: The branding section of Bot Studio: title, subtitle, greeting, colour, position,
 //       footer.
 // ────────────────────────────────────────────────────────────────────────────────────────────
+// From react-hook-form — form state and validation: useFormContext = uses the form created by a
+//   parent component.
 import { useFormContext } from "react-hook-form";
+// From ../../components/Field — the shared form-field component: Field = label + input + error.
 import { Field } from "../../components/Field";
+// From ../bot-config/schema — the Bot Studio form rules: BotConfigForm = type of the form data.
 import type { BotConfigForm } from "../bot-config/schema";
 
 // Uses the shared Bot Studio form (useFormContext).

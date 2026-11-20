@@ -11,6 +11,7 @@
 Adapters receive it via constructor injection; they never create or close clients themselves.
 """
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
 
 

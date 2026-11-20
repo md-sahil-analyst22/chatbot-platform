@@ -4,13 +4,28 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """OpenAI embeddings adapter (implements Embedder). Settings: OPENAI_*."""
 
+# From collections.abc — standard type names for collections: Sequence = type for a read-only
+#   list.
 from collections.abc import Sequence
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# From pydantic — checks data against declared types and rules: SecretStr = text that hides
+#   itself when printed or logged.
 from pydantic import SecretStr
+
+# From pydantic_settings — reads settings from environment variables and .env: BaseSettings =
+#   parent class for a group of settings; SettingsConfigDict = where settings are read from (.env,
+#   prefix).
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# From saathi.modules.knowledge.adapters — parser, embedder and reranker registries:
+#   embedder_registry = embedder vendors.
 from saathi.modules.knowledge.adapters import embedder_registry
+
+# From saathi.platform.errors — our error types: ConfigurationError = a setting is missing;
+#   ProviderError = a vendor failed; ProviderTimeoutError = a vendor was too slow.
 from saathi.platform.errors import ConfigurationError, ProviderError, ProviderTimeoutError
 
 

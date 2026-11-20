@@ -11,6 +11,8 @@ Repositories catch IntegrityError and ask which constraint fired, then raise Con
 a client-safe message. Unknown violations are re-raised unchanged (they're bugs, not conflicts).
 """
 
+# From sqlalchemy.exc — database errors: IntegrityError = a database rule was broken (e.g.
+#   duplicate).
 from sqlalchemy.exc import IntegrityError
 
 

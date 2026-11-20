@@ -5,7 +5,13 @@
 """Provider registries for this module. Adapters register themselves when imported
 (bootstrap/providers.py imports them explicitly)."""
 
+# From saathi.modules.knowledge.ports.providers — parser, embedder and reranker contracts:
+#   DocumentParser = contract: file -> text; Embedder = contract: text -> vectors; Reranker =
+#   contract: best documents first.
 from saathi.modules.knowledge.ports.providers import DocumentParser, Embedder, Reranker
+
+# From saathi.platform.providers — the vendor registry: ProviderRegistry = the 'phone book' of
+#   vendor adapters.
 from saathi.platform.providers import ProviderRegistry
 
 parser_registry: ProviderRegistry[DocumentParser] = ProviderRegistry("parser")

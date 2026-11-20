@@ -2,6 +2,7 @@
 # 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
 # What: Contract: 'give me the API key to use for this tenant and vendor'.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# From typing — type-hint helpers: Protocol = an interface: any class with these methods fits.
 from typing import Protocol
 
 

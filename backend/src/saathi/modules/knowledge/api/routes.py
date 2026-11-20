@@ -14,6 +14,8 @@ Planned:
 Uploads: size limit, extension + magic-byte check, never trust the client filename.
 """
 
+# From fastapi — the web framework that turns Python functions into web endpoints: APIRouter = a
+#   group of related endpoints.
 from fastapi import APIRouter
 
 router = APIRouter(tags=["knowledge"])

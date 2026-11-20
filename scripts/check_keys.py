@@ -14,15 +14,25 @@ Reads .env from the repo root. Never prints secret values. Exit code 1 if any ch
 Endpoints are the providers' documented lightweight calls; if one changes, update it here.
 """
 
+# From __future__ — Python language switches: annotations = lets type hints mention classes
+#   defined later.
 from __future__ import annotations
 
+# argparse — reads command-line options such as --keep.
 import argparse
+# asyncio — runs many waiting tasks at once (async).
 import asyncio
+# os — talks to the operating system (environment variables, files).
 import os
+# sys — Python runtime details (output streams, exit codes).
 import sys
+# From collections.abc — standard type names for collections: Awaitable = type for something you
+#   can `await`; Callable = type for a function.
 from collections.abc import Awaitable, Callable
+# From pathlib — file and folder paths: Path = a file or folder path.
 from pathlib import Path
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
 
 TIMEOUT = httpx.Timeout(10.0)

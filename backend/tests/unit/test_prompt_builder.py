@@ -3,6 +3,9 @@
 # What it tests: 🔒 The system prompt order and that tenant text can't break out of its section.
 # How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# From saathi.modules.conversation.application.prompt_builder — builds the system prompt:
+#   TenantPromptParts = the tenant's text for the prompt; build_system_prompt = assembles the
+#   prompt; load_platform_rules = reads the fixed platform rules.
 from saathi.modules.conversation.application.prompt_builder import (
     TenantPromptParts,
     build_system_prompt,

@@ -6,12 +6,24 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """provider_credentials table (tenants' own API keys, Phase 8). Created by migration 0002."""
 
+# uuid — unique ids (UUIDs).
 import uuid
+
+# From datetime — dates and times: datetime = a date + time value.
 from datetime import datetime
 
+# From sqlalchemy — SQLAlchemy, our database toolkit: CheckConstraint = a rule every row must
+#   satisfy; Index = a search-speeding index; String = short text column type; Text = long text
+#   column type; text = a raw SQL snippet.
 from sqlalchemy import CheckConstraint, Index, String, Text, text
+
+# From sqlalchemy.orm — SQLAlchemy's table-class tools: Mapped = type hint for a column;
+#   mapped_column = defines one column.
 from sqlalchemy.orm import Mapped, mapped_column
 
+# From saathi.platform.db.base — shared building blocks for table classes: Base = parent of
+#   every table class; created_at = 'created at' column recipe; tenant_fk = tenant_id column
+#   recipe; uuid_pk = id column recipe.
 from saathi.platform.db.base import Base, created_at, tenant_fk, uuid_pk
 
 

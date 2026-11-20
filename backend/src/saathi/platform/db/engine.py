@@ -7,7 +7,12 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Async engine + session factory. One engine per process."""
 
+# From sqlalchemy — SQLAlchemy, our database toolkit: text = a raw SQL snippet.
 from sqlalchemy import text
+
+# From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools: AsyncEngine =
+#   the async connection pool; AsyncSession = one unit of database work; async_sessionmaker =
+#   factory that creates sessions; create_async_engine = builds a connection pool.
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,

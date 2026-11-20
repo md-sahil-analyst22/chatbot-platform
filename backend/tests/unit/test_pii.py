@@ -3,8 +3,10 @@
 # What it tests: Personal data (email, phone, card, Aadhaar, PAN) is masked.
 # How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# pytest — the test framework.
 import pytest
 
+# From saathi.platform.security.pii — personal-data masking: redact = masks personal data.
 from saathi.platform.security.pii import redact
 
 

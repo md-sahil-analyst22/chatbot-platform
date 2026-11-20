@@ -5,6 +5,8 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Guard node (P3.2), deterministic part. The injection classifier is added in Phase 3."""
 
+# From saathi.modules.conversation.domain.state — the data passed between chat steps: ChatState
+#   = the data passed between chat steps.
 from saathi.modules.conversation.domain.state import ChatState
 
 # Longest allowed customer message.

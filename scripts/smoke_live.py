@@ -23,17 +23,28 @@ password in the terminal (never stored or printed). The test bot is deleted at t
 pass --keep. Never prints tokens, passwords or keys. Exit code 1 if any step fails.
 """
 
+# From __future__ — Python language switches: annotations = lets type hints mention classes
+#   defined later.
 from __future__ import annotations
 
+# argparse — reads command-line options such as --keep.
 import argparse
+# base64 — turns bytes into text and back.
 import base64
+# getpass — asks for a password without showing it on screen.
 import getpass
+# json — reads and writes JSON text.
 import json
+# os — talks to the operating system (environment variables, files).
 import os
+# sys — Python runtime details (output streams, exit codes).
 import sys
+# time — clocks and timers.
 import time
+# From pathlib — file and folder paths: Path = a file or folder path.
 from pathlib import Path
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
 
 REPO_ROOT = Path(__file__).resolve().parents[1]

@@ -11,6 +11,8 @@ POST /api/v1/webhooks/whatsapp  - verify X-Hub-Signature-256 on the RAW body, en
 Never call the LLM inside the webhook request: Meta retries slow webhooks -> duplicate replies.
 """
 
+# From fastapi — the web framework that turns Python functions into web endpoints: APIRouter = a
+#   group of related endpoints.
 from fastapi import APIRouter
 
 router = APIRouter(tags=["webhooks"])

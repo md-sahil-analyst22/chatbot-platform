@@ -4,7 +4,12 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """PDF parser adapter (P2.3). Requires the 'ingestion' extra: uv sync --extra ingestion."""
 
+# From saathi.modules.knowledge.adapters — parser, embedder and reranker registries:
+#   parser_registry = document parsers.
 from saathi.modules.knowledge.adapters import parser_registry
+
+# From saathi.modules.knowledge.ports.providers — parser, embedder and reranker contracts:
+#   ParsedDocument = a parsed document; ParsedPage = one parsed page.
 from saathi.modules.knowledge.ports.providers import ParsedDocument, ParsedPage
 
 
@@ -14,6 +19,7 @@ class PyMuPdfParser:
 
     # PDF bytes -> text per page.
     def parse(self, data: bytes, filename: str) -> ParsedDocument:
+        # pymupdf — PyMuPDF, reads PDF files.
         import pymupdf  # lazy: only the worker image needs this dependency
 
         pages: list[ParsedPage] = []

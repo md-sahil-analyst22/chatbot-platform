@@ -10,17 +10,37 @@ Readiness checks are swapped for fakes after the lifespan starts, so no Postgres
 needed (the real ones are exercised by `make up` + /ready).
 """
 
+# asyncio — runs many waiting tasks at once (async).
 import asyncio
+
+# logging — Python's built-in logging.
 import logging
+
+# From collections.abc — standard type names for collections: AsyncIterator = type for something
+#   looped with `async for`.
 from collections.abc import AsyncIterator
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# pytest — the test framework.
 import pytest
+
+# structlog — structured logging (JSON log lines).
 import structlog
+
+# From fastapi — the web framework that turns Python functions into web endpoints: FastAPI = the
+#   web app object.
 from fastapi import FastAPI
+
+# From structlog.testing — structlog's test helpers: capture_logs = records logs so a test can
+#   check them.
 from structlog.testing import capture_logs
 
+# From saathi.api — the HTTP layer shared by all modules: health = the health endpoints module.
 from saathi.api import health
+
+# From saathi.main — the FastAPI app factory: create_app = builds the FastAPI app.
 from saathi.main import create_app
 
 

@@ -5,11 +5,21 @@
 #      fulfil them.
 # Note: 🔒 Every method takes tenant_id, so a call can never forget which tenant it serves (R15).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you.
 from dataclasses import dataclass
+
+# From typing — type-hint helpers: Protocol = an interface: any class with these methods fits.
 from typing import Protocol
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From saathi.modules.tenancy.domain.bot_config — the bot configuration business objects:
+#   BotConfigVersion = one saved version.
 from saathi.modules.tenancy.domain.bot_config import BotConfigVersion
+
+# From saathi.modules.tenancy.domain.entities — the Bot business object: Bot = one chatbot.
 from saathi.modules.tenancy.domain.entities import Bot
 
 

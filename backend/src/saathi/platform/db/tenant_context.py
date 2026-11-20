@@ -22,11 +22,22 @@ connection that used it earlier); nullif() makes both NULL, so the policy matche
 fail closed.
 """
 
+# From collections.abc — standard type names for collections: AsyncIterator = type for something
+#   looped with `async for`.
 from collections.abc import AsyncIterator
+
+# From contextlib — helpers for building `with` blocks: asynccontextmanager = turns an async
+#   function into an `async with` block.
 from contextlib import asynccontextmanager
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From sqlalchemy — SQLAlchemy, our database toolkit: text = a raw SQL snippet.
 from sqlalchemy import text
+
+# From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools: AsyncSession =
+#   one unit of database work; async_sessionmaker = factory that creates sessions.
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 

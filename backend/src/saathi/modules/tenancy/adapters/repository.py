@@ -5,15 +5,34 @@
 # Safety: 🔒 Every query filters by tenant_id, AND Postgres row-level security checks again
 #         (defence in depth).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From sqlalchemy — SQLAlchemy, our database toolkit: delete = builds a DELETE query; select =
+#   builds a SELECT query; update = builds an UPDATE query.
 from sqlalchemy import delete, select, update
+
+# From sqlalchemy.exc — database errors: IntegrityError = a database rule was broken (e.g.
+#   duplicate).
 from sqlalchemy.exc import IntegrityError
+
+# From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools: AsyncSession =
+#   one unit of database work.
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# From saathi.modules.tenancy.adapters.orm — the tenancy table classes: BotRow = bots table;
+#   TenantRow = tenants table.
 from saathi.modules.tenancy.adapters.orm import BotRow, TenantRow
+
+# From saathi.modules.tenancy.domain.entities — the Bot business object: Bot = one chatbot.
 from saathi.modules.tenancy.domain.entities import Bot
+
+# From saathi.platform.db.errors — reads which database rule was broken: violated_constraint =
+#   name of the broken rule.
 from saathi.platform.db.errors import violated_constraint
+
+# From saathi.platform.errors — our error types: ConflictError = 409 clash with existing data;
+#   NotFoundError = 404 not found.
 from saathi.platform.errors import ConflictError, NotFoundError
 
 _DUPLICATE_NAME = "uq_bots_tenant_name"

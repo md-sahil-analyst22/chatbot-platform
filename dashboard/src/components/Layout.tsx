@@ -2,6 +2,8 @@
 // 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
 // What: The frame around every page: navigation on the side, the current page in the middle.
 // ────────────────────────────────────────────────────────────────────────────────────────────
+// From react-router-dom — page navigation by URL: NavLink = a menu link that highlights when
+//   active; Outlet = where the current page appears.
 import { NavLink, Outlet } from "react-router-dom";
 
 // <Outlet /> is where the current page appears.

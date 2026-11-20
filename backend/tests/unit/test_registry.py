@@ -3,9 +3,14 @@
 # What it tests: The vendor registry: register, create, duplicates and unknown names.
 # How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# pytest — the test framework.
 import pytest
 
+# From saathi.platform.errors — our error types: ConfigurationError = a setting is missing.
 from saathi.platform.errors import ConfigurationError
+
+# From saathi.platform.providers — the vendor registry: ProviderRegistry = the 'phone book' of
+#   vendor adapters.
 from saathi.platform.providers import ProviderRegistry
 
 

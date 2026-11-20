@@ -13,25 +13,65 @@ The container owns lifecycles. Consumers never receive the whole container: api/
 exposes one narrow dependency per resource (Interface Segregation).
 """
 
+# From __future__ — Python language switches: annotations = lets type hints mention classes
+#   defined later.
 from __future__ import annotations
 
+# From collections.abc — standard type names for collections: Awaitable = type for something you
+#   can `await`; Callable = type for a function; Mapping = type for a read-only dictionary.
 from collections.abc import Awaitable, Callable, Mapping
+
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you.
 from dataclasses import dataclass
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# From redis.asyncio — async client for Redis, the fast in-memory store: Redis = the Redis
+#   client.
 from redis.asyncio import Redis
+
+# From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools: AsyncEngine =
+#   the async connection pool; AsyncSession = one unit of database work; async_sessionmaker =
+#   factory that creates sessions.
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 # Importing this file registers every vendor adapter (Gemini, Sarvam, Supabase...) in its phone
 # book.
+# From saathi.bootstrap — start-up wiring: providers = importing it registers every vendor
+#   adapter.
 from saathi.bootstrap import providers  # noqa: F401  (registers all adapters)
+
+# From saathi.modules.tenancy.adapters.membership_lookup — login -> workspace lookup:
+#   SqlAlchemyMembershipLookup = finds a user's workspace.
 from saathi.modules.tenancy.adapters.membership_lookup import SqlAlchemyMembershipLookup
+
+# From saathi.platform.config.model_catalog — the list of AI models tenants may choose:
+#   ModelCatalog = the catalog; default_catalog = builds the catalog.
 from saathi.platform.config.model_catalog import ModelCatalog, default_catalog
+
+# From saathi.platform.config.settings — the app's core settings: Settings = the settings class.
 from saathi.platform.config.settings import Settings
+
+# From saathi.platform.db.engine — the database connection pool: build_engine = creates the
+#   connection pool; build_sessionmaker = creates the session factory; ping_database = checks the
+#   database answers.
 from saathi.platform.db.engine import build_engine, build_sessionmaker, ping_database
+
+# From saathi.platform.errors — our error types: ConfigurationError = a setting is missing.
 from saathi.platform.errors import ConfigurationError
+
+# From saathi.platform.http — the shared HTTP client: build_http_client = creates the shared
+#   HTTP client.
 from saathi.platform.http import build_http_client
+
+# From saathi.platform.security.auth — who is calling and what they may do: TokenVerifier =
+#   contract: check a login token.
 from saathi.platform.security.auth import TokenVerifier
+
+# From saathi.platform.security.jwt_verifier — the login-token checker: JwksTokenVerifier = the
+#   real login checker.
 from saathi.platform.security.jwt_verifier import JwksTokenVerifier
 
 

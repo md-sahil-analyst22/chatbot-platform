@@ -15,15 +15,30 @@ Every failure raises AuthenticationError / AuthorizationError with a generic mes
 precise reason is logged without the token (R16, R17).
 """
 
+# time — clocks and timers.
 import time
+
+# From collections.abc — standard type names for collections: Callable = type for a function.
 from collections.abc import Callable
+
+# From typing — type-hint helpers: Any = any type; NoReturn = a function that always raises.
 from typing import Any, NoReturn
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# jwt — PyJWT, reads and checks login tokens (JWTs).
 import jwt
+
+# structlog — structured logging (JSON log lines).
 import structlog
 
+# From saathi.platform.errors — our error types: AuthenticationError = 401 not logged in;
+#   AuthorizationError = 403 role not allowed; InfrastructureError = our side broke.
 from saathi.platform.errors import AuthenticationError, AuthorizationError, InfrastructureError
+
+# From saathi.platform.security.auth — who is calling and what they may do: MembershipLookup =
+#   contract: find a user's workspaces; Principal = the verified caller.
 from saathi.platform.security.auth import MembershipLookup, Principal
 
 # Asymmetric only: HS256 would let the PUBLIC key be used as an HMAC secret; "none" is no

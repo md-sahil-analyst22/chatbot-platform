@@ -4,13 +4,25 @@
 #                file bytes.
 # How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# base64 — turns bytes into text and back.
 import base64
+
+# os — talks to the operating system (environment variables, files).
 import os
 
+# pytest — the test framework.
 import pytest
 
+# From saathi.platform.errors — our error types: ConfigurationError = a setting is missing;
+#   InfrastructureError = our side broke; ValidationError = 422 invalid input.
 from saathi.platform.errors import ConfigurationError, InfrastructureError, ValidationError
+
+# From saathi.platform.security.crypto — encryption of secrets: AesGcmCipher = the
+#   encrypt/decrypt tool.
 from saathi.platform.security.crypto import AesGcmCipher
+
+# From saathi.platform.security.uploads — upload checks by real file bytes: validate_logo =
+#   checks a logo upload.
 from saathi.platform.security.uploads import validate_logo
 
 

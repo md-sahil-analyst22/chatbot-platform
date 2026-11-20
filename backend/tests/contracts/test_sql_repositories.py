@@ -14,20 +14,52 @@ The contracts use random tenant/bot ids; the seeding wrappers only insert the pa
 foreign keys need, then call the real repository unchanged.
 """
 
+# From collections.abc — standard type names for collections: AsyncIterator = type for something
+#   looped with `async for`.
 from collections.abc import AsyncIterator
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type; uuid4 = makes a random id.
 from uuid import UUID, uuid4
 
+# pytest — the test framework.
 import pytest
+
+# From sqlalchemy — SQLAlchemy, our database toolkit: text = a raw SQL snippet.
 from sqlalchemy import text
+
+# From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools: AsyncEngine =
+#   the async connection pool; AsyncSession = one unit of database work.
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+
+# From tests.contracts.test_bot_config_repository_contract — shared config-store test rules:
+#   BotConfigRepositoryContract = the shared config-store tests.
 from tests.contracts.test_bot_config_repository_contract import BotConfigRepositoryContract
+
+# From tests.contracts.test_bot_repository_contract — shared bot-store test rules:
+#   BotRepositoryContract = the shared bot-store tests.
 from tests.contracts.test_bot_repository_contract import BotRepositoryContract
+
+# From tests.db_fixtures — real-Postgres test helpers: requires_db = skips the test when no real
+#   Postgres is available.
 from tests.db_fixtures import requires_db
 
+# From saathi.modules.tenancy.adapters.config_repository — database code for config versions:
+#   SqlAlchemyBotConfigRepository = config versions in the database.
 from saathi.modules.tenancy.adapters.config_repository import SqlAlchemyBotConfigRepository
+
+# From saathi.modules.tenancy.adapters.repository — database code for bots and tenants:
+#   SqlAlchemyBotRepository = bots in the database.
 from saathi.modules.tenancy.adapters.repository import SqlAlchemyBotRepository
+
+# From saathi.modules.tenancy.domain.bot_config — the bot configuration business objects:
+#   BotConfigVersion = one saved version.
 from saathi.modules.tenancy.domain.bot_config import BotConfigVersion
+
+# From saathi.modules.tenancy.domain.entities — the Bot business object: Bot = one chatbot.
 from saathi.modules.tenancy.domain.entities import Bot
+
+# From saathi.modules.tenancy.ports.repositories — tenancy storage contracts:
+#   BotConfigRepository = contract: store config versions; BotRepository = contract: store bots.
 from saathi.modules.tenancy.ports.repositories import BotConfigRepository, BotRepository
 
 pytestmark = [pytest.mark.integration, requires_db]

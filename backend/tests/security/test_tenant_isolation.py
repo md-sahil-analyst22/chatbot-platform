@@ -19,26 +19,73 @@ Plan (from the original placeholder):
 Plus: the two SECURITY DEFINER lookups work for the app role and leak nothing else.
 """
 
+# asyncio — runs many waiting tasks at once (async).
 import asyncio
+
+# From collections.abc — standard type names for collections: AsyncIterator = type for something
+#   looped with `async for`.
 from collections.abc import AsyncIterator
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type; uuid4 = makes a random id.
 from uuid import UUID, uuid4
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# pytest — the test framework.
 import pytest
+
+# From sqlalchemy — SQLAlchemy, our database toolkit: select = builds a SELECT query; text = a
+#   raw SQL snippet.
 from sqlalchemy import select, text
+
+# From sqlalchemy.exc — database errors: DBAPIError = error raised by the database driver.
 from sqlalchemy.exc import DBAPIError
+
+# From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools: AsyncEngine =
+#   the async connection pool; AsyncSession = one unit of database work; async_sessionmaker =
+#   factory that creates sessions.
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+
+# From tests.db_fixtures — real-Postgres test helpers: requires_db = skips the test when no real
+#   Postgres is available.
 from tests.db_fixtures import requires_db
+
+# From tests.fakes.builders — one-line builders for test objects: NOW = a fixed time for tests;
+#   make_catalog = builds a test catalog; make_config = builds a test config.
 from tests.fakes.builders import NOW, make_catalog, make_config
 
+# From saathi.api.deps — shared request helpers: the verified caller, a tenant-locked database
+#   session: get_principal = verifies the login token.
 from saathi.api.deps import get_principal
+
+# From saathi.main — the FastAPI app factory: create_app = builds the FastAPI app.
 from saathi.main import create_app
+
+# From saathi.modules.tenancy.adapters.config_repository — database code for config versions:
+#   SqlAlchemyBotConfigRepository = config versions in the database.
 from saathi.modules.tenancy.adapters.config_repository import SqlAlchemyBotConfigRepository
+
+# From saathi.modules.tenancy.adapters.membership_lookup — login -> workspace lookup:
+#   SqlAlchemyMembershipLookup = finds a user's workspace.
 from saathi.modules.tenancy.adapters.membership_lookup import SqlAlchemyMembershipLookup
+
+# From saathi.modules.tenancy.adapters.orm — the tenancy table classes: BotRow = bots table.
 from saathi.modules.tenancy.adapters.orm import BotRow
+
+# From saathi.modules.tenancy.domain.bot_config — the bot configuration business objects:
+#   BotConfigVersion = one saved version; ConfigStatus = draft/published/archived.
 from saathi.modules.tenancy.domain.bot_config import BotConfigVersion, ConfigStatus
+
+# From saathi.platform.db.tenant_context — locks a database session to one tenant:
+#   tenant_session = a session locked to one tenant.
 from saathi.platform.db.tenant_context import tenant_session
+
+# From saathi.platform.errors — our error types: ConflictError = 409 clash with existing data.
 from saathi.platform.errors import ConflictError
+
+# From saathi.platform.security.auth — who is calling and what they may do: Membership = one
+#   (workspace, role) pair; Principal = the verified caller; Role = viewer/agent/admin/owner.
 from saathi.platform.security.auth import Membership, Principal, Role
 
 pytestmark = [pytest.mark.integration, requires_db]

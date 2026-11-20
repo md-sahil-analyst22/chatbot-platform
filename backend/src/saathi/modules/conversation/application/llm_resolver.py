@@ -5,12 +5,26 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Per-bot model resolution: catalog key + bot settings -> a ready CompletionClient."""
 
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you.
 from dataclasses import dataclass
+
+# From typing — type-hint helpers: Protocol = an interface: any class with these methods fits.
 from typing import Protocol
 
+# From saathi.modules.conversation.ports.credentials — contract for getting a vendor API key:
+#   CredentialSource = contract: give me the API key.
 from saathi.modules.conversation.ports.credentials import CredentialSource
+
+# From saathi.modules.conversation.ports.llm — AI language-model contracts: CompletionClient =
+#   contract: messages in, reply out.
 from saathi.modules.conversation.ports.llm import CompletionClient
+
+# From saathi.platform.config.model_catalog — the list of AI models tenants may choose:
+#   ModelCatalog = the catalog.
 from saathi.platform.config.model_catalog import ModelCatalog
+
+# From saathi.platform.errors — our error types: ConfigurationError = a setting is missing.
 from saathi.platform.errors import ConfigurationError
 
 

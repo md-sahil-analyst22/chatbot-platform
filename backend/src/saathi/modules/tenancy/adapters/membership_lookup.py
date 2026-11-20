@@ -11,9 +11,15 @@ user_accounts is under RLS, so the app role reads it through the narrow SECURITY
 function resolve_user_membership() (migration 0003), which returns only tenant ids and roles.
 """
 
+# From sqlalchemy — SQLAlchemy, our database toolkit: text = a raw SQL snippet.
 from sqlalchemy import text
+
+# From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools: AsyncSession =
+#   one unit of database work; async_sessionmaker = factory that creates sessions.
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+# From saathi.platform.security.auth — who is calling and what they may do: Membership = one
+#   (workspace, role) pair; Role = viewer/agent/admin/owner.
 from saathi.platform.security.auth import Membership, Role
 
 # More rows than this means something is wrong; never load an unbounded list per request.

@@ -8,17 +8,36 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """BYOK use cases. Plaintext keys exist only inside these methods and are never returned."""
 
+# From collections.abc — standard type names for collections: Callable = type for a function.
 from collections.abc import Callable
+
+# From datetime — dates and times: UTC = the UTC time zone; datetime = a date + time value.
 from datetime import UTC, datetime
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type; uuid4 = makes a random id.
 from uuid import UUID, uuid4
 
+# From saathi.modules.credentials.domain.credential — the saved-API-key business object:
+#   CredentialStatus = active or revoked; ProviderCredential = one saved key's details;
+#   associated_data = the owner label bound into encryption.
 from saathi.modules.credentials.domain.credential import (
     CredentialStatus,
     ProviderCredential,
     associated_data,
 )
+
+# From saathi.modules.credentials.ports.vault — contracts the credentials module needs:
+#   CredentialRepository = contract: store keys; KeyValidator = contract: ask the vendor if a key
+#   works; SecretCipher = contract: lock/unlock secrets.
 from saathi.modules.credentials.ports.vault import CredentialRepository, KeyValidator, SecretCipher
+
+# From saathi.platform.errors — our error types: NotFoundError = 404 not found; ValidationError
+#   = 422 invalid input.
 from saathi.platform.errors import NotFoundError, ValidationError
+
+# From saathi.platform.security.auth — who is calling and what they may do: Principal = the
+#   verified caller; Role = viewer/agent/admin/owner; require_role = stops with 403 if the role is
+#   too low.
 from saathi.platform.security.auth import Principal, Role, require_role
 
 

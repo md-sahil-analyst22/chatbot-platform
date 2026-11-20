@@ -8,15 +8,35 @@
 Implements SpeechToText and TextToSpeech. Settings: SARVAM_*.
 """
 
+# base64 — turns bytes into text and back.
 import base64
+
+# From typing — type-hint helpers: Any = any type.
 from typing import Any
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# From pydantic — checks data against declared types and rules: SecretStr = text that hides
+#   itself when printed or logged.
 from pydantic import SecretStr
+
+# From pydantic_settings — reads settings from environment variables and .env: BaseSettings =
+#   parent class for a group of settings; SettingsConfigDict = where settings are read from (.env,
+#   prefix).
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# From saathi.modules.channels.adapters — speech vendor registries: stt_registry =
+#   speech-to-text vendors; tts_registry = text-to-speech vendors.
 from saathi.modules.channels.adapters import stt_registry, tts_registry
+
+# From saathi.modules.channels.ports.speech — speech contracts: SynthesizedSpeech = generated
+#   audio; Transcript = text heard in audio.
 from saathi.modules.channels.ports.speech import SynthesizedSpeech, Transcript
+
+# From saathi.platform.errors — our error types: ConfigurationError = a setting is missing;
+#   ProviderError = a vendor failed; ProviderTimeoutError = a vendor was too slow; ValidationError
+#   = 422 invalid input.
 from saathi.platform.errors import (
     ConfigurationError,
     ProviderError,

@@ -5,21 +5,55 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Importing bootstrap registers every adapter; resolvers fail clearly without keys."""
 
+# From pathlib — file and folder paths: Path = a file or folder path.
 from pathlib import Path
+
+# From typing — type-hint helpers: Any = any type.
 from typing import Any
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# pytest — the test framework.
 import pytest
 
+# From saathi.bootstrap.credentials — where the platform's own vendor API keys come from:
+#   PlatformCredentialSource = hands out the platform's own vendor keys.
 from saathi.bootstrap.credentials import PlatformCredentialSource
+
+# From saathi.bootstrap.providers — connects vendor adapters to their registries:
+#   build_llm_resolver = creates the AI-model resolver.
 from saathi.bootstrap.providers import build_llm_resolver
+
+# From saathi.modules.channels.adapters — speech vendor registries: stt_registry =
+#   speech-to-text vendors; tts_registry = text-to-speech vendors.
 from saathi.modules.channels.adapters import stt_registry, tts_registry
+
+# From saathi.modules.conversation.adapters — the AI language-model registry:
+#   completion_registry = the AI language-model registry.
 from saathi.modules.conversation.adapters import completion_registry
+
+# From saathi.modules.conversation.application.llm_resolver — picks the AI model and key for a
+#   bot: ModelSelection = chosen vendor + model + limits.
 from saathi.modules.conversation.application.llm_resolver import ModelSelection
+
+# From saathi.modules.knowledge.adapters — parser, embedder and reranker registries:
+#   embedder_registry = embedder vendors; parser_registry = document parsers; reranker_registry =
+#   reranker vendors.
 from saathi.modules.knowledge.adapters import embedder_registry, parser_registry, reranker_registry
+
+# From saathi.platform.config.settings — the app's core settings: Settings = the settings class.
 from saathi.platform.config.settings import Settings
+
+# From saathi.platform.errors — our error types: ConfigurationError = a setting is missing.
 from saathi.platform.errors import ConfigurationError
+
+# From saathi.platform.providers — the vendor registry: ProviderRegistry = the 'phone book' of
+#   vendor adapters.
 from saathi.platform.providers import ProviderRegistry
+
+# From saathi.platform.storage — file storage contract and registry: object_store_registry =
+#   file storage vendors.
 from saathi.platform.storage import object_store_registry
 
 SELECTION = ModelSelection(

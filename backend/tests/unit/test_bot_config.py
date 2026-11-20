@@ -4,13 +4,28 @@
 #                changes).
 # How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# From dataclasses — quick classes that mainly hold data: replace = copies an object with some
+#   fields changed.
 from dataclasses import replace
+
+# From uuid — unique ids (UUIDs): uuid4 = makes a random id.
 from uuid import uuid4
 
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.builders — one-line builders for test objects: NOW = a fixed time for tests;
+#   make_config = builds a test config.
 from tests.fakes.builders import NOW, make_config
 
+# From saathi.modules.tenancy.adapters.config_mapper — BotConfig <-> JSON conversion:
+#   config_from_json = JSON -> BotConfig; config_to_json = BotConfig -> JSON.
 from saathi.modules.tenancy.adapters.config_mapper import config_from_json, config_to_json
+
+# From saathi.modules.tenancy.domain.bot_config — the bot configuration business objects:
+#   BotConfigVersion = one saved version; Branding = how the widget looks; ConfigStatus =
+#   draft/published/archived; GenerationSettings = model and answer style; PromptSettings = the
+#   tenant's instructions; ResponseStyle = precise/balanced/friendly.
 from saathi.modules.tenancy.domain.bot_config import (
     BotConfigVersion,
     Branding,
@@ -19,6 +34,9 @@ from saathi.modules.tenancy.domain.bot_config import (
     PromptSettings,
     ResponseStyle,
 )
+
+# From saathi.platform.errors — our error types: ConflictError = 409 clash with existing data;
+#   ValidationError = 422 invalid input.
 from saathi.platform.errors import ConflictError, ValidationError
 
 

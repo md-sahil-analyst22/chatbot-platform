@@ -6,12 +6,24 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """A stored provider key. The domain object NEVER holds the plaintext key."""
 
+# re — regular expressions (text patterns).
 import re
+
+# From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
+#   __init__ and friends for you; replace = copies an object with some fields changed.
 from dataclasses import dataclass, replace
+
+# From datetime — dates and times: datetime = a date + time value.
 from datetime import datetime
+
+# From enum — fixed sets of named values: StrEnum = a fixed set of named text values.
 from enum import StrEnum
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From saathi.platform.errors — our error types: ConflictError = 409 clash with existing data;
+#   ValidationError = 422 invalid input.
 from saathi.platform.errors import ConflictError, ValidationError
 
 _PROVIDER = re.compile(r"[a-z0-9-]{1,30}")

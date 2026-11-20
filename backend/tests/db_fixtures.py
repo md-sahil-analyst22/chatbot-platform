@@ -15,20 +15,39 @@ Use a throwaway database: every test starts by deleting all rows. Never point th
 environment. Without the variables, every test using these fixtures is skipped.
 """
 
+# os — talks to the operating system (environment variables, files).
 import os
+
+# subprocess — runs another program.
 import subprocess
+
+# sys — Python runtime details (output streams, exit codes).
 import sys
+
+# From collections.abc — standard type names for collections: AsyncIterator = type for something
+#   looped with `async for`.
 from collections.abc import AsyncIterator
+
+# From pathlib — file and folder paths: Path = a file or folder path.
 from pathlib import Path
 
+# pytest — the test framework.
 import pytest
+
+# From sqlalchemy — SQLAlchemy, our database toolkit: text = a raw SQL snippet.
 from sqlalchemy import text
+
+# From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools: AsyncEngine =
+#   the async connection pool; AsyncSession = one unit of database work; async_sessionmaker =
+#   factory that creates sessions; create_async_engine = builds a connection pool.
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+
+# From sqlalchemy.pool — connection-pool options: NullPool = no pooling (connect, use, close).
 from sqlalchemy.pool import NullPool
 
 BACKEND = Path(__file__).resolve().parents[1]

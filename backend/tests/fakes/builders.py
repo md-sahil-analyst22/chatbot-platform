@@ -5,16 +5,27 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Small builders so tests read like the domain."""
 
+# From datetime — dates and times: UTC = the UTC time zone; datetime = a date + time value.
 from datetime import UTC, datetime
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type; uuid4 = makes a random id.
 from uuid import UUID, uuid4
 
+# From saathi.modules.tenancy.domain.bot_config — the bot configuration business objects:
+#   BotConfig = one full configuration; Branding = how the widget looks; GenerationSettings =
+#   model and answer style; PromptSettings = the tenant's instructions.
 from saathi.modules.tenancy.domain.bot_config import (
     BotConfig,
     Branding,
     GenerationSettings,
     PromptSettings,
 )
+
+# From saathi.modules.tenancy.domain.entities — the Bot business object: Bot = one chatbot.
 from saathi.modules.tenancy.domain.entities import Bot
+
+# From saathi.platform.config.model_catalog — the list of AI models tenants may choose:
+#   ALL_PLANS = every plan name; ModelCatalog = the catalog; ModelOption = one choosable model.
 from saathi.platform.config.model_catalog import ALL_PLANS, ModelCatalog, ModelOption
 
 

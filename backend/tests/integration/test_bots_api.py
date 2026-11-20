@@ -10,18 +10,43 @@
 Possible only because routes depend on BotService via `get_bot_service` (Dependency Inversion).
 """
 
+# From collections.abc — standard type names for collections: AsyncIterator = type for something
+#   looped with `async for`.
 from collections.abc import AsyncIterator
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type; uuid4 = makes a random id.
 from uuid import UUID, uuid4
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.builders — one-line builders for test objects: make_bot = builds a test bot.
 from tests.fakes.builders import make_bot
+
+# From tests.fakes.in_memory — in-memory stand-ins for the database stores:
+#   InMemoryBotRepository = bots in a dict.
 from tests.fakes.in_memory import InMemoryBotRepository
 
+# From saathi.api.deps — shared request helpers: the verified caller, a tenant-locked database
+#   session: get_principal = verifies the login token.
 from saathi.api.deps import get_principal
+
+# From saathi.main — the FastAPI app factory: create_app = builds the FastAPI app.
 from saathi.main import create_app
+
+# From saathi.modules.tenancy.api.deps — builds the tenancy services per request:
+#   get_bot_service = builds a BotService.
 from saathi.modules.tenancy.api.deps import get_bot_service
+
+# From saathi.modules.tenancy.application.services — the bot use cases: BotService = the bot use
+#   cases.
 from saathi.modules.tenancy.application.services import BotService
+
+# From saathi.platform.security.auth — who is calling and what they may do: Principal = the
+#   verified caller; Role = viewer/agent/admin/owner.
 from saathi.platform.security.auth import Principal, Role
 
 TENANT_A = UUID("00000000-0000-0000-0000-00000000000a")

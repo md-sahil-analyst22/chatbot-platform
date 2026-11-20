@@ -7,29 +7,58 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Bot Studio + public widget endpoints with in-memory fakes (no DB)."""
 
+# From collections.abc — standard type names for collections: AsyncIterator = type for something
+#   looped with `async for`.
 from collections.abc import AsyncIterator
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.builders — one-line builders for test objects: make_bot = builds a test bot;
+#   make_catalog = builds a test catalog.
 from tests.fakes.builders import make_bot, make_catalog
+
+# From tests.fakes.in_memory — in-memory stand-ins for the database stores:
+#   InMemoryBotConfigRepository = config versions in a dict; InMemoryBotRepository = bots in a
+#   dict; InMemoryTenantRepository = tenants in a dict.
 from tests.fakes.in_memory import (
     InMemoryBotConfigRepository,
     InMemoryBotRepository,
     InMemoryTenantRepository,
 )
 
+# From saathi.api.deps — shared request helpers: the verified caller, a tenant-locked database
+#   session: get_principal = verifies the login token.
 from saathi.api.deps import get_principal
+
+# From saathi.main — the FastAPI app factory: create_app = builds the FastAPI app.
 from saathi.main import create_app
+
+# From saathi.modules.tenancy.api.deps — builds the tenancy services per request: ResolvedWidget
+#   = result of resolving a widget key; get_bot_config_service = builds a BotConfigService;
+#   get_resolved_widget = resolves a widget key.
 from saathi.modules.tenancy.api.deps import (
     ResolvedWidget,
     get_bot_config_service,
     get_resolved_widget,
 )
+
+# From saathi.modules.tenancy.application.config_service — the Bot Studio use cases:
+#   BotConfigService = the Bot Studio use cases; PublicWidgetConfigService = reads the widget-safe
+#   config.
 from saathi.modules.tenancy.application.config_service import (
     BotConfigService,
     PublicWidgetConfigService,
 )
+
+# From saathi.platform.security.auth — who is calling and what they may do: Principal = the
+#   verified caller; Role = viewer/agent/admin/owner.
 from saathi.platform.security.auth import Principal, Role
 
 TENANT = UUID("00000000-0000-0000-0000-0000000000cc")

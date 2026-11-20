@@ -9,11 +9,24 @@
 Per-tenant tokens (encrypted at rest) replace the single test token in Phase 4.
 """
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# From pydantic — checks data against declared types and rules: SecretStr = text that hides
+#   itself when printed or logged.
 from pydantic import SecretStr
+
+# From pydantic_settings — reads settings from environment variables and .env: BaseSettings =
+#   parent class for a group of settings; SettingsConfigDict = where settings are read from (.env,
+#   prefix).
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# From saathi.modules.channels.domain.message — channel-neutral messages: Channel = where a
+#   message came from; OutboundMessage = a reply to a customer.
 from saathi.modules.channels.domain.message import Channel, OutboundMessage
+
+# From saathi.platform.errors — our error types: ProviderError = a vendor failed;
+#   ProviderTimeoutError = a vendor was too slow.
 from saathi.platform.errors import ProviderError, ProviderTimeoutError
 
 

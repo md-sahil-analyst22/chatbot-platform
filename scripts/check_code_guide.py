@@ -11,11 +11,17 @@ Exit code 1 if anything is missing, so the guide can be kept in step with the co
 Dunder methods (__init__ etc.) are ignored; every other name must appear in the guide.
 """
 
+# From __future__ — Python language switches: annotations = lets type hints mention classes
+#   defined later.
 from __future__ import annotations
 
+# ast — reads Python source code as a tree.
 import ast
+# re — regular expressions (text patterns).
 import re
+# sys — Python runtime details (output streams, exit codes).
 import sys
+# From pathlib — file and folder paths: Path = a file or folder path.
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]

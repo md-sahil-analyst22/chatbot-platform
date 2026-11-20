@@ -6,14 +6,29 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """BotConfigRepository contract. The SQL implementation runs it on real Postgres (tests/db/)."""
 
+# From uuid — unique ids (UUIDs): uuid4 = makes a random id.
 from uuid import uuid4
 
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.builders — one-line builders for test objects: NOW = a fixed time for tests;
+#   make_config = builds a test config.
 from tests.fakes.builders import NOW, make_config
+
+# From tests.fakes.in_memory — in-memory stand-ins for the database stores:
+#   InMemoryBotConfigRepository = config versions in a dict.
 from tests.fakes.in_memory import InMemoryBotConfigRepository
 
+# From saathi.modules.tenancy.domain.bot_config — the bot configuration business objects:
+#   BotConfigVersion = one saved version; ConfigStatus = draft/published/archived.
 from saathi.modules.tenancy.domain.bot_config import BotConfigVersion, ConfigStatus
+
+# From saathi.modules.tenancy.ports.repositories — tenancy storage contracts:
+#   BotConfigRepository = contract: store config versions.
 from saathi.modules.tenancy.ports.repositories import BotConfigRepository
+
+# From saathi.platform.errors — our error types: ConflictError = 409 clash with existing data.
 from saathi.platform.errors import ConflictError
 
 

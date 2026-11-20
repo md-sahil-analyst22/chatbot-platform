@@ -4,10 +4,20 @@
 # Security: 🔒 Input models forbid unknown fields (so nobody can sneak in a tenant_id) and limit
 #           every length (R19).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# From datetime — dates and times: datetime = a date + time value.
 from datetime import datetime
+
+# From typing — type-hint helpers: Annotated = a type plus extra info (e.g. a FastAPI
+#   dependency); Any = any type; Literal = only these exact values.
 from typing import Annotated, Any, Literal
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From pydantic — checks data against declared types and rules: BaseModel = parent class for
+#   request/response shapes; ConfigDict = model options such as extra='forbid'; Field = per-field
+#   rules (length, range, default); model_validator = a check that looks at the whole model at
+#   once.
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Language = Literal["en", "hi", "bn"]

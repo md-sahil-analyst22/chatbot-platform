@@ -2,10 +2,17 @@
 // 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
 // What: The home page: lists your bots and has a small form to create a new one.
 // ────────────────────────────────────────────────────────────────────────────────────────────
+// From react — React, the library that draws the user interface: useState = remembers a value
+//   between redraws; FormEvent = type of a form-submit event.
 import { useState, type FormEvent } from "react";
+// From react-router-dom — page navigation by URL: Link = a link to another page; useNavigate =
+//   moves to another page from code.
 import { Link, useNavigate } from "react-router-dom";
+// From ../../components/Field — the shared form-field component: Field = label + input + error.
 import { Field } from "../../components/Field";
+// From ../../lib/api/types — the API data types: Language = en/hi/bn type.
 import type { Language } from "../../lib/api/types";
+// From ./api — this feature's API hooks: useBots = load the bots; useCreateBot = create a bot.
 import { useBots, useCreateBot } from "./api";
 
 // The languages a bot can speak.

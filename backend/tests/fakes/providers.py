@@ -6,14 +6,34 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Deterministic provider fakes. `mode` simulates failures for contract tests."""
 
+# hashlib — fingerprints (hashes) such as SHA-256.
 import hashlib
+
+# re — regular expressions (text patterns).
 import re
+
+# From collections.abc — standard type names for collections: Sequence = type for a read-only
+#   list.
 from collections.abc import Sequence
+
+# From typing — type-hint helpers: Literal = only these exact values.
 from typing import Literal
 
+# From saathi.modules.channels.ports.speech — speech contracts: SynthesizedSpeech = generated
+#   audio; Transcript = text heard in audio.
 from saathi.modules.channels.ports.speech import SynthesizedSpeech, Transcript
+
+# From saathi.modules.conversation.ports.llm — AI language-model contracts: ChatMessage = one
+#   chat message; LLMResponse = the model's reply and token counts.
 from saathi.modules.conversation.ports.llm import ChatMessage, LLMResponse
+
+# From saathi.modules.knowledge.ports.providers — parser, embedder and reranker contracts:
+#   RerankResult = one reranked result.
 from saathi.modules.knowledge.ports.providers import RerankResult
+
+# From saathi.platform.errors — our error types: NotFoundError = 404 not found; ProviderError =
+#   a vendor failed; ProviderTimeoutError = a vendor was too slow; ValidationError = 422 invalid
+#   input.
 from saathi.platform.errors import (
     NotFoundError,
     ProviderError,

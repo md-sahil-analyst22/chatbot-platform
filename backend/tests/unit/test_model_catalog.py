@@ -3,11 +3,22 @@
 # What it tests: The model catalog: which models appear and which plan may use them.
 # How to run: cd backend && uv run pytest tests/unit (fast, no database or network).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.builders — one-line builders for test objects: make_catalog = builds a test
+#   catalog.
 from tests.fakes.builders import make_catalog
 
+# From saathi.modules.conversation.application.llm_resolver — picks the AI model and key for a
+#   bot: select_model = catalog key -> vendor + model.
 from saathi.modules.conversation.application.llm_resolver import select_model
+
+# From saathi.platform.config.model_catalog — the list of AI models tenants may choose:
+#   CatalogSettings = model ids from .env; default_catalog = builds the catalog.
 from saathi.platform.config.model_catalog import CatalogSettings, default_catalog
+
+# From saathi.platform.errors — our error types: ValidationError = 422 invalid input.
 from saathi.platform.errors import ValidationError
 
 

@@ -12,8 +12,11 @@ Revises:
 Create Date: 2026-11-11
 """
 
+# From collections.abc — standard type names for collections: Sequence = type for a read-only
+#   list.
 from collections.abc import Sequence
 
+# From alembic — the database migration tool: op = commands that change tables.
 from alembic import op
 
 revision: str = "0001"

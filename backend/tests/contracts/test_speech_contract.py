@@ -3,18 +3,35 @@
 # What it tests: The rules every speech-to-text and text-to-speech adapter must follow.
 # How to run: cd backend && uv run pytest tests/contracts.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# base64 — turns bytes into text and back.
 import base64
+
+# json — reads and writes JSON text.
 import json
 
+# httpx — the HTTP client we use to call other web services.
 import httpx
+
+# pytest — the test framework.
 import pytest
+
+# From tests.fakes.providers — fake vendor adapters: FakeSpeechToText = fake speech-to-text;
+#   FakeTextToSpeech = fake text-to-speech; Mode = which failure a fake should simulate.
 from tests.fakes.providers import FakeSpeechToText, FakeTextToSpeech, Mode
 
+# From saathi.modules.channels.adapters.speech.sarvam_speech — the Sarvam speech adapter:
+#   SarvamSpeechToText = Sarvam audio -> text; SarvamTextToSpeech = Sarvam text -> audio.
 from saathi.modules.channels.adapters.speech.sarvam_speech import (
     SarvamSpeechToText,
     SarvamTextToSpeech,
 )
+
+# From saathi.modules.channels.ports.speech — speech contracts: SpeechToText = speech-to-text
+#   contract; TextToSpeech = text-to-speech contract.
 from saathi.modules.channels.ports.speech import SpeechToText, TextToSpeech
+
+# From saathi.platform.errors — our error types: ProviderError = a vendor failed;
+#   ProviderTimeoutError = a vendor was too slow; ValidationError = 422 invalid input.
 from saathi.platform.errors import ProviderError, ProviderTimeoutError, ValidationError
 
 AUDIO = b"ar price koto?"

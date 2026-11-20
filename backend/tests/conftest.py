@@ -5,6 +5,7 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Test defaults. Unit tests never need real services; integration tests opt in."""
 
+# os — talks to the operating system (environment variables, files).
 import os
 
 os.environ.setdefault("ENV", "test")

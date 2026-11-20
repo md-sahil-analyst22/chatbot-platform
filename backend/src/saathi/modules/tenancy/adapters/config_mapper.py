@@ -6,9 +6,16 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """BotConfig <-> JSON (stored in bot_config_versions.config). `schema` allows future migrations."""
 
+# From typing — type-hint helpers: Any = any type.
 from typing import Any
+
+# From uuid — unique ids (UUIDs): UUID = the unique-id type.
 from uuid import UUID
 
+# From saathi.modules.tenancy.domain.bot_config — the bot configuration business objects:
+#   BotConfig = one full configuration; Branding = how the widget looks; GenerationSettings =
+#   model and answer style; PromptSettings = the tenant's instructions; ResponseStyle =
+#   precise/balanced/friendly.
 from saathi.modules.tenancy.domain.bot_config import (
     BotConfig,
     Branding,

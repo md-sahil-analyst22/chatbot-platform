@@ -10,6 +10,7 @@ Order matters: card numbers are masked before Aadhaar so a 16-digit card is not 
 Over-masking is acceptable; under-masking is not.
 """
 
+# re — regular expressions (text patterns).
 import re
 
 # Each pattern finds one kind of personal data; the order matters (cards before Aadhaar).

@@ -5,12 +5,26 @@
 #        (the website widget, no login, read-only).
 # Used by: main.py attaches this map to the app.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
+# From fastapi — the web framework that turns Python functions into web endpoints: APIRouter = a
+#   group of related endpoints.
 from fastapi import APIRouter
 
+# From saathi.api.health — the /health and /ready endpoints: router = the health endpoints.
 from saathi.api.health import router as health_router
+
+# From saathi.modules.tenancy.api.config_routes — the Bot Studio endpoints: options_router = the
+#   /model-options endpoint.
 from saathi.modules.tenancy.api.config_routes import options_router as model_options_router
+
+# From saathi.modules.tenancy.api.config_routes — the Bot Studio endpoints: router = the Bot
+#   Studio endpoints.
 from saathi.modules.tenancy.api.config_routes import router as bot_config_router
+
+# From saathi.modules.tenancy.api.public_routes — the public widget endpoint: router = the
+#   public widget endpoint.
 from saathi.modules.tenancy.api.public_routes import router as public_widget_router
+
+# From saathi.modules.tenancy.api.routes — the /bots endpoints: router = the /bots endpoints.
 from saathi.modules.tenancy.api.routes import router as tenancy_router
 
 
