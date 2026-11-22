@@ -63,8 +63,8 @@ jobs:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
 
-      - name: Install dependencies (exactly as locked)
-        run: uv sync --locked
+      - name: Install dependencies (exactly as locked, incl. the Phase 2 ingestion extra)
+        run: uv sync --locked --extra ingestion
 
       - name: Format
         run: uv run ruff format --check .

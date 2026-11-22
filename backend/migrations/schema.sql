@@ -498,5 +498,50 @@ DO $$
 
 UPDATE alembic_version SET version_num='0003' WHERE alembic_version.version_num = '0002';
 
+-- Running upgrade 0003 -> 0004
+
+ALTER TABLE sources ADD COLUMN options JSONB;
+
+ALTER TABLE faqs ADD COLUMN embedding VECTOR(1536);
+
+CREATE TABLE unanswered_questions (
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    tenant_id UUID NOT NULL, 
+    bot_id UUID NOT NULL, 
+    conversation_id UUID, 
+    question VARCHAR(2000) NOT NULL, 
+    language VARCHAR(10) NOT NULL, 
+    reason VARCHAR(30) NOT NULL, 
+    top_score DOUBLE PRECISION, 
+    config_version INTEGER, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_unanswered_questions PRIMARY KEY (id), 
+    CONSTRAINT ck_unanswered_questions_reason CHECK (reason IN ('no_results', 'low_confidence', 'unsupported', 'provider_unavailable')), 
+    CONSTRAINT fk_unanswered_questions_tenant_id_bots FOREIGN KEY(tenant_id, bot_id) REFERENCES bots (tenant_id, id) ON DELETE CASCADE, 
+    CONSTRAINT fk_unanswered_questions_tenant_id_conversations FOREIGN KEY(tenant_id, conversation_id) REFERENCES conversations (tenant_id, id) ON DELETE CASCADE, 
+    CONSTRAINT fk_unanswered_questions_tenant_id_tenants FOREIGN KEY(tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
+);
+
+CREATE INDEX ix_unanswered_tenant_bot_created ON unanswered_questions (tenant_id, bot_id, created_at DESC);
+
+ALTER TABLE unanswered_questions ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE unanswered_questions FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation ON unanswered_questions USING (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid) WITH CHECK (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid);
+
+DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'saathi_app') THEN
+                GRANT SELECT, INSERT, UPDATE, DELETE ON unanswered_questions TO saathi_app;
+            END IF;
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+                REVOKE ALL ON unanswered_questions FROM anon, authenticated;
+            END IF;
+        END
+        $$;
+
+UPDATE alembic_version SET version_num='0004' WHERE alembic_version.version_num = '0003';
+
 COMMIT;
 

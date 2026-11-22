@@ -231,3 +231,55 @@ class MessageRow(Base):
     external_message_id: Mapped[str | None] = mapped_column(String(200))
     # When it was written.
     created_at: Mapped[datetime] = created_at()
+
+
+# Table `unanswered_questions`: questions the bot said "I'm not sure" to (P2.14).
+class UnansweredQuestionRow(Base):
+    """Feeds Bot Studio's 'Unanswered questions' screen (Phase 5). Created by migration 0004."""
+
+    # The real table name in Postgres.
+    __tablename__ = "unanswered_questions"
+    # Table-wide rules:
+    __table_args__ = (
+        # 🔒 (tenant_id, bot_id) must point at a bot of the SAME tenant; deleting the bot
+        #   deletes these rows;
+        ForeignKeyConstraint(
+            ["tenant_id", "bot_id"], ["bots.tenant_id", "bots.id"], ondelete="CASCADE"
+        ),
+        # 🔒 the conversation (if any) must belong to the same tenant; deleting it deletes these
+        #   rows too (per-tenant data deletion);
+        ForeignKeyConstraint(
+            ["tenant_id", "conversation_id"],
+            ["conversations.tenant_id", "conversations.id"],
+            ondelete="CASCADE",
+        ),
+        # reason must be one of the known values;
+        CheckConstraint(
+            "reason IN ('no_results', 'low_confidence', 'unsupported', 'provider_unavailable')",
+            name="reason",
+        ),
+        # serves: Studio list of a bot's unanswered questions (newest first) and the bot-delete
+        #   cascade.
+        Index("ix_unanswered_tenant_bot_created", "tenant_id", "bot_id", text("created_at DESC")),
+    )
+
+    # id: random UUID primary key.
+    id: Mapped[uuid.UUID] = uuid_pk()
+    # 🔒 tenant_id: which workspace owns the row.
+    tenant_id: Mapped[uuid.UUID] = tenant_fk()
+    # bot_id: which bot was asked.
+    bot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    # conversation_id: the chat it came from (NULL outside a chat, e.g. evals).
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    # question: the customer's question (bounded).
+    question: Mapped[str] = mapped_column(String(2000))
+    # language: reply language code.
+    language: Mapped[str] = mapped_column(String(10))
+    # reason: why the bot wasn't sure.
+    reason: Mapped[str] = mapped_column(String(30))
+    # top_score: best retrieval score, if any.
+    top_score: Mapped[float | None]
+    # config_version: published config version used, if known.
+    config_version: Mapped[int | None]
+    # When it was asked.
+    created_at: Mapped[datetime] = created_at()

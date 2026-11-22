@@ -25,6 +25,10 @@ from uuid import UUID, uuid4
 #   draft/published/archived.
 from saathi.modules.tenancy.domain.bot_config import BotConfig, BotConfigVersion, ConfigStatus
 
+# From saathi.modules.tenancy.ports.hooks — publish reaction contract: ConfigPublishedHook = lets
+#   other modules react to a publish (wired in bootstrap/).
+from saathi.modules.tenancy.ports.hooks import ConfigPublishedHook
+
 # From saathi.modules.tenancy.ports.repositories — tenancy storage contracts:
 #   BotConfigRepository = contract: store config versions; BotRepository = contract: store bots;
 #   TenantRepository = contract: tenant facts.
@@ -75,6 +79,8 @@ class BotConfigService:
         catalog: ModelCatalog,
         # and a clock (tests pass a fixed one).
         clock: Clock = _utcnow,
+        # optional reaction to a publish (e.g. re-process documents when chunking changed).
+        publish_hook: ConfigPublishedHook | None = None,
     ) -> None:
         # Remember the bot storage.
         self._bots = bots
@@ -86,6 +92,8 @@ class BotConfigService:
         self._catalog = catalog
         # Remember the clock.
         self._clock = clock
+        # Remember the publish reaction (None = nothing reacts).
+        self._publish_hook = publish_hook
 
     # 404 if the bot doesn't exist in the caller's workspace.
     async def _require_bot(self, principal: Principal, bot_id: UUID) -> None:
@@ -171,6 +179,15 @@ class BotConfigService:
         live = target.published()
         # Save that status change.
         await self._configs.update_status(live)
+        # Let other modules react, in this same transaction (their jobs are sent after commit).
+        if self._publish_hook is not None:
+            # previous = what was live before (None on the first publish).
+            await self._publish_hook.on_published(
+                principal.tenant_id,
+                bot_id,
+                current.config if current is not None else None,
+                live.config,
+            )
         # Return the live version.
         return live
 

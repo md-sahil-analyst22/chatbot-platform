@@ -1,7 +1,8 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 # 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
 # What: Python descriptions of the knowledge tables: sources, chunks (with vectors) and FAQs.
-# Note: Created by migration 0002. The vector column has 1,536 numbers (Gemini embeddings).
+# Note: Created by migration 0002; sources.options and faqs.embedding added by migration 0004.
+#       Vector columns have 1,536 numbers (Gemini embeddings, R13).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """SQLAlchemy tables for the knowledge module (sources, chunks, FAQs). Created by migration 0002.
 
@@ -91,8 +92,11 @@ class SourceRow(Base):
     title: Mapped[str | None] = mapped_column(String(300))
     # status: starts as 'queued'.
     status: Mapped[str] = mapped_column(String(20), server_default="queued")
-    content_hash: Mapped[str | None] = mapped_column(String(64))  # sha256: skip unchanged files
+    # sha256 fingerprint of (content + chunking settings + embedding model): skip unchanged ones
+    content_hash: Mapped[str | None] = mapped_column(String(64))
     error: Mapped[str | None] = mapped_column(String(500))  # safe summary, never a stack trace
+    # options: website crawl settings (depth, page budget, include/exclude); NULL for files.
+    options: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     # synced_at: when it was last processed (empty until then).
     synced_at: Mapped[datetime | None]
     # When it was added.
@@ -193,6 +197,9 @@ class FaqRow(Base):
     answer: Mapped[str] = mapped_column(String(4000))
     # is_active: switched on by default.
     is_active: Mapped[bool] = mapped_column(server_default=text("true"))
+    # embedding: the question's vector for semantic FAQ matching (P2.12). NULL only for FAQs
+    #   created before migration 0004; those are never matched until edited.
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIMENSIONS))
     # When it was created.
     created_at: Mapped[datetime] = created_at()
     # When it last changed.

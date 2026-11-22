@@ -224,3 +224,7 @@ __marimo__/
 # Node / dashboard build artefacts (REPO_STRUCTURE 2.1)
 node_modules/
 *.tsbuildinfo
+
+# Generated eval reports (evals/reports/README.md)
+evals/reports/*
+!evals/reports/README.md

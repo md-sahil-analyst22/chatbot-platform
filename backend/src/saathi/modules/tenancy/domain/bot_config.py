@@ -22,7 +22,7 @@ import unicodedata
 
 # From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
 #   __init__ and friends for you; replace = copies an object with some fields changed.
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
 # From datetime — dates and times: datetime = a date + time value.
 from datetime import datetime
@@ -233,10 +233,71 @@ class Branding:
             raise ValidationError("launcher_position must be 'right' or 'left'")
 
 
+# Allowed ranges for retrieval settings (the knowledge module's ChunkingPolicy uses the same
+#   chunk-size/overlap ranges; bootstrap/ converts one into the other).
+MIN_CHUNK_TOKENS, MAX_CHUNK_TOKENS = 200, 1200
+# Overlap may be 0% to 30% of a chunk.
+MAX_CHUNK_OVERLAP = 0.3
+
+
 # @dataclass writes __init__ for us; frozen=True means objects can't be changed after
 #   creation.
 @dataclass(frozen=True, slots=True)
-# One complete configuration = prompt + generation + branding.
+# How the bot finds and trusts knowledge (Phase 2). Defaults come from the P2.16 tuning run.
+class RetrievalSettings:
+    # Chunk size in estimated tokens (applied when documents are ingested).
+    chunk_size_tokens: int = 700
+    # Share of a chunk repeated in the next one (applied when documents are ingested).
+    chunk_overlap_ratio: float = 0.15
+    # How many chunks the 'same meaning' search returns.
+    vector_top_k: int = 20
+    # How many chunks the 'same words' search returns.
+    keyword_top_k: int = 20
+    # How many chunks the reranker keeps for the answer.
+    rerank_top_n: int = 5
+    # Minimum similarity for an FAQ answer to win (high: a wrong FAQ answer is worse than none).
+    faq_threshold: float = 0.90
+    # Minimum reranker score to answer; below it the bot says "I'm not sure".
+    confidence_threshold: float = 0.30
+
+    # Runs right after __init__: reject invalid values (R20).
+    def __post_init__(self) -> None:
+        # Chunk size range.
+        if not MIN_CHUNK_TOKENS <= self.chunk_size_tokens <= MAX_CHUNK_TOKENS:
+            # 422.
+            raise ValidationError(
+                f"chunk_size_tokens must be between {MIN_CHUNK_TOKENS} and {MAX_CHUNK_TOKENS}"
+            )
+        # Overlap range.
+        if not 0.0 <= self.chunk_overlap_ratio <= MAX_CHUNK_OVERLAP:
+            # 422.
+            raise ValidationError(f"chunk_overlap_ratio must be between 0 and {MAX_CHUNK_OVERLAP}")
+        # Search sizes (bounded cost).
+        if not (1 <= self.vector_top_k <= 50 and 1 <= self.keyword_top_k <= 50):
+            # 422.
+            raise ValidationError("top-k values must be between 1 and 50")
+        # Rerank size (bounded prompt).
+        if not 1 <= self.rerank_top_n <= 10:
+            # 422.
+            raise ValidationError("rerank_top_n must be between 1 and 10")
+        # Thresholds are 0..1.
+        if not (0.0 <= self.faq_threshold <= 1.0 and 0.0 <= self.confidence_threshold <= 1.0):
+            # 422.
+            raise ValidationError("thresholds must be between 0 and 1")
+
+    # Do two settings cut documents differently (=> every source must be re-ingested)?
+    def chunking_differs(self, other: "RetrievalSettings") -> bool:
+        # Only the ingestion-time knobs matter.
+        return (self.chunk_size_tokens, self.chunk_overlap_ratio) != (
+            other.chunk_size_tokens,
+            other.chunk_overlap_ratio,
+        )
+
+
+# @dataclass writes __init__ for us; frozen=True means objects can't be changed after
+#   creation.
+@dataclass(frozen=True, slots=True)
+# One complete configuration = prompt + generation + branding + retrieval.
 class BotConfig:
     # The instructions part.
     prompt: PromptSettings
@@ -244,6 +305,8 @@ class BotConfig:
     generation: GenerationSettings
     # The look-and-feel part.
     branding: Branding
+    # The knowledge/retrieval part (defaults for configs saved before Phase 2, R22).
+    retrieval: RetrievalSettings = field(default_factory=RetrievalSettings)
 
 
 # @dataclass writes __init__ for us; frozen=True means objects can't be changed after

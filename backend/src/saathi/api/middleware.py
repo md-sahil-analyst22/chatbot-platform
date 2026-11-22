@@ -6,12 +6,16 @@
 #      path, status, time) is how we see traffic.
 # Security: 🔒 A caller-supplied id is only accepted if it looks safe, and query strings are
 #           never logged (they can contain tokens or personal data).
+# Also: 🔒 BodySizeLimitMiddleware refuses oversized uploads before anything reads the body.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Request-context middleware (pure ASGI - safe for SSE streaming, unlike BaseHTTPMiddleware).
 
 Binds a request id to every log line and emits one "http.request" access event per request
 (method, path, status, duration). Query strings are never logged: they can carry tokens or PII.
 """
+
+# json — builds the error body of a refused upload.
+import json
 
 # re — regular expressions (text patterns).
 import re
@@ -116,3 +120,102 @@ class RequestContextMiddleware:
                 # and how long it took in milliseconds.
                 duration_ms=round((time.perf_counter() - started) * 1000, 1),
             )
+
+
+# ─────────────────────────── Request body size limit (uploads, P2.1) ───────────────────────────
+
+
+# 🔒 Refuses oversized request bodies BEFORE the app reads or parses them.
+class BodySizeLimitMiddleware:
+    """Pure ASGI. For paths matching a pattern: the request must declare Content-Length (else
+    411) within the limit (else 413), and the bytes actually received are counted too (a client
+    that sends more than it declared is cut off). FastAPI parses a multipart body before running
+    any route dependency, so this check must happen here, not in the route.
+    """
+
+    # Keep the app and the (path pattern, max bytes) rules.
+    def __init__(self, app: ASGIApp, limits: list[tuple[re.Pattern[str], int]]) -> None:
+        # The wrapped app.
+        self.app = app
+        # Which paths are limited, and to how many bytes.
+        self.limits = limits
+
+    # Send the standard error JSON ({"error": {code, message, request_id}}).
+    @staticmethod
+    async def _reject(scope: Scope, send: Send, status: int, code: str, message: str) -> None:
+        # The request id set by RequestContextMiddleware (outer layer).
+        request_id = (scope.get("state") or {}).get("request_id")
+        # The body.
+        body = json.dumps(
+            {"error": {"code": code, "message": message, "request_id": request_id}}
+        ).encode()
+        # Response start: status + headers.
+        await send(
+            {
+                "type": "http.response.start",
+                "status": status,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(body)).encode()),
+                ],
+            }
+        )
+        # Response body.
+        await send({"type": "http.response.body", "body": body})
+
+    # Handle one request.
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        # Only HTTP requests with a limited path are checked.
+        if scope["type"] != "http":
+            # Pass through.
+            await self.app(scope, receive, send)
+            return
+        # The path.
+        path = scope.get("path", "")
+        # The limit for this path, if any.
+        limit = next((n for pattern, n in self.limits if pattern.fullmatch(path)), None)
+        # Not limited: pass through.
+        if limit is None:
+            # Pass through.
+            await self.app(scope, receive, send)
+            return
+        # The declared size.
+        declared = dict(scope.get("headers") or []).get(b"content-length", b"").decode("latin-1")
+        # Missing or not a number: refuse (we never accept an unbounded upload).
+        if not declared.isdigit():
+            # 411 Length Required.
+            await self._reject(scope, send, 411, "length_required", "upload must declare its size")
+            return
+        # Too big: refuse without reading it.
+        if int(declared) > limit:
+            # 413 Payload Too Large.
+            await self._reject(
+                scope,
+                send,
+                413,
+                "payload_too_large",
+                f"upload must be at most {limit // (1024 * 1024)} MB",
+            )
+            return
+        # Bytes received so far.
+        received = 0
+
+        # Count bytes as the app reads them.
+        async def counting_receive() -> Message:
+            # nonlocal: update the counter of __call__.
+            nonlocal received
+            # The next message from the server.
+            message = await receive()
+            # Count body bytes.
+            if message["type"] == "http.request":
+                # Add this piece.
+                received += len(message.get("body", b""))
+                # More than declared/allowed: stop the request.
+                if received > limit:
+                    # The app sees a disconnect and stops reading.
+                    return {"type": "http.disconnect"}
+            # Hand it to the app.
+            return message
+
+        # Run the app with the counting receive.
+        await self.app(scope, counting_receive, send)

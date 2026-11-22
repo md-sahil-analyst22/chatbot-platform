@@ -1,14 +1,19 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 # 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
-# What: The registries ('phone books') for parsers, embedders and rerankers.
+# What: The registries ('phone books') for parsers, website crawlers, embedders and rerankers.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Provider registries for this module. Adapters register themselves when imported
 (bootstrap/providers.py imports them explicitly)."""
 
 # From saathi.modules.knowledge.ports.providers — parser, embedder and reranker contracts:
 #   DocumentParser = contract: file -> text; Embedder = contract: text -> vectors; Reranker =
-#   contract: best documents first.
-from saathi.modules.knowledge.ports.providers import DocumentParser, Embedder, Reranker
+#   contract: best documents first; WebCrawler = contract: website -> pages.
+from saathi.modules.knowledge.ports.providers import (
+    DocumentParser,
+    Embedder,
+    Reranker,
+    WebCrawler,
+)
 
 # From saathi.platform.providers — the vendor registry: ProviderRegistry = the 'phone book' of
 #   vendor adapters.
@@ -20,3 +25,5 @@ parser_registry: ProviderRegistry[DocumentParser] = ProviderRegistry("parser")
 embedder_registry: ProviderRegistry[Embedder] = ProviderRegistry("embedder")
 # Phone book of rerankers.
 reranker_registry: ProviderRegistry[Reranker] = ProviderRegistry("reranker")
+# Phone book of website crawlers.
+crawler_registry: ProviderRegistry[WebCrawler] = ProviderRegistry("crawler")

@@ -2,6 +2,8 @@
 # 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
 # What: Turns text into vectors using Google's Gemini embedding model (the platform default,
 #       ADR-0006).
+# Task: passages and questions are prefixed differently (Google's recommended format for
+#       gemini-embedding-2), which improves search quality.
 # Safety: Checks Gemini's answer: right count, right size (1,536), no empty vectors. Timeouts
 #         and errors become clear typed errors.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -10,6 +12,10 @@
 Platform default (R13, ADR-0006): `gemini-embedding-2` (text input) shortened from 3,072 to 1,536
 dimensions (Matryoshka) so pgvector can index it with HNSW. Shortened vectors are not unit length,
 so they are L2-normalised here.
+
+Task type: gemini-embedding-2 does NOT accept the `taskType` field. Google's guide says to put the
+task in the text instead, so stored passages are sent as 'title: none | text: {passage}' and
+questions as 'task: search result | query: {question}' (asymmetric retrieval format).
 """
 
 # math — maths functions.
@@ -38,6 +44,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 #   embedder_registry = embedder vendors.
 from saathi.modules.knowledge.adapters import embedder_registry
 
+# From saathi.modules.knowledge.ports.providers — embedder contract: EmbedTask = 'document' or
+#   'query'.
+from saathi.modules.knowledge.ports.providers import EmbedTask
+
 # From saathi.platform.errors — our error types: ConfigurationError = a setting is missing;
 #   ProviderError = a vendor failed; ProviderTimeoutError = a vendor was too slow.
 from saathi.platform.errors import ConfigurationError, ProviderError, ProviderTimeoutError
@@ -45,6 +55,17 @@ from saathi.platform.errors import ConfigurationError, ProviderError, ProviderTi
 # Google's Gemini API address.
 DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 MAX_BATCH = 100  # batchEmbedContents accepts at most 100 requests per call
+
+
+# Add Google's task prefix for gemini-embedding-2 (taskType isn't supported by that model).
+def with_task_prefix(text: str, task: EmbedTask) -> str:
+    """'query' -> 'task: search result | query: ...'; 'document' -> 'title: none | text: ...'."""
+    # A customer's question.
+    if task == "query":
+        # Retrieval-query format.
+        return f"task: search result | query: {text}"
+    # A stored passage (we have no per-passage title here, so Google's 'none' placeholder).
+    return f"title: none | text: {text}"
 
 
 # GEMINI_* settings from .env (key, model, size, timeout).
@@ -110,9 +131,11 @@ class GeminiEmbedder:
         self._timeout = timeout_s
 
     # Split the texts into batches Gemini accepts and embed each batch.
-    async def embed(self, texts: Sequence[str]) -> list[list[float]]:
+    async def embed(self, texts: Sequence[str], *, task: EmbedTask) -> list[list[float]]:
         # All vectors, in order.
         vectors: list[list[float]] = []
+        # Prefix each text with its task (passage or question).
+        texts = [with_task_prefix(t, task) for t in texts]
         # Walk through the texts 100 at a time...
         for start in range(0, len(texts), MAX_BATCH):
             # ...embed each batch and add its vectors.

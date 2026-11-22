@@ -18,11 +18,18 @@ dependencies = [
   "structlog>=24.4",
   "cryptography>=43",
   "pyjwt[crypto]>=2.10",
+  "python-multipart>=0.0.20",  # FastAPI needs it to parse multipart file uploads (P2.1)
 ]
 
 [project.optional-dependencies]
 # Added when the phase needs them, to keep the Phase 1 image small.
-ingestion = ["pymupdf>=1.25"]   # Phase 2
+# Phase 2 (installed in the API/worker image and in CI with --extra ingestion):
+ingestion = [
+    "openpyxl>=3.1",      # .xlsx -> row text (read-only, formulas never evaluated)
+    "pymupdf>=1.25",      # PDF text + OCR fallback through Tesseract
+    "python-docx>=1.1",   # .docx paragraphs, headings and tables
+    "trafilatura>=2.0",   # main-text extraction from crawled HTML (its downloader is never used)
+]
 agent = ["langgraph>=0.2"]      # Phase 3
 
 [dependency-groups]
@@ -65,7 +72,10 @@ module = ["saathi.modules.knowledge.adapters.parsers.*"]
 disallow_untyped_calls = false  # pymupdf is only partially typed
 
 [[tool.mypy.overrides]]
-module = ["arq.*", "pymupdf.*", "langgraph.*", "asyncpg.*", "pgvector.*"]
+module = [
+  "arq.*", "pymupdf.*", "langgraph.*", "asyncpg.*", "pgvector.*", "docx.*", "openpyxl.*",
+  "trafilatura.*",
+]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------- pytest

@@ -1297,7 +1297,7 @@ backend/
 | Part of `pyproject.toml` | Configures |
 |---|---|
 | `dependencies` | FastAPI, SQLAlchemy (async), asyncpg, Alembic, pgvector, Redis, ARQ, httpx, structlog, PyJWT, cryptography |
-| `optional-dependencies` | `ingestion` (PyMuPDF, Phase 2), `agent` (LangGraph, Phase 3) |
+| `optional-dependencies` | `ingestion` (PyMuPDF, python-docx, openpyxl, trafilatura; installed in the image and CI, Phase 2), `agent` (LangGraph, Phase 3) |
 | `dependency-groups.dev` | pytest, mypy, ruff, import-linter |
 | `tool.ruff` / `tool.mypy` / `tool.pytest` | Lint rules (incl. security `S` and `ASYNC`), strict typing, test settings |
 | `tool.importlinter` | The **four boundary contracts** that enforce R1, R2, R4 and R5 |
@@ -1505,20 +1505,30 @@ What a tenant can configure (limits enforced in `bot_config.py`):
 
 ```
 knowledge/
-├── domain/entities.py              Source and its lifecycle
-├── ports/providers.py              DocumentParser, Embedder, Reranker
-├── application/ingestion.py        hashing + planned ingestion flow
-├── adapters/{parsers,embeddings,rerankers}/   PyMuPDF, OpenAI, Cohere (+ registries in __init__.py)
-├── api/routes.py                   planned upload/crawl/FAQ endpoints
-└── workers/ingest_job.py           background ingestion job
+├── domain/                         entities.py (Source), chunking.py, crawl.py, faq.py
+├── ports/                          providers.py (parser, crawler, embedder, reranker),
+│                                   repositories.py, external.py (queue, bot directory,
+│                                   chunking settings), unit_of_work.py
+├── application/                    ingestion.py, cleaner.py, chunker.py, text_metrics.py,
+│                                   retrieval.py (FAQ override, RRF, rerank),
+│                                   source_service.py, faq_service.py
+├── adapters/                       orm.py, *_repository.py, unit_of_work.py, arq_queue.py,
+│                                   parsers/ (PDF+OCR, DOCX, CSV/XLSX, text), crawlers/ (HTTP),
+│                                   embeddings/ (Gemini, OpenAI), rerankers/ (Cohere)
+├── api/                            routes.py (/bots/{id}/sources…, /faqs…), schemas.py, deps.py
+└── workers/ingest_job.py           ARQ job -> IngestionService
 ```
+
+Cross-module needs go through `bootstrap/knowledge_bridge.py`: knowledge asks tenancy whether a bot
+exists and which chunk settings it publishes; tenancy's publish re-queues sources when chunk
+settings change; conversation's answer use case retrieves through knowledge.
 
 ```mermaid
 stateDiagram-v2
     [*] --> queued : upload or crawl
     queued --> processing : start_processing()
     processing --> ready : mark_ready(hash)
-    processing --> failed : mark_failed()
+    processing --> failed : mark_failed(reason)
     ready --> queued : requeue() to re-sync
     failed --> queued : requeue() to retry
 ```
@@ -1641,7 +1651,7 @@ evals/
 └── reports/                      generated reports
 ```
 
-From Phase 2, `run_golden.py` will score answers, and CI will block changes that lower quality. From Phase 6, a draft bot config can be tested before publishing.
+From Phase 2, `run_golden.py` scores answers on a throwaway database (`--smoke` checks the pipeline offline; `--sweep` tunes chunk size and threshold). It runs by hand: a CI quality gate needs vendor keys in CI (see §4.8). From Phase 6, a draft bot config can be tested before publishing.
 
 ## 2.15 `demos/`, pretend businesses
 
@@ -2020,6 +2030,9 @@ Saved configs keep working because they store the catalog key, not the vendor id
 | Widget loading branding | P4.5 |
 | Studio auth SDK, knowledge/conversations/inbox screens | P5.9–P5.13 | <!-- gitleaks:allow (prose, not a credential) -->
 | Own API keys: endpoints, vault wiring, Studio screen | Phase 8.1 |
+| HTTP endpoint for answers (the answer use case exists; evals call it directly) | P3.8 |
+| Studio screens for sources, FAQs and unanswered questions (APIs and table exist) | P5.11-P5.13 |
+| Unanswered-question write moved to the worker on the live chat path (R31) | P3.8 |
 | Version pins (uv image, n8n image, pre-commit hooks) | Before production |
 
 ## 4.8 Known gaps between plan and code
@@ -2028,7 +2041,15 @@ These are deliberate, tracked differences. Per R44 they're listed here instead o
 
 | Plan says | Code does now | Risk | Resolution |
 |---|---|---|---|
-| Gemini embeddings use one task type for documents and questions | `Embedder.embed()` has no document/query distinction, so no `taskType` is sent | Slightly lower retrieval quality than `RETRIEVAL_DOCUMENT` / `RETRIEVAL_QUERY` | Decide with the golden set in Phase 2; if it helps, add the distinction to the port (all adapters + contract) |
+| ~~Gemini embeddings use one task type for documents and questions~~ | Resolved in Phase 2: `Embedder.embed(texts, task=...)`; `gemini-embedding-2` rejects `taskType`, so the adapter adds Google's text prefixes (`task: search result \| query:` / `title: none \| text:`) | — | Keep; compare with the golden set once real evals run |
+| Docling / Crawl4AI for parsing and crawling (P2.3, P2.4) | PyMuPDF + python-docx + openpyxl + Tesseract OCR; our own httpx crawler + trafilatura (owner decision, 2026-11-22: Docling/Crawl4AI add ~2-3 GB and a headless browser to the shared VPS) | Weaker table/layout extraction on complex PDFs; pages that need JavaScript to show text yield little | Add a Docling parser or a browser crawler as new adapters behind the same ports if real tenants need them |
+| Token counts for chunk sizes | `estimate_tokens` approximates (words/characters; Indic ~3 chars per token), no tokenizer library | Chunks may be ±20% off the configured size | Acceptable for chunking; revisit if the golden set shows boundary problems |
+| Lost ingestion jobs | A job is sent after commit; if Redis is down at that moment the source stays `queued` (logged as `after_commit.failed`) | A source can sit in `queued` until someone presses Re-sync (which re-sends the job) | Add a periodic sweeper (needs a narrow SECURITY DEFINER lookup across tenants) or a transactional outbox |
+| Filtered vector search recall | HNSW + `WHERE tenant_id, bot_id`; `hnsw.ef_search = 100` per transaction. pgvector 0.8 iterative scans are not enabled | A bot that is a tiny share of a huge chunks table can get fewer than top-k vector hits (keyword search still runs) | Enable `hnsw.iterative_scan` once Supabase's pgvector version is confirmed (local is 0.8.7) |
+| Duplicate content under different file names | The fingerprint is per source; the same bytes uploaded under two names are chunked twice | Duplicate passages in results | Dedupe by raw content hash at upload if it shows up in practice |
+| Golden set v1 and tuning (P2.15, P2.16) | `golden_v1.jsonl` (38 rows) was drafted by Claude from the two short demo documents and is **pending owner review**; the demo documents total ~230 words, so chunk size has no measurable effect yet | Tuned defaults (`chunk 700`, `confidence 0.30`) are provisional | Owner reviews v1; longer demo documents; run `run_golden.py --sweep` with real keys (needs `COHERE_API_KEY`) |
+| Per-tenant quota on uploads/crawls (business/abuse limit) | Not enforced yet; the Redis token bucket is planned for P6.6. Cost is bounded per source (20 MB upload, 200 crawl pages, 3,000 chunks) and only admins can add sources | An admin could queue many large sources and run up embedding cost | Add `RedisTokenBucket` limits (scope `ingest`, tenant-scoped) with P6.6 |
+| Document upload size at the proxy | The app refuses uploads over 20 MB before reading them (`BodySizeLimitMiddleware`); Traefik has no body limit configured for Saathi | Large bodies still reach the API container before being refused | Optionally add a Traefik buffering/limit middleware label (never change shared Traefik settings, ADR-0008) |
 | Supabase transaction pooler | The engine uses asyncpg prepared statements | Port 6543 fails at runtime | Use the session pooler (5432) or direct connection (ADR-0002) |
 | `updated_at` changes on every update | Bumped by the ORM (`onupdate`), not by a trigger | Raw SQL updates leave it stale | Add a trigger if raw-SQL updates appear |
 | Postgres version | Supabase and CI run 17; the local Docker image and plan say 16 | Small risk of version-specific behaviour locally | Move the local image to `pgvector/pgvector:pg17` |

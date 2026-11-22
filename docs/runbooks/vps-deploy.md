@@ -121,6 +121,11 @@ addresses, CORS and HTTPS are derived from `SAATHI_BASE_DOMAIN`.
 `ENV=production` means the API **refuses to start** without the `AUTH_*` lines (already in your
 `.env` if it works locally) and switches the `/docs` page off.
 
+From Phase 2 the **worker** also refuses to start without its storage and embedding settings
+(`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`), and Supabase Storage must have a
+**private** bucket named `documents` (or `SUPABASE_STORAGE_PRIVATE_BUCKET`). The image contains
+Tesseract OCR (English, Hindi, Bengali) for scanned PDFs.
+
 ## Step 7: 🖥️ Release: your 3 commands
 
 ```bash
@@ -194,6 +199,7 @@ On the server: `ssh deploy@SERVER_IP`, then `cd ~/chatbot-platform`.
 | `404 page not found` (plain text), certificate warning, **n8n down too** | Traefik lost its connection to Docker (happens when a Docker update restarts Docker). Check: `docker logs --tail 5 traefik-traefik-1` shows `Cannot connect to the Docker daemon`. Fix: `docker restart traefik-traefik-1` (as root; n8n blinks ~5 s). Re-running `setup.sh` also does this automatically |
 | `404 page not found` (plain text), only Saathi | Traefik doesn't know the address. Check `SAATHI_BASE_DOMAIN` in `.env` matches your DNS names exactly, then `saathi up -d` |
 | Browser shows `Not Secure` although the site works | Your browser remembers clicking "Proceed anyway" during the first minute (before the real certificate). Click `Not Secure` → **Turn on warnings**, or quit the browser (Cmd+Q) and reopen. Check in a private window |
+| `worker` keeps restarting with `ConfigurationError` | A storage/embedding variable is missing in `.env` (see step 6), then `saathi up -d` |
 | `api` is `unhealthy` | `saathi logs --tail 80 api`: usually a wrong `.env` value. Fix it, then `saathi up -d` |
 | `git pull` complains about local changes | Never edit code on the server: `git restore .`, then pull again (`.env` is untouched) |
 | n8n stopped working | Saathi doesn't touch it, but check: `docker ps` should show the n8n and traefik containers **Up** |

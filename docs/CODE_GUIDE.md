@@ -324,13 +324,78 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    API["API<br/>(e.g. upload, Phase 2)"] -- "enqueue job" --> Q[("Redis queue")]
-    Q --> W["worker.py<br/>(ARQ)"]
-    W --> JOB["ingest_source()<br/>🟡 placeholder until Phase 2"]
+    API["API<br/>upload / crawl / re-sync / publish"] -- "enqueue AFTER commit" --> Q[("Redis queue (ARQ)")]
+    Q --> W["worker.py"]
+    W --> JOB["ingest_source()<br/>→ IngestionService.ingest()"]
 ```
 
-The worker retries a failed job up to 5 times, gives each job at most 600 seconds, and runs up
-to 10 jobs at once.
+`worker.py`'s `startup` builds the `Container` and the `IngestionService` once (storage, parsers,
+crawler and embedder are built right away, so missing keys stop the worker at startup instead of
+failing every job). A job is retried up to 5 times (`max_tries`), only for temporary provider
+problems, with a growing wait (`retry_delay_seconds`: 10 s, 20 s, 40 s… max 5 min, plus jitter).
+Each job gets at most 600 seconds and at most 4 run at once (parsing and OCR are heavy and the
+VPS is shared with n8n). `shutdown` closes the container's connections.
+
+### 5.9 📤 A document becomes searchable (Phase 2)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant ST as Bot Studio
+    participant API as /sources/upload
+    participant DB as Postgres (RLS)
+    participant S3 as Private storage
+    participant W as Worker
+    participant AI as Gemini embeddings
+    ST->>API: multipart file (max 20 MB, BodySizeLimitMiddleware)
+    API->>API: validate_document() checks the real bytes
+    API->>S3: put t/{tenant}/bots/{bot}/files/{name}
+    API->>DB: sources row (queued), same transaction
+    API-->>ST: 202 Accepted
+    API->>W: ingest_source job (only after COMMIT, via AfterCommit)
+    W->>DB: lock row, queued → processing, read the bot's chunking settings
+    W->>S3: get bytes
+    W->>W: fingerprint unchanged? → ready, no new chunks
+    W->>W: parse → clean_pages → chunk_pages
+    W->>AI: embed passages (task = document)
+    W->>DB: one transaction: delete old chunks, insert new, ready
+```
+
+Websites work the same way through `/sources/crawl`: the worker calls `HttpCrawler` instead of
+reading storage. Every request it makes goes through `fetch_public_url` (🔒 SSRF guard).
+Re-uploading a file with the same name replaces that source; if the bytes, the bot's chunk
+settings and the embedding model are all unchanged, the fingerprint matches and **zero** new
+chunks are written (Phase 2 exit criterion).
+
+### 5.10 💡 A question gets a cited answer (Phase 2: evals; Phase 3: the chat)
+
+```mermaid
+flowchart TD
+    Q["Question"] --> E["embed once (task = query)"]
+    E --> F{"closest active FAQ<br/>similarity ≥ faq_threshold?"}
+    F -- yes --> FA["FAQ answer, word for word<br/>(no LLM call)"]
+    F -- no --> H["vector top-k + keyword top-k<br/>→ reciprocal_rank_fusion"]
+    H --> R["Cohere rerank → top-n<br/>confidence = best score"]
+    R --> G{"guardrail assess()<br/>found? reranked? ≥ threshold?"}
+    G -- no --> U["'I'm not sure, want a human?'<br/>+ unanswered_questions row"]
+    G -- yes --> P["build_system_prompt: rules first,<br/>passages [1]..[n] in &lt;context&gt;"]
+    P --> L["bot's model"]
+    L --> C{"NO_ANSWER or no valid [n]?"}
+    C -- yes --> U
+    C -- no --> A["answer + citations"]
+```
+
+A provider that is down never crashes the reply: no embeddings, no reranker scores or no LLM
+all lead to the "I'm not sure" path, and the question is logged with reason
+`provider_unavailable`.
+
+### 5.11 🔁 Publishing new chunk settings re-processes documents
+
+`BotConfigService.publish` calls the `ConfigPublishedHook` (bootstrap's
+`RequeueSourcesOnChunkingChange`) inside the publish transaction. If `chunk_size_tokens` or
+`chunk_overlap_ratio` changed (`RetrievalSettings.chunking_differs`), every ready/failed source of
+the bot is put back in the queue and its job is sent after the commit. A source that is being
+processed at that moment notices the change when it finishes and queues itself again.
 
 ---
 
@@ -367,7 +432,7 @@ Three walls protect every tenant:
 The app connects as the limited user `saathi_app`, which can't switch these walls off. Only
 migrations use the owner account.
 
-### 6.3 The tables (16)
+### 6.3 The tables (17)
 
 ```mermaid
 erDiagram
@@ -381,6 +446,7 @@ erDiagram
     BOTS ||--o{ SOURCES : "learns from"
     SOURCES ||--o{ CHUNKS : "split into"
     BOTS ||--o{ FAQS : has
+    BOTS ||--o{ UNANSWERED_QUESTIONS : "couldn't answer"
     BOTS ||--o{ CONVERSATIONS : handles
     CONTACTS ||--o{ CONVERSATIONS : starts
     CONVERSATIONS ||--o{ MESSAGES : contains
@@ -398,9 +464,10 @@ erDiagram
 | `assets` | Logo files (the row stores the file's address, not the file) | tenancy |
 | `audit_logs` | "Who did what" (append-only) | tenancy |
 | `provider_credentials` | Businesses' own AI keys, encrypted | credentials |
-| `sources` | Uploaded documents / URLs and their processing status | knowledge |
-| `chunks` | Small passages of documents + their embedding (for search) | knowledge |
-| `faqs` | Question/answer pairs | knowledge |
+| `sources` | Uploaded documents / websites, processing status, fingerprint, crawl settings (`options`) | knowledge |
+| `chunks` | Small passages of documents + their embedding (meaning search) and `tsv` (keyword search) | knowledge |
+| `faqs` | Question/answer pairs + the question's embedding (FAQ override) | knowledge |
+| `unanswered_questions` | Questions the bot said "I'm not sure" to, and why (Studio screen in Phase 5) | conversation |
 | `contacts` | End users (website visitor, WhatsApp number) | conversation |
 | `conversations` | One chat session | conversation |
 | `messages` | Each message in a chat | conversation |
@@ -448,6 +515,7 @@ methods are listed after the class name.
 | Name | Kind | Plain explanation |
 |---|---|---|
 | `RequestContextMiddleware` | class | Wraps every request: gives it a `request_id` (or accepts a safe one from the caller), adds it to every log line and the response header, and logs one `http.request` line (method, path, status, duration). Never logs query strings 🔒 |
+| `BodySizeLimitMiddleware` | class | 🔒 Refuses an upload with no declared size (411) or over the limit (413) **before** anything reads the body, and counts the bytes actually received. Only for the paths it is given (`/sources/upload`) |
 
 #### `api/errors.py`
 | Name | Kind | Plain explanation |
@@ -477,6 +545,8 @@ methods are listed after the class name.
 | `get_principal` | function | 🔒 Reads the `Authorization` header, verifies the token, returns **who is calling** (user, tenant, role). Missing token or no verifier → 401 |
 | `get_tenant_db` | function | 🔒 Gives a database session already locked to the caller's tenant (row-level security) |
 | `PrincipalDep`, `TenantDbDep`, `HttpClientDep` | shortcuts | Ready-made "give me this" labels used by routes |
+| `get_after_commit` / `AfterCommitDep` | function / shortcut | One `AfterCommit` list per request; `get_tenant_db` runs it right after the commit (never after a rollback) |
+| `get_job_pool` | function | Hands out the shared ARQ (Redis) job-queue connection |
 
 ### 7.3 🧑‍🏭 Wiring (`bootstrap/`)
 
@@ -489,6 +559,7 @@ methods are listed after the class name.
 | `Container._ping_database` / `_ping_redis` | methods | Each does one tiny round trip to prove the dependency answers |
 | `Container.aclose` | method | Closes everything at shutdown |
 | `build_token_verifier` | function | 🔒 Builds the Supabase login checker if `AUTH_*` are set. In staging/production, missing settings **stop the app from starting** |
+| `Lazy` | class | Builds a vendor client on first use and keeps it (`document_store`, `embedder`, `reranker`, `crawler`, `parsers`), so the API starts without every key and the feature fails closed when used |
 
 #### `bootstrap/providers.py` (picks which vendor to use)
 | Name | Kind | Plain explanation |
@@ -499,6 +570,8 @@ methods are listed after the class name.
 | `build_parser` | function | Picks a document parser (`pymupdf`) |
 | `build_stt` / `build_tts` | functions | Pick speech-to-text / text-to-speech (`sarvam`) |
 | `build_object_store` | function | Picks file storage (`supabase`), private or public bucket |
+| `build_parsers_by_extension` | function | Every registered parser, by file extension (`.pdf` → PDF parser); refuses to start if two parsers claim one extension |
+| `build_crawler` | function | The website crawler named by `CRAWLER_PROVIDER` (default `http`) |
 
 #### `bootstrap/credentials.py`
 | Name | Kind | Plain explanation |
@@ -507,6 +580,17 @@ methods are listed after the class name.
 | `PlatformCredentialSource` | class | Hands out **Saathi's own** AI keys per provider (Phase 8 adds tenants' own keys) |
 | `PlatformCredentialSource.api_key_for` | method | "Give me the key for provider X" |
 | `platform_credentials_from_env` | function | Builds the source from the Gemini and Anthropic keys in `.env` |
+
+#### `bootstrap/knowledge_bridge.py` (Phase 2 bridges between modules, R4)
+| Name | Kind | Plain explanation |
+|---|---|---|
+| `TenancyBotDirectory` | class | Knowledge's `BotDirectory`, backed by tenancy: "does this bot belong to this tenant?" |
+| `PublishedChunkingPolicySource` / `policy_for` | class | Knowledge's `ChunkingPolicySource`: the bot's **published** chunk settings (defaults before the first publish) |
+| `chunking_policy_from` | function | Tenancy's `RetrievalSettings` → knowledge's `ChunkingPolicy` |
+| `RequeueSourcesOnChunkingChange` / `on_published` | class | Tenancy's `ConfigPublishedHook`: re-queues the bot's sources when chunk size/overlap changed |
+| `KnowledgeRetrieverAdapter` / `retrieve` | class | Conversation's `KnowledgeRetriever`: calls knowledge's lookup and converts the result |
+| `build_ingestion_service` | function | Wires the worker's `IngestionService` (SQL unit of work, storage, parsers, crawler, embedder, queue) |
+| `build_answer_service` | function | Wires `AnswerService` on one tenant session (evals now, the chat in Phase 3) |
 
 ### 7.4 🏢 Shared plumbing (`platform/`)
 
@@ -538,6 +622,7 @@ methods are listed after the class name.
 | `set_tenant` | `tenant_context.py` | 🔒 Tells Postgres "this transaction belongs to tenant X" (resets at commit) |
 | `tenant_session` | `tenant_context.py` | 🔒 Opens a session + transaction already locked to one tenant |
 | `violated_constraint` | `errors.py` | Reads which database rule was broken (e.g. duplicate name), so we can return 409 |
+| `AfterCommit` | class (`after_commit.py`) | A per-transaction "to do after the save" list (e.g. queue a job). `run()` is called once after COMMIT; a failing item is logged and the rest still run |
 
 #### `platform/errors/errors.py` (our error family)
 | Name | Plain explanation |
@@ -558,6 +643,11 @@ methods are listed after the class name.
 | Name | Plain explanation |
 |---|---|
 | `build_http_client` | Creates the **one** shared HTTP client: timeouts, connection limits, never follows redirects 🔒 |
+| `FetchedPage` | class (`url_guard.py`) | One response from a safe fetch: status, content type, redirect target (not followed), capped body |
+| `is_public_ip` | function (`url_guard.py`) | 🔒 False for private, loopback, link-local (cloud metadata), multicast and reserved addresses, incl. IPv4 hidden in IPv6 |
+| `parse_public_url` | function (`url_guard.py`) | 🔒 Only http/https, ports 80/443, no `user:password@`, bounded length |
+| `resolve_public_ip` | function (`url_guard.py`) | 🔒 DNS lookup where **every** answer must be public |
+| `fetch_public_url` | function (`url_guard.py`) | 🔒 One GET to a tenant-supplied URL, pinned to the checked IP (TLS still checks the real name), no redirects, size and time limits (SSRF protection) |
 
 #### `platform/logging/setup.py`
 | Name | Plain explanation |
@@ -595,6 +685,10 @@ methods are listed after the class name.
 | `BucketPolicy` / `RedisTokenBucket` | `rate_limit.py` | Rate limiter: "N requests, refilling at R per second"; decides what happens if Redis is down (security limits deny) |
 | `RedisTokenBucket.allow` | `rate_limit.py` | "May this subject make one more request?" |
 | `ImageInfo` / `sniff_image` / `validate_logo` | `uploads.py` | Checks an upload's **real bytes** (not its name) are PNG/JPEG/WebP and ≤ 512 KB; refuses SVG |
+| `DocumentInfo` | class (`uploads.py`) | What an uploaded document really is: content type, extension, safe file name |
+| `validate_document` | function (`uploads.py`) | 🔒 PDF/DOCX/XLSX judged by their bytes, TXT/MD/CSV must be strict UTF-8 without NUL bytes, max 20 MB; a renamed file is refused |
+| `_sniff_office` | function (`uploads.py`) | 🔒 Reads a .docx/.xlsx zip's table of contents only; refuses zip bombs (over 100 MB unpacked or 5,000 parts) |
+| `safe_filename` / `_extension` | functions (`uploads.py`) | 🔒 Drops folders and unsafe characters from a client file name (no `../`, no hidden files) / its lower-case extension |
 
 #### `platform/storage/`
 | Name | File | Plain explanation |
@@ -625,6 +719,8 @@ methods are listed after the class name.
 | `BotConfigVersion` | `domain/bot_config.py` | One saved version with its status |
 | `BotConfigVersion.published` / `archived` | `domain/bot_config.py` | Allowed status changes only: draft → published → archived |
 | `_plain_text` / `_ui_text` | `domain/bot_config.py` | Text checkers: length, no control characters, (for widget text) no angle brackets |
+| `RetrievalSettings` | class (`bot_config.py`) | Per-bot knowledge settings (Phase 2): chunk size/overlap, search sizes, FAQ and confidence thresholds, each range-checked. Part of `BotConfig` (old configs load with defaults, R22) |
+| `RetrievalSettings.chunking_differs` | method | Do two settings cut documents differently? (then documents must be re-processed) |
 
 #### Ports (the contracts)
 | Name | Plain explanation |
@@ -634,6 +730,7 @@ methods are listed after the class name.
 | `BotConfigRepository` | Store config versions: `next_version`, `add`, `update_status`, `get`, `latest_draft`, `published`, `list_versions` |
 | `PublicBotRef` | The only thing a widget key resolves to: (tenant_id, bot_id) |
 | `PublicBotLookup` | Contract: `resolve(public_key)` |
+| `ConfigPublishedHook` / `on_published` | Protocol (`ports/hooks.py`) | "Something else reacts to a publish", called inside the publish transaction; bootstrap plugs in the knowledge re-queue |
 
 #### Application (the use cases)
 | Name | File | Plain explanation |
@@ -667,6 +764,7 @@ methods are listed after the class name.
 | `config_to_json` / `config_from_json` | `adapters/config_mapper.py` | Turn a `BotConfig` into stored JSON and back (with a schema version for future changes) |
 | `SqlAlchemyPublicBotLookup.resolve` | `adapters/public_lookup.py` | 🔒 Calls `resolve_bot_public_key()` for the widget |
 | `SqlAlchemyMembershipLookup.memberships` | `adapters/membership_lookup.py` | 🔒 Calls `resolve_user_membership()` at login (max 20 rows) |
+| `_retrieval_from_json` | function (`config_mapper.py`) | Reads the `retrieval` part of a stored config; configs saved before Phase 2 have none → defaults |
 
 #### API (the endpoints)
 | Name | File | Endpoint / plain explanation |
@@ -688,6 +786,7 @@ methods are listed after the class name.
 | `BotCreate` / `BotUpdate` / `BotOut` | `api/schemas.py` | Request / partial-update / response shapes for bots. `BotUpdate._not_empty` refuses an empty update or an explicit `null` |
 | `PromptSettingsIn` / `GenerationSettingsIn` / `BrandingIn` / `BotConfigIn` | `api/schemas.py` | Request shapes for configuration (with limits) |
 | `BotConfigVersionOut` / `ModelOptionOut` / `PublicWidgetConfigOut` | `api/schemas.py` | Response shapes (the public one has only the public look) |
+| `RetrievalSettingsIn` | schema (`schemas.py`) | The `retrieval` part of a config body; optional, so existing clients keep working |
 
 ### 7.6 🏬 Module: `credentials` (businesses' own AI keys) 🟡
 
@@ -702,25 +801,87 @@ methods are listed after the class name.
 | `CredentialService.save_key` / `list_keys` / `revoke` / `resolve_api_key` | `application/services.py` | Validate + encrypt + store / list / revoke / decrypt for use at request time |
 | `ProviderCredentialRow` | `adapters/orm.py` | The `provider_credentials` table |
 
-### 7.7 🏬 Module: `knowledge` (documents and search) 🟡
+### 7.7 🏬 Module: `knowledge` (documents and search) 🟢
 
+#### Domain (the rules)
 | Name | File | Plain explanation |
 |---|---|---|
-| `SourceStatus` | `domain/entities.py` | queued → processing → ready / failed |
-| `Source` | `domain/entities.py` | A document or URL. Its status can change **only** through these methods |
-| `Source.start_processing` / `mark_ready` / `mark_failed` / `requeue` / `is_unchanged` / `_transition` | `domain/entities.py` | Allowed status moves; "same file as before?" (skip re-processing) |
-| `ParsedPage` / `ParsedDocument` / `RerankResult` | `ports/providers.py` | Data shapes: one page of text / a whole document / a ranked result |
-| `DocumentParser` / `Embedder` / `Reranker` | `ports/providers.py` | Contracts: read a file / turn text into numbers / sort results by relevance |
-| `GeminiEmbedderSettings` / `GeminiEmbedder` | `adapters/embeddings/gemini_embedder.py` | Default embedder: `gemini-embedding-2` at 1,536 numbers, 100 texts per request |
-| `GeminiEmbedder.embed` / `_embed_batch` | same | Embed a list of texts / one batch |
-| `_l2_normalise` | same | Scales each vector to length 1 (needed for fair comparison) |
-| `create_gemini_embedder` | same | Registry factory; refuses an empty key 🔒 |
-| `OpenAIEmbedderSettings` / `OpenAIEmbedder` / `embed` / `create_openai_embedder` | `adapters/embeddings/openai_embedder.py` | Backup embedder (OpenAI) |
-| `CohereSettings` / `CohereReranker` / `rerank` / `create_cohere_reranker` | `adapters/rerankers/cohere_reranker.py` | Re-sorts search results so the best passages come first |
-| `PyMuPdfParser` / `parse` / `create_pymupdf_parser` | `adapters/parsers/pymupdf_parser.py` | Reads text from PDFs; flags scanned PDFs that need OCR |
-| `SourceRow` / `ChunkRow` / `FaqRow` | `adapters/orm.py` | Tables; `chunks` has a vector index (meaning search) and a text index (keyword search) |
-| `content_hash` | `application/ingestion.py` | A file fingerprint (SHA-256) so unchanged files aren't re-processed |
-| `ingest_source` | `workers/ingest_job.py` | 🟡 The background job that will read, chunk and embed a document (Phase 2) |
+| `SourceStatus` / `SourceKind` | `domain/entities.py` | queued → processing → ready / failed; file or url |
+| `Source` | `domain/entities.py` | A document or website. Status changes **only** through its methods; a website must carry crawl settings, a file must not |
+| `Source.start_processing` / `mark_ready` / `mark_failed` / `requeue` / `is_unchanged` / `_transition` | `domain/entities.py` | Allowed moves; `mark_failed` stores a safe, bounded reason; `mark_ready` clears it; "same fingerprint as before?" |
+| `Source.status` / `content_hash` / `error` | `domain/entities.py` | Read-only views of the private fields |
+| `ChunkingPolicy` / `overlap_tokens` / `signature` | `domain/chunking.py` | Chunk size (200–1,200 tokens) + overlap (0–30%); `signature` goes into each source's fingerprint |
+| `Chunk` | `domain/chunking.py` | One passage + section path, page, url, language |
+| `CrawlOptions` / `to_json` / `from_json` | `domain/crawl.py` | One crawl's settings: start URL or sitemap, depth 0–3, 1–200 pages, include/exclude path patterns |
+| `Faq` / `edited` / `with_active` / `_check_text` | `domain/faq.py` | A question + exact answer; edits return a changed copy |
+
+#### Ports (the contracts)
+| Name | File | Plain explanation |
+|---|---|---|
+| `ParsedPage` / `ParsedDocument` / `RerankResult` / `CrawledPage` | `ports/providers.py` | Data shapes: a page / a document / a ranked result / one crawled page's main text |
+| `DocumentParser` / `Embedder` / `Reranker` / `WebCrawler` | `ports/providers.py` | Read a file / text → numbers / best passages first / website → pages |
+| `EmbedTask` | `ports/providers.py` | `document` (stored passage) or `query` (a customer's question) |
+| `SourceRepository` / `get_by_uri` / `get_for_update` / `all_for_bot_for_update` | `ports/repositories.py` | Store/load sources; the `for_update` reads lock the row so two workers never process one source |
+| `ChunkRepository` / `replace_for_source` / `count_for_source` / `vector_search` / `keyword_search` | `ports/repositories.py` | Swap a source's chunks in one go; the two halves of hybrid search |
+| `FaqRepository` / `best_match` | `ports/repositories.py` | Store FAQs; the closest active FAQ question |
+| `SourceListing` / `ChunkHit` / `FaqMatch` | `ports/repositories.py` | A source + counts and times / one search hit / the closest FAQ + similarity |
+| `IngestQueue` / `enqueue_ingest` | `ports/external.py` | Put an ingestion job on the queue (inside a request: only after commit) |
+| `ChunkingPolicySource` / `policy_for` | `ports/external.py` | Which chunk settings the bot uses now (its published config, via bootstrap) |
+| `BotDirectory` / `exists` | `ports/external.py` | Does the bot belong to the tenant? (404 otherwise) |
+| `PostCommitActions` / `add` | `ports/external.py` | Run work after the commit (stored-file deletion); `AfterCommit` fits it |
+| `IngestionRepositories` / `IngestionUnitOfWork` | `ports/unit_of_work.py` | The repositories inside one short, tenant-bound transaction (the worker never holds a transaction while it parses or embeds) |
+
+#### Application (the use cases)
+| Name | File | Plain explanation |
+|---|---|---|
+| `SourceService` / `upload` / `add_website` / `list_sources` / `get_source` / `resync` / `delete` | `application/source_service.py` | What a tenant can do with sources. 🔒 Role checks, tenant from the token, other tenant/bot → 404; same file name again = same source |
+| `SourceService._require_bot` / `_require_source` / `_find_by_uri` | same | 404 helpers and the "replace an existing upload" lookup |
+| `document_key` | same | `t/{tenant}/bots/{bot}/files/{name}`: the tenant-prefixed storage key |
+| `BotResyncService` / `requeue_bot` | same | System action after a chunk-settings change: ready/failed sources back to the queue |
+| `FaqService` / `create` / `list_faqs` / `update` / `delete` / `_embed_question` / `_require_faq` | `application/faq_service.py` | FAQ management; the question is embedded on save (re-embedded only when it changes) |
+| `IngestionService` / `ingest` | `application/ingestion.py` | Claim → fetch → fingerprint → parse → clean → chunk → embed → save, with safe failure messages and bounded retries |
+| `IngestionService._claim` / `_process` / `_fetch` / `_save` / `_fail` | same | The steps; `_save` swaps chunks in one transaction and re-queues if chunk settings changed meanwhile |
+| `IngestOutcome` | same | done / unchanged / skipped / gone / failed / retry / requeued |
+| `ingest_fingerprint` / `_extension` / `_Content` | same | sha256 of content + chunk settings + embedding model; file extension; fetched pages |
+| `clean_pages` / `normalise_text` / `TextPage` | `application/cleaner.py` | P2.5: Unicode/space tidy, running headers/footers, page numbers, web boilerplate, empty and duplicate pages |
+| `_repeated_edge_lines` / `_is_noise` / `_line_key` | same | Header/footer detection (never more than a third of a page) and the noise test |
+| `chunk_pages` | `application/chunker.py` | P2.6: heading-aware chunks within the bot's size, ~15% overlap, never mixing two web pages |
+| `_blocks` / `_Block` / `_section_path` / `_split_oversized` / `_tail` | same | Paragraph/heading blocks with heading paths; sentence/word splitting (incl. `।`); the overlap tail |
+| `estimate_tokens` / `detect_language` / `_is_indic` | `application/text_metrics.py` | Rough token count without a tokenizer; `hi`/`bn`/`en` by script |
+| `KnowledgeSearchService` / `lookup` | `application/retrieval.py` | FAQ override first, then hybrid search + rerank; reranker down → results flagged *not reranked* |
+| `SearchSettings` / `Passage` / `LookupResult` | same | The per-bot knobs / one chosen passage / what a lookup found |
+| `reciprocal_rank_fusion` | same | Merges the vector and keyword lists: each list votes 1/(60 + rank) |
+
+#### Adapters (the real technology)
+| Name | File | Plain explanation |
+|---|---|---|
+| `SourceRow` / `ChunkRow` / `FaqRow` | `adapters/orm.py` | Tables; `chunks` has HNSW (meaning) and GIN (keyword) indexes; `sources.options` and `faqs.embedding` added in migration 0004 |
+| `SqlAlchemySourceRepository` / `add` / `get` / `get_by_uri` / `get_for_update` / `save` / `delete` / `list_for_bot` / `all_for_bot_for_update` / `_select_one` / `_to_domain` | `adapters/source_repository.py` | Sources in Postgres; duplicate → 409, missing bot → 404, `SELECT … FOR UPDATE` locking |
+| `SqlAlchemyChunkRepository` / `replace_for_source` / `count_for_source` / `vector_search` / `keyword_search` / `_hit` / `_metadata` | `adapters/chunk_repository.py` | Chunks in Postgres; cosine search (`hnsw.ef_search` widened per transaction) and `simple` full-text search where any word may match |
+| `SqlAlchemyFaqRepository` / `best_match` | `adapters/faq_repository.py` | FAQs in Postgres; exact cosine scan of one bot's active FAQs |
+| `SqlIngestionUnitOfWork` | `adapters/unit_of_work.py` | Opens `tenant_session()` and hands out the repositories |
+| `ArqIngestQueue` / `enqueue_ingest` | `adapters/arq_queue.py` | Sends `ingest_source` jobs; in a request only after commit; carries the `request_id` |
+| `PyMuPdfParser` / `PdfParserSettings` / `_page_text_with_headings` / `create_pymupdf_parser` | `adapters/parsers/pymupdf_parser.py` | PDF text; big lines → `##` headings; OCR (Tesseract eng+hin+ben) for pages without text; page limits |
+| `DocxParser` / `create_docx_parser` / `table_rows_to_text` / `_heading_level` | `adapters/parsers/docx_parser.py` | Word: heading styles → `#`, tables → "Header: value" lines |
+| `CsvParser` / `XlsxParser` / `create_csv_parser` / `create_xlsx_parser` / `_cell` | `adapters/parsers/spreadsheet_parser.py` | CSV (delimiter detected) and Excel (one page per sheet, formulas never run), row by row |
+| `TextParser` / `create_text_parser` | `adapters/parsers/text_parser.py` | TXT and Markdown |
+| `HttpCrawler` / `crawl` / `CrawlerSettings` / `create_http_crawler` | `adapters/crawlers/http_crawler.py` | P2.4: same-site breadth-first crawl or sitemap, depth/page limits, robots.txt (fail closed), every request through the SSRF guard, main text via trafilatura |
+| `HttpCrawler._get` / `_robots` / `_sitemap_urls` / `path_allowed` / `_same_site` / `_LinkAndTitleParser` | same | One safe GET / robots rules / sitemap `<loc>` list / include-exclude patterns / same host / link and title collector |
+| `_LinkAndTitleParser.handle_starttag` / `handle_endtag` / `handle_data` / `title` | same | Standard-library HTML callbacks |
+| `GeminiEmbedderSettings` / `GeminiEmbedder` / `embed` / `_embed_batch` / `_l2_normalise` / `create_gemini_embedder` | `adapters/embeddings/gemini_embedder.py` | Default embedder: `gemini-embedding-2` at 1,536 numbers, 100 texts per request |
+| `with_task_prefix` | same | `gemini-embedding-2` rejects `taskType`, so the task goes in the text: `task: search result \| query: …` / `title: none \| text: …` |
+| `OpenAIEmbedderSettings` / `OpenAIEmbedder` / `embed` / `create_openai_embedder` | `adapters/embeddings/openai_embedder.py` | Backup embedder (ignores the task) |
+| `CohereSettings` / `CohereReranker` / `rerank` / `create_cohere_reranker` | `adapters/rerankers/cohere_reranker.py` | Multilingual rerank of the candidates |
+
+#### API, worker
+| Name | File | Plain explanation |
+|---|---|---|
+| `upload_source` / `crawl_source` / `list_sources` / `get_source` / `resync_source` / `delete_source` | `api/routes.py` | `/api/v1/bots/{bot_id}/sources…` (202 for anything processed in the background) |
+| `list_faqs` / `create_faq` / `update_faq` / `delete_faq` | `api/routes.py` | `/api/v1/bots/{bot_id}/faqs…` |
+| `_source_out` / `_faq_out` | `api/routes.py` | Domain → response (never the storage key) |
+| `CrawlIn` / `CrawlOut` / `SourceOut` / `FaqIn` / `FaqUpdate` / `FaqOut` / `_not_empty` | `api/schemas.py` | Strict, bounded shapes; a PATCH must change something and never send null |
+| `get_source_service` / `get_faq_service` / `_bot_directory` | `api/deps.py` | Build the services per request from adapters and `app.state` (bot directory, document store, embedder) |
+| `ingest_source` / `retry_delay_seconds` | `workers/ingest_job.py` | The ARQ job: checks its ids, tags logs, runs `IngestionService`, turns `retry` into a delayed ARQ retry |
 
 ### 7.8 🏬 Module: `conversation` (the chat brain) 🟡
 
@@ -740,11 +901,19 @@ methods are listed after the class name.
 | `ModelSelection` / `select_model` | `application/llm_resolver.py` | Turns a bot's model choice into provider + model id + limits |
 | `CompletionClientFactory` / `LlmResolver` / `resolve` | `application/llm_resolver.py` | 🔒 Builds the AI client with the right key; no key → refuse (never borrow another's) |
 | `TenantPromptParts` | `application/prompt_builder.py` | The business's own prompt pieces |
-| `load_platform_rules` | `application/prompt_builder.py` | Loads Saathi's fixed safety rules (`prompts/platform_rules_v1.md`) |
+| `load_platform_rules` | `application/prompt_builder.py` | Loads Saathi's fixed safety rules (`prompts/platform_rules_v2.md`: adds the exact `NO_ANSWER` reply and the citation format; v1 kept for history) |
 | `_neutralise` | `application/prompt_builder.py` | 🔒 Replaces `<` `>` so business or document text can't escape its section (prompt injection) |
 | `build_system_prompt` | `application/prompt_builder.py` | Builds the AI's instructions in fixed layers: **platform rules first**, then business text, then language, then document context |
 | `guard_node` | `application/nodes/guard.py` | First check on every message: not empty, not longer than 2,000 characters |
 | `build_graph` | `application/graph.py` | 🟡 Wires the chat steps together (only the guard today; more in Phase 3) |
+| `RetrievalRequest` / `Passage` / `FaqHit` / `Retrieval` | `ports/retrieval.py` | Conversation's own retrieval types (it may not import knowledge, R4) |
+| `KnowledgeRetriever` / `retrieve` | `ports/retrieval.py` | Contract: "FAQ or best passages for this question"; bootstrap plugs in knowledge |
+| `UnansweredReason` / `UnansweredQuestion` / `UnansweredLog` | `ports/unanswered.py` | Why the bot wasn't sure / one record / where it's stored |
+| `UnansweredQuestionRow` / `SqlAlchemyUnansweredLog` | `adapters/orm.py` / `adapters/unanswered_repository.py` | The `unanswered_questions` table (forced RLS) and its writer |
+| `assess` / `unsure_message` | `application/guardrail.py` | P2.14: nothing found / not reranked / below threshold → not sure; the reply in en/hi/bn offering a human |
+| `AnswerService` / `answer` / `_generate` / `_unsure` | `application/answer_service.py` | P2.13: FAQ verbatim, else guardrail, else prompt + model; `NO_ANSWER` or no valid citation → not sure + logged; providers down → not sure |
+| `AnswerRequest` / `Answer` / `AnswerKind` / `Citation` | same | The input (tenant from the caller, bot settings) / the reply with citations, confidence and reason |
+| `format_context` / `extract_citations` | same | Numbers passages `[1]`..`[n]` with their source; keeps only real citation numbers |
 
 ```mermaid
 flowchart LR
@@ -940,3 +1109,4 @@ make code-guide-check
 | Date | Phase | Change |
 |---|---|---|
 | 2026-11-18 | 1 complete | First version: all 142 classes and 271 functions/methods of the backend, the dashboard, flows, data, tests and deploys |
+| 2026-11-22 | 2 (P2.1-P2.16) | Knowledge base and RAG core: journeys 5.8-5.11, table 17 (`unanswered_questions`), knowledge module reference, answer use case and guardrail, bridges, SSRF guard, upload checks (623 names) |

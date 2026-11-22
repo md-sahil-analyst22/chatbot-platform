@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     tts_provider: str = "sarvam"
     # STORAGE_PROVIDER: which file storage vendor to use.
     storage_provider: str = "supabase"
+    # CRAWLER_PROVIDER: which website crawler to use (Phase 2).
+    crawler_provider: str = "http"
 
 
 # Read the settings once and reuse them (lru_cache remembers the result).

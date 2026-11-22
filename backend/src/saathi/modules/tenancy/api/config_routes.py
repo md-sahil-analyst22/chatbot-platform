@@ -38,6 +38,7 @@ from saathi.modules.tenancy.domain.bot_config import (
     GenerationSettings,
     PromptSettings,
     ResponseStyle,
+    RetrievalSettings,
 )
 
 # Bot Studio endpoints live under /bots/{bot_id}/config (so /api/v1/bots/<id>/config/...).
@@ -49,7 +50,7 @@ options_router = APIRouter(tags=["bot-config"])
 # Request JSON -> domain BotConfig.
 def to_domain(body: BotConfigIn) -> BotConfig:
     # Short names for the three parts of the request.
-    p, g, b = body.prompt, body.generation, body.branding
+    p, g, b, r = body.prompt, body.generation, body.branding, body.retrieval
     # Build the domain objects (their rules are checked here too):
     return BotConfig(
         # the prompt part:
@@ -90,6 +91,15 @@ def to_domain(body: BotConfigIn) -> BotConfig:
             launcher_position=b.launcher_position,
             # logo id.
             logo_asset_id=b.logo_asset_id,
+        ),
+        retrieval=RetrievalSettings(
+            chunk_size_tokens=r.chunk_size_tokens,
+            chunk_overlap_ratio=r.chunk_overlap_ratio,
+            vector_top_k=r.vector_top_k,
+            keyword_top_k=r.keyword_top_k,
+            rerank_top_n=r.rerank_top_n,
+            faq_threshold=r.faq_threshold,
+            confidence_threshold=r.confidence_threshold,
         ),
     )
 
@@ -150,6 +160,15 @@ def to_out(v: BotConfigVersion) -> BotConfigVersionOut:
                     "launcher_position": c.branding.launcher_position,
                     # logo id.
                     "logo_asset_id": c.branding.logo_asset_id,
+                },
+                "retrieval": {
+                    "chunk_size_tokens": c.retrieval.chunk_size_tokens,
+                    "chunk_overlap_ratio": c.retrieval.chunk_overlap_ratio,
+                    "vector_top_k": c.retrieval.vector_top_k,
+                    "keyword_top_k": c.retrieval.keyword_top_k,
+                    "rerank_top_n": c.retrieval.rerank_top_n,
+                    "faq_threshold": c.retrieval.faq_threshold,
+                    "confidence_threshold": c.retrieval.confidence_threshold,
                 },
             },
         }

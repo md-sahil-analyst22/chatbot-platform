@@ -10,7 +10,7 @@
 """Builds the system prompt in fixed layers. The platform rules always come first and the
 tenant's text can never close or escape its own section.
 
-    1. platform_rules_v1.md            fixed, not tenant-editable
+    1. platform_rules_v2.md            fixed, not tenant-editable (v1 kept for history)
     2. <tenant_instructions>           persona, brand rules, custom instructions, banned topics
     3. language instruction
     4. <context>                       retrieved document chunks (untrusted data)
@@ -27,15 +27,15 @@ from functools import lru_cache
 # From pathlib — file and folder paths: Path = a file or folder path.
 from pathlib import Path
 
-# Folder with the platform rules files (prompts/platform_rules_v1.md).
+# Folder with the platform rules files (prompts/platform_rules_v2.md is current).
 PROMPTS_DIR = Path(__file__).resolve().parents[1] / "prompts"
 
 
 # Remember up to 4 loaded rule versions, so the file is read only once.
 @lru_cache(maxsize=4)
 # Read the rules file once (cached), dropping <!-- comment --> lines.
-def load_platform_rules(version: str = "v1") -> str:
-    # Read e.g. prompts/platform_rules_v1.md.
+def load_platform_rules(version: str = "v2") -> str:
+    # Read e.g. prompts/platform_rules_v2.md.
     text = (PROMPTS_DIR / f"platform_rules_{version}.md").read_text(encoding="utf-8")
     # Drop lines starting with '<!--' (notes for developers) and trim.
     return "\n".join(line for line in text.splitlines() if not line.startswith("<!--")).strip()
