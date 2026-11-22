@@ -34,7 +34,7 @@ test:
 	cd backend && uv run pytest -q
 
 test-db:       ## real-Postgres tests (RLS isolation, SQL repositories, migration round trip); needs TEST_DATABASE_URL + TEST_APP_DATABASE_URL exported
-	cd backend && RUN_DB_TESTS=1 uv run pytest -q tests/security tests/contracts/test_sql_repositories.py
+	cd backend && RUN_DB_TESTS=1 uv run pytest -q tests/security tests/contracts/test_sql_repositories.py tests/contracts/test_knowledge_sql.py
 
 lint:
 	cd backend && uv run ruff check . && uv run ruff format --check .

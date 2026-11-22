@@ -10,6 +10,8 @@
 
 # From collections.abc — standard type names for collections: AsyncIterator = type for something
 #   looped with `async for`.
+# re — regular expressions (which paths the upload size limit applies to).
+import re
 from collections.abc import AsyncIterator
 
 # From contextlib — helpers for building `with` blocks: asynccontextmanager = turns an async
@@ -30,7 +32,7 @@ from saathi.api.errors import register_error_handlers
 
 # From saathi.api.middleware — per-request logging and request ids: RequestContextMiddleware =
 #   adds a request id and access log to every request.
-from saathi.api.middleware import RequestContextMiddleware
+from saathi.api.middleware import BodySizeLimitMiddleware, RequestContextMiddleware
 
 # From saathi.api.router — puts all endpoint groups together: build_api_router = builds the
 #   /api/v1 router.
@@ -40,12 +42,22 @@ from saathi.api.router import build_api_router
 #   = holds the shared objects (database, Redis, HTTP client...).
 from saathi.bootstrap.container import Container
 
+# From saathi.bootstrap.knowledge_bridge — cross-module bridges (Phase 2): TenancyBotDirectory =
+#   bot lookup for knowledge; RequeueSourcesOnChunkingChange = tenancy's publish reaction.
+from saathi.bootstrap.knowledge_bridge import RequeueSourcesOnChunkingChange, TenancyBotDirectory
+
 # From saathi.platform.config.settings — the app's core settings: get_settings = the settings,
 #   read once.
 from saathi.platform.config.settings import get_settings
 
 # From saathi.platform.logging.setup — logging set-up: configure_logging = sets up logging.
 from saathi.platform.logging.setup import configure_logging
+
+# From saathi.platform.security.uploads — upload limits: MAX_DOCUMENT_BYTES = 20 MB per file.
+from saathi.platform.security.uploads import MAX_DOCUMENT_BYTES
+
+# A document upload: the file plus multipart framing (boundary lines and part headers).
+UPLOAD_LIMIT_BYTES = MAX_DOCUMENT_BYTES + 64 * 1024
 
 
 # Builds and returns the web app. Runs once when the server starts.
@@ -76,6 +88,18 @@ def create_app() -> FastAPI:
         app.state.model_catalog = container.model_catalog
         # And the checks that /ready runs (database, Redis).
         app.state.readiness_checks = container.readiness_checks()
+        # Phase 2: the job queue, and the knowledge vendors (built on first use, fail closed).
+        app.state.job_pool = container.job_pool
+        # The private document store (uploads).
+        app.state.document_store = container.document_store
+        # The platform embedder (FAQ questions).
+        app.state.embedder = container.embedder
+        # Bridges between modules (R4): knowledge asks tenancy whether a bot exists...
+        app.state.knowledge_bot_directory = TenancyBotDirectory
+        # ...and tenancy's publish re-queues documents when chunk settings change.
+        app.state.config_publish_hook = lambda session, after_commit: (
+            RequeueSourcesOnChunkingChange(session, after_commit, container.job_pool)
+        )
         # `try/finally` guarantees the clean-up below runs even if the app crashes.
         try:
             # Hand control to FastAPI: the app now serves requests until it is stopped.
@@ -99,6 +123,12 @@ def create_app() -> FastAPI:
         redoc_url=None,
         # 🔒 The machine-readable API description is also hidden in production.
         openapi_url=None if is_prod else "/openapi.json",
+    )
+    # 🔒 Refuse oversized uploads before anything reads the body (innermost layer, so CORS and
+    #   the request id still wrap its error responses).
+    app.add_middleware(
+        BodySizeLimitMiddleware,
+        limits=[(re.compile(r"/api/v1/bots/[^/]+/sources/upload"), UPLOAD_LIMIT_BYTES)],
     )
     # Add the CORS layer: which websites' browsers may call this API.
     app.add_middleware(

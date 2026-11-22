@@ -51,3 +51,27 @@ make test-db
 ```
 
 The suite migrates the database up, all the way down and up again, and empties every table before each test.
+
+`make test-db` also runs the knowledge contracts on real Postgres (`tests/contracts/test_knowledge_sql.py`):
+sources, chunks (vector and keyword search, incl. Hindi/Bengali), FAQs, and the isolation tests in
+`tests/security/test_knowledge_isolation.py`.
+
+The parsers need the `ingestion` extra locally: `cd backend && uv sync --extra ingestion`. OCR of
+scanned PDFs needs Tesseract (`brew install tesseract tesseract-lang`); without it scanned PDFs fail
+with "No readable text was found" and everything else works.
+
+## Golden-set evals (`run_golden.py`, P2.15/P2.16)
+
+Uses the same **throwaway** database (it refuses any non-local host):
+
+```bash
+cd backend
+export TEST_DATABASE_URL=postgresql+asyncpg://saathi_owner:owner-test@127.0.0.1:5432/saathi_test
+export TEST_APP_DATABASE_URL=postgresql+asyncpg://saathi_app:app-test@127.0.0.1:5432/saathi_test
+uv run alembic upgrade head    # with MIGRATION_DATABASE_URL=$TEST_DATABASE_URL
+uv run python ../evals/runners/run_golden.py --smoke             # offline pipeline check, no keys
+uv run --env-file ../.env python ../evals/runners/run_golden.py  # real: Gemini + Cohere keys, small cost
+uv run --env-file ../.env python ../evals/runners/run_golden.py --sweep   # tune chunk size + threshold
+```
+
+Reports land in `evals/reports/` (git-ignored).

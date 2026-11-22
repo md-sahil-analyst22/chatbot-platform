@@ -13,7 +13,8 @@ Importing an adapter module runs its @registry.register(...) decorator. Listing 
 makes registration explicit and visible - registries are never silently empty.
 
 - LLM: chosen PER BOT (model catalog key in the bot's published config) -> build_llm_resolver().
-- Embeddings / reranker / parser: platform-wide (EMBEDDING_PROVIDER, RERANKER_PROVIDER).
+- Embeddings / reranker / crawler: platform-wide (EMBEDDING_PROVIDER, RERANKER_PROVIDER,
+  CRAWLER_PROVIDER). Parsers: every registered parser, picked by file extension.
 - Speech: platform-wide (STT_PROVIDER, TTS_PROVIDER).
 - Object storage: platform-wide (STORAGE_PROVIDER), one private and one public bucket.
 """
@@ -63,14 +64,19 @@ from saathi.modules.conversation.ports.credentials import CredentialSource
 #   contract: messages in, reply out.
 from saathi.modules.conversation.ports.llm import CompletionClient
 
-# From saathi.modules.knowledge.adapters — parser, embedder and reranker registries:
-#   embedder_registry = embedder vendors; parser_registry = document parsers; reranker_registry =
-#   reranker vendors.
+# From saathi.modules.knowledge.adapters — parser, crawler, embedder and reranker registries:
+#   crawler_registry = website crawlers; embedder_registry = embedder vendors; parser_registry =
+#   document parsers; reranker_registry = reranker vendors.
 from saathi.modules.knowledge.adapters import (
+    crawler_registry,
     embedder_registry,
     parser_registry,
     reranker_registry,
 )
+
+# From saathi.modules.knowledge.adapters.crawlers — crawler adapters: http_crawler = the HTTP
+#   crawler module (importing it registers it).
+from saathi.modules.knowledge.adapters.crawlers import http_crawler  # noqa: F401
 
 # From saathi.modules.knowledge.adapters.embeddings — embedder adapters: gemini_embedder = the
 #   Gemini embedder module (importing it registers it); openai_embedder = the OpenAI embedder
@@ -80,9 +86,15 @@ from saathi.modules.knowledge.adapters.embeddings import (  # noqa: F401
     openai_embedder,
 )
 
-# From saathi.modules.knowledge.adapters.parsers — document parser adapters: pymupdf_parser =
-#   the PDF parser module (importing it registers it).
-from saathi.modules.knowledge.adapters.parsers import pymupdf_parser  # noqa: F401
+# From saathi.modules.knowledge.adapters.parsers — document parser adapters (importing each
+#   module registers it): docx_parser = Word; pymupdf_parser = PDF; spreadsheet_parser = CSV and
+#   Excel; text_parser = TXT and Markdown.
+from saathi.modules.knowledge.adapters.parsers import (  # noqa: F401
+    docx_parser,
+    pymupdf_parser,
+    spreadsheet_parser,
+    text_parser,
+)
 
 # From saathi.modules.knowledge.adapters.rerankers — reranker adapters: cohere_reranker = the
 #   Cohere module (importing it registers it).
@@ -90,11 +102,19 @@ from saathi.modules.knowledge.adapters.rerankers import cohere_reranker  # noqa:
 
 # From saathi.modules.knowledge.ports.providers — parser, embedder and reranker contracts:
 #   DocumentParser = contract: file -> text; Embedder = contract: text -> vectors; Reranker =
-#   contract: best documents first.
-from saathi.modules.knowledge.ports.providers import DocumentParser, Embedder, Reranker
+#   contract: best documents first; WebCrawler = contract: website -> pages.
+from saathi.modules.knowledge.ports.providers import (
+    DocumentParser,
+    Embedder,
+    Reranker,
+    WebCrawler,
+)
 
 # From saathi.platform.config.settings — the app's core settings: Settings = the settings class.
 from saathi.platform.config.settings import Settings
+
+# From saathi.platform.errors — our error types: ConfigurationError = a wiring/config mistake.
+from saathi.platform.errors import ConfigurationError
 
 # From saathi.platform.storage — file storage contract and registry: ObjectStore = the file
 #   storage contract; object_store_registry = file storage vendors; supabase_store = the Supabase
@@ -135,6 +155,33 @@ def build_reranker(settings: Settings, http: httpx.AsyncClient) -> Reranker:
 def build_parser(name: str) -> DocumentParser:
     # Create the document parser with this name (e.g. 'pymupdf').
     return parser_registry.create(name)
+
+
+# Every registered parser, keyed by the file extensions it reads ('.pdf' -> PDF parser).
+def build_parsers_by_extension() -> dict[str, DocumentParser]:
+    """Fails at startup if two parsers claim the same extension (never a silent override)."""
+    # The map we build.
+    parsers: dict[str, DocumentParser] = {}
+    # Every registered parser name...
+    for name in parser_registry.available():
+        # ...create it...
+        parser = parser_registry.create(name)
+        # ...and map each of its extensions.
+        for ext in parser.supported_extensions:
+            # Two parsers for one extension is a wiring mistake.
+            if ext in parsers:
+                # Refuse to start.
+                raise ConfigurationError(f"two parsers registered for '{ext}'")
+            # Map it.
+            parsers[ext] = parser
+    # The map.
+    return parsers
+
+
+# Create the website crawler named by CRAWLER_PROVIDER, using the shared HTTP client.
+def build_crawler(settings: Settings, http: httpx.AsyncClient) -> WebCrawler:
+    # Look it up in the crawler registry.
+    return crawler_registry.create(settings.crawler_provider, http=http)
 
 
 # Speech-to-text vendor (default 'sarvam', STT_PROVIDER).

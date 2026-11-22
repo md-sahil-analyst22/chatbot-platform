@@ -1,8 +1,10 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 # 📖 PLAIN-ENGLISH GUIDE TO THIS FILE
-# What: The contracts for document readers (parsers), embedders and rerankers.
+# What: The contracts for document readers (parsers), website crawlers, embedders and rerankers.
 # Plain words: Embedder: turns text into a list of numbers so similar meanings can be found.
 #              Reranker: re-orders search results by relevance.
+#              EmbedTask: 'document' when storing passages, 'query' when embedding a customer's
+#              question. Some models (Gemini) embed the two differently for better search.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Vendor-neutral ports for ingestion and retrieval.
 
@@ -17,9 +19,15 @@ from collections.abc import Sequence
 #   __init__ and friends for you; field = per-field options such as a default empty list.
 from dataclasses import dataclass, field
 
-# From typing — type-hint helpers: Any = any type; Protocol = an interface: any class with these
-#   methods fits.
-from typing import Any, Protocol
+# From typing — type-hint helpers: Any = any type; Literal = only these exact values; Protocol =
+#   an interface: any class with these methods fits.
+from typing import Any, Literal, Protocol
+
+# From saathi.modules.knowledge.domain.crawl — crawl settings: CrawlOptions = one crawl's settings.
+from saathi.modules.knowledge.domain.crawl import CrawlOptions
+
+# What an embedding is for: a stored passage ('document') or a search question ('query').
+EmbedTask = Literal["document", "query"]
 
 
 # @dataclass writes __init__ for us; frozen=True means objects can't be changed after
@@ -73,11 +81,12 @@ class DocumentParser(Protocol):
 
 # Contract: texts -> number vectors.
 class Embedder(Protocol):
-    # Which model it uses (stored with the vectors).
+    # Which model it uses (part of each source's fingerprint, so a model change re-embeds).
     model_name: str
 
-    # One vector (list of numbers) per text, in the same order.
-    async def embed(self, texts: Sequence[str]) -> list[list[float]]: ...
+    # One vector (list of numbers) per text, in the same order. `task` says whether the texts are
+    #   stored passages or search questions (adapters that can't tell the two apart ignore it).
+    async def embed(self, texts: Sequence[str], *, task: EmbedTask) -> list[list[float]]: ...
 
 
 # Contract: question + documents -> best documents first.
@@ -86,3 +95,23 @@ class Reranker(Protocol):
     async def rerank(
         self, query: str, documents: Sequence[str], top_n: int
     ) -> list[RerankResult]: ...
+
+
+# @dataclass writes __init__ for us; frozen=True means objects can't be changed after
+#   creation.
+@dataclass(frozen=True, slots=True)
+# One fetched web page, already reduced to its main text.
+class CrawledPage:
+    # The page address.
+    url: str
+    # The page title ('' if none).
+    title: str
+    # The main text as light markdown ('# Heading' lines kept for the chunker).
+    text: str
+
+
+# Contract: crawl settings -> the pages' main text.
+class WebCrawler(Protocol):
+    # Fetch pages within the options' limits. Pages that fail are skipped; raises
+    #   ValidationError for an unsafe start URL and ProviderError if nothing could be fetched.
+    async def crawl(self, options: CrawlOptions) -> list[CrawledPage]: ...

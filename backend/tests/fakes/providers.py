@@ -29,7 +29,7 @@ from saathi.modules.conversation.ports.llm import ChatMessage, LLMResponse
 
 # From saathi.modules.knowledge.ports.providers — parser, embedder and reranker contracts:
 #   RerankResult = one reranked result.
-from saathi.modules.knowledge.ports.providers import RerankResult
+from saathi.modules.knowledge.ports.providers import EmbedTask, RerankResult
 
 # From saathi.platform.errors — our error types: NotFoundError = 404 not found; ProviderError =
 #   a vendor failed; ProviderTimeoutError = a vendor was too slow; ValidationError = 422 invalid
@@ -69,8 +69,10 @@ class FakeEmbedder:
         # Remember the size.
         self._dim = dimensions
 
-    # Embed texts.
-    async def embed(self, texts: Sequence[str]) -> list[list[float]]:
+    # Embed texts. Records the last task so tests can check callers pass the right one.
+    async def embed(self, texts: Sequence[str], *, task: EmbedTask) -> list[list[float]]:
+        # Remember which task the caller asked for.
+        self.last_task = task
         # No texts...
         if not texts:
             # ...nothing to do.
@@ -79,7 +81,11 @@ class FakeEmbedder:
         _fail(self._mode)
         # Derive numbers from each text's SHA-256 fingerprint (always the same for the same
         #   text).
-        return [[b / 255 for b in hashlib.sha256(t.encode()).digest()[: self._dim]] for t in texts]
+        # The digest is repeated so any size works (e.g. 1,536 for the real pgvector column).
+        return [
+            [hashlib.sha256(t.encode()).digest()[i % 32] / 255 for i in range(self._dim)]
+            for t in texts
+        ]
 
 
 # A fake reranker: scores documents by how many words they share with the question.

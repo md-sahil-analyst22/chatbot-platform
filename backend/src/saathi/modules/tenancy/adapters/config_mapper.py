@@ -22,6 +22,7 @@ from saathi.modules.tenancy.domain.bot_config import (
     GenerationSettings,
     PromptSettings,
     ResponseStyle,
+    RetrievalSettings,
 )
 
 # Format version stored with every config, so future code can read old ones.
@@ -30,8 +31,8 @@ SCHEMA_VERSION = 1
 
 # BotConfig -> dict (stored in the database).
 def config_to_json(config: BotConfig) -> dict[str, Any]:
-    # Short names for the three parts.
-    p, g, b = config.prompt, config.generation, config.branding
+    # Short names for the four parts.
+    p, g, b, r = config.prompt, config.generation, config.branding, config.retrieval
     # Build a plain dictionary (stored as JSON):
     return {
         # the format version,
@@ -74,6 +75,16 @@ def config_to_json(config: BotConfig) -> dict[str, Any]:
             "launcher_position": b.launcher_position,
             # logo id as text (or null).
             "logo_asset_id": str(b.logo_asset_id) if b.logo_asset_id else None,
+        },
+        # Added in Phase 2 (additive: older readers ignore it, R22).
+        "retrieval": {
+            "chunk_size_tokens": r.chunk_size_tokens,
+            "chunk_overlap_ratio": r.chunk_overlap_ratio,
+            "vector_top_k": r.vector_top_k,
+            "keyword_top_k": r.keyword_top_k,
+            "rerank_top_n": r.rerank_top_n,
+            "faq_threshold": r.faq_threshold,
+            "confidence_threshold": r.confidence_threshold,
         },
     }
 
@@ -123,4 +134,21 @@ def config_from_json(data: dict[str, Any]) -> BotConfig:
             # logo id (text -> UUID, or None).
             logo_asset_id=UUID(b["logo_asset_id"]) if b.get("logo_asset_id") else None,
         ),
+        retrieval=_retrieval_from_json(data.get("retrieval") or {}),
+    )
+
+
+# Read the retrieval section; versions saved before Phase 2 have none -> defaults (R22).
+def _retrieval_from_json(r: dict[str, Any]) -> RetrievalSettings:
+    # Defaults for anything missing.
+    d = RetrievalSettings()
+    # Each field from JSON, or its default.
+    return RetrievalSettings(
+        chunk_size_tokens=int(r.get("chunk_size_tokens", d.chunk_size_tokens)),
+        chunk_overlap_ratio=float(r.get("chunk_overlap_ratio", d.chunk_overlap_ratio)),
+        vector_top_k=int(r.get("vector_top_k", d.vector_top_k)),
+        keyword_top_k=int(r.get("keyword_top_k", d.keyword_top_k)),
+        rerank_top_n=int(r.get("rerank_top_n", d.rerank_top_n)),
+        faq_threshold=float(r.get("faq_threshold", d.faq_threshold)),
+        confidence_threshold=float(r.get("confidence_threshold", d.confidence_threshold)),
     )

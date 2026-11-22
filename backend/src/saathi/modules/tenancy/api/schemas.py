@@ -134,6 +134,24 @@ class BrandingIn(_Strict):
     logo_asset_id: UUID | None = None
 
 
+# Knowledge/retrieval settings (Phase 2). Ranges mirror RetrievalSettings (the domain decides).
+class RetrievalSettingsIn(_Strict):
+    # Chunk size in tokens (documents are re-processed when this changes on publish).
+    chunk_size_tokens: int = Field(default=700, ge=200, le=1200)
+    # Chunk overlap share (documents are re-processed when this changes on publish).
+    chunk_overlap_ratio: float = Field(default=0.15, ge=0.0, le=0.3)
+    # 'Same meaning' search size.
+    vector_top_k: int = Field(default=20, ge=1, le=50)
+    # 'Same words' search size.
+    keyword_top_k: int = Field(default=20, ge=1, le=50)
+    # Passages kept after reranking.
+    rerank_top_n: int = Field(default=5, ge=1, le=10)
+    # FAQ answer wins at or above this similarity.
+    faq_threshold: float = Field(default=0.90, ge=0.0, le=1.0)
+    # Below this reranker score the bot says "I'm not sure".
+    confidence_threshold: float = Field(default=0.30, ge=0.0, le=1.0)
+
+
 # Body for saving a configuration draft.
 class BotConfigIn(_Strict):
     # Prompt part (defaults if not sent).
@@ -142,6 +160,8 @@ class BotConfigIn(_Strict):
     generation: GenerationSettingsIn = Field(default_factory=GenerationSettingsIn)
     # Branding part (required).
     branding: BrandingIn
+    # Retrieval part (defaults if not sent, so existing clients keep working).
+    retrieval: RetrievalSettingsIn = Field(default_factory=RetrievalSettingsIn)
 
 
 # What the API returns for a config version.

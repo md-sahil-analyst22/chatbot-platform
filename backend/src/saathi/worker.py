@@ -4,8 +4,8 @@
 #       the API never makes a user wait.
 # How it runs: Started with `arq saathi.worker.WorkerSettings`. It takes jobs from a queue in
 #              Redis, one by one.
-# Status: Phase 1 has only a placeholder job (ingest_source); real document processing arrives
-#         in Phase 2.
+# Jobs: ingest_source (Phase 2) - read, clean, chunk and embed one uploaded file or website.
+# Safety: jobs are bounded (max_tries, job_timeout) and safe to run twice (R33).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """ARQ worker entry point: arq saathi.worker.WorkerSettings
 
@@ -19,6 +19,14 @@ from typing import Any, ClassVar
 #   the job queue's Redis lives.
 from arq.connections import RedisSettings
 
+# From saathi.bootstrap.container — process-wide resources: Container = DB pool, Redis, HTTP
+#   client and vendor clients, built once.
+from saathi.bootstrap.container import Container
+
+# From saathi.bootstrap.knowledge_bridge — Phase 2 wiring: build_ingestion_service = the
+#   ingestion use case with its adapters.
+from saathi.bootstrap.knowledge_bridge import build_ingestion_service
+
 # From saathi.modules.knowledge.workers.ingest_job — the document-processing background job:
 #   ingest_source = the job function.
 from saathi.modules.knowledge.workers.ingest_job import ingest_source
@@ -28,17 +36,36 @@ from saathi.modules.knowledge.workers.ingest_job import ingest_source
 from saathi.platform.config.settings import get_settings
 
 
-# Runs once when the worker starts: load the settings so jobs can use them.
+# Runs once when the worker starts: settings, shared resources and the ingestion use case.
 async def startup(ctx: dict[str, Any]) -> None:
     # Load the settings once and keep them in the worker's shared `ctx` dictionary for every
     #   job.
-    ctx["settings"] = get_settings()
+    ctx["settings"] = settings = get_settings()
+    # Build the shared toolbox once (database pool, Redis, HTTP client, vendors).
+    ctx["container"] = container = Container.build(settings)
+    # The retry bound, so jobs know when they're on their last attempt.
+    ctx["max_tries"] = WorkerSettings.max_tries
+    # The ingestion use case. The worker can't do anything useful without storage, parsers,
+    #   crawler and embedder, so they are built NOW: missing settings stop the worker at startup
+    #   with a clear ConfigurationError (fail fast, R16) instead of failing every job.
+    ctx["ingestion"] = build_ingestion_service(
+        sessionmaker=container.sessionmaker,
+        store=container.document_store(),
+        parsers=container.parsers(),
+        crawler=container.crawler(),
+        embedder=container.embedder(),
+        pool=container.job_pool,
+    )
 
 
-# Runs once when the worker stops. Nothing to clean up yet.
+# Runs once when the worker stops.
 async def shutdown(ctx: dict[str, Any]) -> None:
-    # Nothing to clean up yet.
-    return None
+    # Close every connection cleanly (database pool, Redis, HTTP client), if startup got that far.
+    container = ctx.get("container")
+    # Only if it was built.
+    if container is not None:
+        # Close it.
+        await container.aclose()
 
 
 # ARQ (the job runner) reads this class to know which jobs exist and how to run them.
@@ -53,5 +80,6 @@ class WorkerSettings:
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url.get_secret_value())
     max_tries = 5  # bounded retries; failures are recorded on the source row
     job_timeout = 600  # seconds; a 30-page PDF must finish well under this
-    # At most 10 jobs run at the same time.
-    max_jobs = 10
+    # At most 4 jobs at the same time: parsing/OCR is CPU- and memory-heavy and the VPS is shared
+    #   with n8n (ADR-0008). Scaling unit: worker replicas x max_jobs (and their DB connections).
+    max_jobs = 4

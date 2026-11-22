@@ -9,8 +9,8 @@ Routes depend on services only. Tests override these functions with in-memory fa
 """
 
 # From collections.abc — standard type names for collections: AsyncIterator = type for something
-#   looped with `async for`.
-from collections.abc import AsyncIterator
+#   looped with `async for`; Callable = a function type.
+from collections.abc import AsyncIterator, Callable
 
 # From dataclasses — quick classes that mainly hold data: dataclass = decorator that writes
 #   __init__ and friends for you.
@@ -25,17 +25,18 @@ from uuid import UUID
 
 # From fastapi — the web framework that turns Python functions into web endpoints: Depends =
 #   asks FastAPI to hand over a ready-made object (dependency injection); Path = rules for a value
-#   in the URL path.
-from fastapi import Depends, Path
+#   in the URL path; Request = the incoming request (gives access to app.state).
+from fastapi import Depends, Path, Request
 
 # From sqlalchemy.ext.asyncio — SQLAlchemy's async (non-blocking) database tools: AsyncSession =
 #   one unit of database work; async_sessionmaker = factory that creates sessions.
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 # From saathi.api.deps — shared request helpers: the verified caller, a tenant-locked database
-#   session: TenantDbDep = a database session locked to the caller's tenant; get_model_catalog =
+#   session: AfterCommitDep = the request's after-commit list; TenantDbDep = a database session
+#   locked to the caller's tenant; get_model_catalog =
 #   the shared model catalog; get_sessionmaker = the shared database session factory.
-from saathi.api.deps import TenantDbDep, get_model_catalog, get_sessionmaker
+from saathi.api.deps import AfterCommitDep, TenantDbDep, get_model_catalog, get_sessionmaker
 
 # From saathi.modules.tenancy.adapters.config_repository — database code for config versions:
 #   SqlAlchemyBotConfigRepository = config versions in the database.
@@ -69,9 +70,15 @@ from saathi.modules.tenancy.application.config_service import (
 #   cases.
 from saathi.modules.tenancy.application.services import BotService
 
+# From saathi.modules.tenancy.ports.hooks — publish reaction contract: ConfigPublishedHook.
+from saathi.modules.tenancy.ports.hooks import ConfigPublishedHook
+
 # From saathi.platform.config.model_catalog — the list of AI models tenants may choose:
 #   ModelCatalog = the catalog.
 from saathi.platform.config.model_catalog import ModelCatalog
+
+# From saathi.platform.db.after_commit — after-commit hooks: AfterCommit = work run after COMMIT.
+from saathi.platform.db.after_commit import AfterCommit
 
 # From saathi.platform.db.tenant_context — locks a database session to one tenant:
 #   tenant_session = a session locked to one tenant.
@@ -79,6 +86,10 @@ from saathi.platform.db.tenant_context import tenant_session
 
 # From saathi.platform.errors — our error types: NotFoundError = 404 not found.
 from saathi.platform.errors import NotFoundError
+
+# app.state.config_publish_hook: builds the publish reaction on the request's session and
+#   after-commit list (wired in bootstrap/, backed by the knowledge module).
+PublishHookFactory = Callable[[AsyncSession, AfterCommit], ConfigPublishedHook]
 
 
 # A BotService using a tenant-locked database session.
@@ -89,8 +100,13 @@ async def get_bot_service(db: TenantDbDep) -> BotService:
 
 # A BotConfigService with all its repositories and the model catalog.
 async def get_bot_config_service(
-    db: TenantDbDep, catalog: Annotated[ModelCatalog, Depends(get_model_catalog)]
+    request: Request,
+    db: TenantDbDep,
+    after_commit: AfterCommitDep,
+    catalog: Annotated[ModelCatalog, Depends(get_model_catalog)],
 ) -> BotConfigService:
+    # The publish reaction (re-process documents when chunking settings change).
+    hook_factory: PublishHookFactory = request.app.state.config_publish_hook
     # Build the service with:
     return BotConfigService(
         # bot storage,
@@ -99,8 +115,10 @@ async def get_bot_config_service(
         configs=SqlAlchemyBotConfigRepository(db),
         # tenant facts,
         tenants=SqlAlchemyTenantRepository(db),
-        # and the catalog (all sharing the same session/transaction).
+        # the catalog (all sharing the same session/transaction),
         catalog=catalog,
+        # and the publish reaction, on the same session (its jobs are sent after commit).
+        publish_hook=hook_factory(db, after_commit),
     )
 
 

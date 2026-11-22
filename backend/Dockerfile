@@ -8,14 +8,22 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 
 # Dependencies first (cached layer), then the project itself.
 COPY pyproject.toml uv.lock* ./
-RUN uv sync --no-dev --no-install-project
+# --extra ingestion: document parsers + crawler text extraction (Phase 2; API and worker share
+#   this image).
+RUN uv sync --no-dev --no-install-project --extra ingestion
 COPY src ./src
 COPY migrations ./migrations
 COPY alembic.ini ./
-RUN uv sync --no-dev --no-editable
+RUN uv sync --no-dev --no-editable --extra ingestion
 
 # ---- runtime stage ----------------------------------------------------------
 FROM python:3.12-slim AS runtime
+# OCR for scanned PDFs (P2.3): Tesseract with English, Hindi and Bengali language data. PyMuPDF
+#   calls it; nothing else uses it. --no-install-recommends keeps the image small.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      tesseract-ocr tesseract-ocr-eng tesseract-ocr-hin tesseract-ocr-ben \
+ && rm -rf /var/lib/apt/lists/*
 RUN useradd --create-home --uid 10001 app
 WORKDIR /app
 COPY --from=builder --chown=app:app /app /app

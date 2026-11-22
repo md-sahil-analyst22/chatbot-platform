@@ -133,6 +133,23 @@ The build takes 1–10 minutes. Wait for the prompt to come back.
 > Then the release is `saathi down` → `git pull` → `saathi up -d --build`, and `saathi ps` /
 > `saathi logs -f api` work everywhere below.
 
+### 3.2a Before the first Phase 2 release (once)
+
+The Phase 2 release adds migration **0004** (new nullable columns + the `unanswered_questions`
+table; additive, safe while the old version runs) and a worker that processes documents. Before
+running the 3 commands the first time:
+
+1. **Supabase → Storage → New bucket**: name `documents` (or the value of
+   `SUPABASE_STORAGE_PRIVATE_BUCKET`), **Public: off**. The code never creates buckets.
+2. Check `.env` on the server has `GEMINI_API_KEY`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+   The worker now **refuses to start** without its storage and embedding settings (it would fail
+   every job otherwise). `COHERE_API_KEY` is needed for answers (reranking), not for ingestion.
+3. The image is bigger (document parsers + Tesseract OCR with English, Hindi and Bengali), so the
+   first build takes a few minutes longer.
+
+After the release: `DC logs --tail 50 worker` should show the worker started without
+`ConfigurationError`, and `DC ps` shows `migrate` Exited (0).
+
 ### 3.3 Check the release worked
 
 ```bash
@@ -258,6 +275,9 @@ undoing the database.
 | `git pull` complains about local changes | Files were edited on the server | Never edit code on the server: `git restore .`, then `git pull` (`.env` is untouched) |
 | 💻 `Cannot connect to the Docker daemon` on your Mac | Docker Desktop isn't running | Open Docker Desktop, wait for the whale icon, try again |
 | 💻 `make up` fails on port 6379 or 8000 | Something else uses the port | Stop the other app, or `brew services stop redis` if you installed Redis with Homebrew |
+| `worker` restarting, logs show `ConfigurationError` | A storage or embedding setting is missing (Phase 2 worker fails fast) | Add the named variable to `.env` (section 3.2a), then `up -d` |
+| A source stays `queued` for minutes | Its job was lost (Redis was down when it was queued) or the worker is down | Check `DC ps` / `DC logs worker`; then press **Re-sync** on the source (`POST …/sources/{id}/resync` re-sends the job) |
+| A source is `failed` with "We could not read this file" | The file is broken, encrypted or not what its name says | Open it on your Mac; re-save as a normal PDF/DOCX and upload again |
 | GitHub check **dashboard** red with "EXPIRED" | The reviewed npm-audit exception reached its date | Re-check whether `picomatch` has a fix (merge the Dependabot PR), then update or remove `dashboard/audit-exceptions.json` |
 
 When stuck: copy the **exact** error text and the command you ran, and ask for help.
@@ -274,7 +294,7 @@ When stuck: copy the **exact** error text and the command you ran, and ask for h
 - ✅ Only release code that's **merged and green** on GitHub.
 - ✅ Keep a copy of the production `.env` in a password manager.
 
-## 10. Open to-dos (as of 2026-11-18)
+## 10. Open to-dos (as of 2026-11-22)
 
 | To-do | Why |
 |---|---|
@@ -284,4 +304,6 @@ When stuck: copy the **exact** error text and the command you ran, and ask for h
 | Close n8n's direct port (`32772`, plain HTTP) | It bypasses Traefik and HTTPS. Ask for the exact safe change |
 | npm-audit exception expires **2026-12-17** | `picomatch` advisory: merge the fix when Dependabot offers it |
 | Bot Studio login screen (P5.9) | Needed before bots can be created from the dashboard |
+| Add `COHERE_API_KEY` locally and on the server | Reranking (and therefore confident answers and the real golden eval) needs it |
+| Review `evals/golden/golden_v1.jsonl` | Drafted from the demo documents; tuning results count only after your review |
 | One copy of the project on the server | `/home/deploy/chatbot-platform` from the setup script is unused; remove it with `rm -rf /home/deploy/chatbot-platform` |

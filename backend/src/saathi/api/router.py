@@ -12,6 +12,9 @@ from fastapi import APIRouter
 # From saathi.api.health — the /health and /ready endpoints: router = the health endpoints.
 from saathi.api.health import router as health_router
 
+# From saathi.modules.knowledge.api.routes — the knowledge endpoints (sources, FAQs): router.
+from saathi.modules.knowledge.api.routes import router as knowledge_router
+
 # From saathi.modules.tenancy.api.config_routes — the Bot Studio endpoints: options_router = the
 #   /model-options endpoint.
 from saathi.modules.tenancy.api.config_routes import options_router as model_options_router
@@ -42,7 +45,9 @@ def build_api_router() -> APIRouter:
     v1.include_router(bot_config_router)
     # Which AI models this tenant's plan may use.
     v1.include_router(model_options_router)
-    # Phase 2: knowledge | Phase 3: conversation | Phase 4: channel webhooks
+    # Knowledge: uploads, website crawls, sources, FAQs (modules/knowledge/api/routes.py).
+    v1.include_router(knowledge_router)
+    # Phase 3: conversation | Phase 4: channel webhooks
     root.include_router(v1)
 
     # Public API (website widget): bot public key, no user login, read-only, rate-limited.

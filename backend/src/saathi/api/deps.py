@@ -20,8 +20,8 @@ transitively depend on every other module's adapters (import-linter enforces thi
 from collections.abc import AsyncIterator
 
 # From typing — type-hint helpers: Annotated = a type plus extra info (e.g. a FastAPI
-#   dependency).
-from typing import Annotated
+#   dependency); Any = any type (the ARQ pool has no type hints).
+from typing import Annotated, Any
 
 # httpx — the HTTP client we use to call other web services.
 import httpx
@@ -45,6 +45,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 # From saathi.platform.config.model_catalog — the list of AI models tenants may choose:
 #   ModelCatalog = the catalog.
 from saathi.platform.config.model_catalog import ModelCatalog
+
+# From saathi.platform.db.after_commit — after-commit hooks: AfterCommit = work that runs only
+#   once the request's transaction has committed.
+from saathi.platform.db.after_commit import AfterCommit
 
 # From saathi.platform.db.tenant_context — locks a database session to one tenant:
 #   tenant_session = a session locked to one tenant.
@@ -85,6 +89,13 @@ async def get_model_catalog(request: Request) -> ModelCatalog:
     return catalog
 
 
+# Gives the shared job-queue connection (ARQ on Redis).
+async def get_job_pool(request: Request) -> Any:
+    """The shared ARQ (Redis) pool for queueing background jobs (created by the container)."""
+    # Published on app.state by main.py's lifespan.
+    return request.app.state.job_pool
+
+
 # Gives the one shared HTTP client for calling outside services.
 async def get_http_client(request: Request) -> httpx.AsyncClient:
     # The shared HTTP client stored at start-up.
@@ -122,17 +133,36 @@ PrincipalDep = Annotated[Principal, Depends(get_principal)]
 
 # 🔒 A database session locked to the caller's tenant: Postgres then hides every other tenant's
 # rows.
+# One after-commit list per request (FastAPI caches a dependency within a request, so every
+#   service in the request and get_tenant_db below share the same list).
+async def get_after_commit() -> AfterCommit:
+    # A fresh, empty list.
+    return AfterCommit()
+
+
+# Short name: services write `after_commit: AfterCommitDep` to register post-commit work.
+AfterCommitDep = Annotated[AfterCommit, Depends(get_after_commit)]
+
+
 async def get_tenant_db(
     # FastAPI supplies the session factory...
     sessionmaker: Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)],
-    # ...and the verified caller.
+    # ...the verified caller...
     principal: PrincipalDep,
+    # ...and the request's after-commit list.
+    after_commit: AfterCommitDep,
 ) -> AsyncIterator[AsyncSession]:
-    """DB session whose transaction is bound to the caller's tenant (RLS)."""
+    """DB session whose transaction is bound to the caller's tenant (RLS).
+
+    Work registered on the request's AfterCommit (e.g. queueing a background job) runs only after
+    the transaction committed, and never after a rollback (an exception skips the line below).
+    """
     # 🔒 Open a database session locked to the caller's tenant (row-level security).
     async with tenant_session(sessionmaker, principal.tenant_id) as session:
         # Lend the session to the endpoint; it is committed or rolled back afterwards.
         yield session
+    # Committed: now run the post-commit work (before the response is sent).
+    await after_commit.run()
 
 
 # Short name: endpoints write `db: TenantDbDep` to get a tenant-locked session.

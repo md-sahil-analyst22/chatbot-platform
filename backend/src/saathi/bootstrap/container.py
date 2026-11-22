@@ -25,8 +25,14 @@ from collections.abc import Awaitable, Callable, Mapping
 #   __init__ and friends for you.
 from dataclasses import dataclass
 
+# From typing — type-hint helpers: Any = any type (the ARQ pool has no type hints).
+from typing import Any
+
 # httpx — the HTTP client we use to call other web services.
 import httpx
+
+# From arq.connections — ARQ's Redis connection: ArqRedis = a Redis client that can queue jobs.
+from arq.connections import ArqRedis
 
 # From redis.asyncio — async client for Redis, the fast in-memory store: Redis = the Redis
 #   client.
@@ -42,6 +48,24 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 # From saathi.bootstrap — start-up wiring: providers = importing it registers every vendor
 #   adapter.
 from saathi.bootstrap import providers  # noqa: F401  (registers all adapters)
+
+# From saathi.bootstrap.providers — vendor builders: build_crawler, build_embedder,
+#   build_object_store, build_parsers_by_extension, build_reranker.
+from saathi.bootstrap.providers import (
+    build_crawler,
+    build_embedder,
+    build_object_store,
+    build_parsers_by_extension,
+    build_reranker,
+)
+
+# From saathi.modules.knowledge.ports.providers — knowledge vendor contracts.
+from saathi.modules.knowledge.ports.providers import (
+    DocumentParser,
+    Embedder,
+    Reranker,
+    WebCrawler,
+)
 
 # From saathi.modules.tenancy.adapters.membership_lookup — login -> workspace lookup:
 #   SqlAlchemyMembershipLookup = finds a user's workspace.
@@ -74,8 +98,31 @@ from saathi.platform.security.auth import TokenVerifier
 #   real login checker.
 from saathi.platform.security.jwt_verifier import JwksTokenVerifier
 
+# From saathi.platform.storage — file storage contract: ObjectStore.
+from saathi.platform.storage import ObjectStore
+
 
 # @dataclass writes the __init__ for us from the fields below; slots=True saves memory.
+# Builds a value on first use and keeps it (vendor clients whose settings may be absent in some
+#   environments: the API still starts, and the feature fails closed when first used).
+class Lazy[T]:
+    # Keep the factory; nothing is built yet.
+    def __init__(self, factory: Callable[[], T]) -> None:
+        # How to build it.
+        self._factory = factory
+        # The built value (None until first use).
+        self._value: T | None = None
+
+    # Build on first call (raises ConfigurationError if settings are missing), then reuse.
+    def __call__(self) -> T:
+        # First use: build it.
+        if self._value is None:
+            # Build (may raise; then the next call tries again).
+            self._value = self._factory()
+        # The value.
+        return self._value
+
+
 @dataclass(slots=True)
 # The toolbox. `@dataclass` just means 'a class that mainly holds these fields'.
 class Container:
@@ -93,6 +140,18 @@ class Container:
     model_catalog: ModelCatalog
     # The login checker (None = every /api/v1 call is refused).
     token_verifier: TokenVerifier | None
+    # The job-queue connection (ARQ on Redis; connects on first use).
+    job_pool: Any
+    # Private document storage (uploads), built on first use.
+    document_store: Lazy[ObjectStore]
+    # Platform embedder, built on first use.
+    embedder: Lazy[Embedder]
+    # Platform reranker, built on first use.
+    reranker: Lazy[Reranker]
+    # Website crawler, built on first use.
+    crawler: Lazy[WebCrawler]
+    # Extension -> parser map, built on first use.
+    parsers: Lazy[dict[str, DocumentParser]]
 
     # A classmethod is called on the class itself: Container.build(settings).
     @classmethod
@@ -120,6 +179,14 @@ class Container:
             model_catalog=default_catalog(),
             # and the login checker.
             token_verifier=build_token_verifier(settings, http, sessionmaker),
+            # the job queue (no connection is opened until a job is queued),
+            job_pool=ArqRedis.from_url(settings.redis_url.get_secret_value()),
+            # and the knowledge vendors, built when first needed.
+            document_store=Lazy(lambda: build_object_store(settings, http, "private")),
+            embedder=Lazy(lambda: build_embedder(settings, http)),
+            reranker=Lazy(lambda: build_reranker(settings, http)),
+            crawler=Lazy(lambda: build_crawler(settings, http)),
+            parsers=Lazy(build_parsers_by_extension),
         )
 
     # Which checks /ready runs: can we reach the database and Redis?
@@ -144,6 +211,8 @@ class Container:
         await self.http.aclose()
         # Close the Redis connection.
         await self.redis.aclose()
+        # Close the job-queue connection.
+        await self.job_pool.aclose()
         # Close every database connection in the pool.
         await self.engine.dispose()
 

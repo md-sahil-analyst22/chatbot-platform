@@ -24,6 +24,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 #   embedder_registry = embedder vendors.
 from saathi.modules.knowledge.adapters import embedder_registry
 
+# From saathi.modules.knowledge.ports.providers — embedder contract: EmbedTask = 'document' or
+#   'query'.
+from saathi.modules.knowledge.ports.providers import EmbedTask
+
 # From saathi.platform.errors — our error types: ConfigurationError = a setting is missing;
 #   ProviderError = a vendor failed; ProviderTimeoutError = a vendor was too slow.
 from saathi.platform.errors import ConfigurationError, ProviderError, ProviderTimeoutError
@@ -74,8 +78,9 @@ class OpenAIEmbedder:
         # Remember the time limit.
         self._timeout = timeout_s
 
-    # Send texts, get vectors back.
-    async def embed(self, texts: Sequence[str]) -> list[list[float]]:
+    # Send texts, get vectors back. OpenAI embeds passages and questions the same way, so `task`
+    #   is accepted (port contract) and ignored.
+    async def embed(self, texts: Sequence[str], *, task: EmbedTask) -> list[list[float]]:
         # Nothing to embed...
         if not texts:
             # ...so return an empty list without calling OpenAI.
