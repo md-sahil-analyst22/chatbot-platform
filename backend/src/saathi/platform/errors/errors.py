@@ -93,6 +93,13 @@ class ProviderTimeoutError(ProviderError):
     code = "provider_timeout"
 
 
+# An outside service refused the request for good (bad key, unpaid billing, bad input): retrying
+#   the same request won't help, so jobs fail at once instead of retrying.
+class ProviderRejectedError(ProviderError):
+    # Code sent in the JSON error body.
+    code = "provider_rejected"
+
+
 # Something on our side broke (database, encryption...).
 class InfrastructureError(SaathiError):
     # Code sent in the JSON error body.

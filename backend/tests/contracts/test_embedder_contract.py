@@ -33,7 +33,7 @@ from saathi.modules.knowledge.ports.providers import Embedder, EmbedTask
 
 # From saathi.platform.errors — our error types: ProviderError = a vendor failed;
 #   ProviderTimeoutError = a vendor was too slow.
-from saathi.platform.errors import ProviderError, ProviderTimeoutError
+from saathi.platform.errors import ProviderError, ProviderRejectedError, ProviderTimeoutError
 
 
 # The rules EVERY embedder must follow (fake, OpenAI, Gemini).
@@ -208,3 +208,19 @@ class TestGeminiEmbedder(EmbedderContract):
         await embedder.embed(["फीस कितनी है?"], task="query")
         # Query format.
         assert self.sent_texts == ["task: search result | query: फीस कितनी है?"]
+
+    async def test_permanent_refusal_and_temporary_failure_are_told_apart(self) -> None:
+        # 403 (e.g. unpaid billing) is permanent; 503 is temporary (retryable).
+        for status, permanent in ((403, True), (401, True), (503, False), (429, False)):
+            # A server answering with that status.
+            http = httpx.AsyncClient(
+                transport=httpx.MockTransport(lambda r, st=status: httpx.Response(st, json={}))
+            )
+            # The adapter on it.
+            embedder = GeminiEmbedder(http, api_key="test", model_name="m", dimensions=self.DIM)
+            # Always a provider error...
+            with pytest.raises(ProviderError) as caught:
+                # ...when embedding.
+                await embedder.embed(["a"], task="document")
+            # ...but only 4xx (not 429) is the 'don't retry' kind.
+            assert isinstance(caught.value, ProviderRejectedError) is permanent

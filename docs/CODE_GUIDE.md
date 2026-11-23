@@ -637,6 +637,7 @@ methods are listed after the class name.
 | `TenantIsolationError` | "That belongs to another tenant" → 404 (and logged as a security event) 🔒 |
 | `RateLimitError` | "Too many requests" → 429 |
 | `ProviderError` / `ProviderTimeoutError` | An AI vendor failed / was too slow → 502 / 504 |
+| `ProviderRejectedError` | A vendor refused for good (bad key, unpaid billing, bad request) → 502; background jobs don't retry it |
 | `InfrastructureError` / `ConfigurationError` | Something on our side is broken or misconfigured → 500 |
 
 #### `platform/http/client.py`
@@ -647,6 +648,7 @@ methods are listed after the class name.
 | `is_public_ip` | function (`url_guard.py`) | 🔒 False for private, loopback, link-local (cloud metadata), multicast and reserved addresses, incl. IPv4 hidden in IPv6 |
 | `parse_public_url` | function (`url_guard.py`) | 🔒 Only http/https, ports 80/443, no `user:password@`, bounded length |
 | `resolve_public_ip` | function (`url_guard.py`) | 🔒 DNS lookup where **every** answer must be public |
+| `provider_http_error` | function (`provider_errors.py`) | Vendor error status → `ProviderRejectedError` for permanent 4xx, plain `ProviderError` (retryable) for 408/429/5xx |
 | `fetch_public_url` | function (`url_guard.py`) | 🔒 One GET to a tenant-supplied URL, pinned to the checked IP (TLS still checks the real name), no redirects, size and time limits (SSRF protection) |
 
 #### `platform/logging/setup.py`
@@ -841,7 +843,7 @@ methods are listed after the class name.
 | `FaqService` / `create` / `list_faqs` / `update` / `delete` / `_embed_question` / `_require_faq` | `application/faq_service.py` | FAQ management; the question is embedded on save (re-embedded only when it changes) |
 | `IngestionService` / `ingest` | `application/ingestion.py` | Claim → fetch → fingerprint → parse → clean → chunk → embed → save, with safe failure messages and bounded retries |
 | `IngestionService._claim` / `_process` / `_fetch` / `_save` / `_fail` | same | The steps; `_save` swaps chunks in one transaction and re-queues if chunk settings changed meanwhile |
-| `IngestOutcome` | same | done / unchanged / skipped / gone / failed / retry / requeued |
+| `IngestOutcome` | same | done / unchanged / skipped / gone / failed / retry / requeued (a permanent vendor refusal fails at once, no retry) |
 | `ingest_fingerprint` / `_extension` / `_Content` | same | sha256 of content + chunk settings + embedding model; file extension; fetched pages |
 | `clean_pages` / `normalise_text` / `TextPage` | `application/cleaner.py` | P2.5: Unicode/space tidy, running headers/footers, page numbers, web boilerplate, empty and duplicate pages |
 | `_repeated_edge_lines` / `_is_noise` / `_line_key` | same | Header/footer detection (never more than a third of a page) and the noise test |

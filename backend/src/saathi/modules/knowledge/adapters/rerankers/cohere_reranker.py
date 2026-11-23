@@ -32,6 +32,9 @@ from saathi.modules.knowledge.ports.providers import RerankResult
 #   ProviderError = a vendor failed; ProviderTimeoutError = a vendor was too slow.
 from saathi.platform.errors import ConfigurationError, ProviderError, ProviderTimeoutError
 
+# From saathi.platform.http.provider_errors — vendor status -> error type: provider_http_error.
+from saathi.platform.http.provider_errors import provider_http_error
+
 
 # COHERE_* settings from .env.
 class CohereSettings(BaseSettings):
@@ -118,6 +121,10 @@ class CohereReranker:
             # timed-out error.
             raise ProviderTimeoutError("reranker timed out") from exc
         # Network problem or unexpected answer:
+        # The vendor answered with an error status: permanent (4xx) or temporary (5xx/429).
+        except httpx.HTTPStatusError as exc:
+            # The matching error type.
+            raise provider_http_error(exc, "reranker failed") from exc
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
             # vendor error.
             raise ProviderError("reranker failed") from exc
