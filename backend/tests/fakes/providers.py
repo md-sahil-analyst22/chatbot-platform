@@ -37,12 +37,13 @@ from saathi.modules.knowledge.ports.providers import EmbedTask, RerankResult
 from saathi.platform.errors import (
     NotFoundError,
     ProviderError,
+    ProviderRejectedError,
     ProviderTimeoutError,
     ValidationError,
 )
 
 # How a fake should behave: work normally, fail, or time out.
-Mode = Literal["ok", "error", "timeout"]
+Mode = Literal["ok", "error", "timeout", "rejected"]
 
 
 # Make a fake fail on purpose, depending on its mode.
@@ -55,6 +56,10 @@ def _fail(mode: Mode) -> None:
     if mode == "timeout":
         # ...raises a timeout error.
         raise ProviderTimeoutError("fake timeout")
+    # 'rejected' mode...
+    if mode == "rejected":
+        # ...raises a permanent refusal (like a 403 for unpaid billing).
+        raise ProviderRejectedError("fake refusal")
 
 
 # A fake embedder: same input always gives the same vector, no internet needed.

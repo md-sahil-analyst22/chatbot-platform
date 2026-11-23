@@ -32,6 +32,9 @@ from saathi.modules.knowledge.ports.providers import EmbedTask
 #   ProviderError = a vendor failed; ProviderTimeoutError = a vendor was too slow.
 from saathi.platform.errors import ConfigurationError, ProviderError, ProviderTimeoutError
 
+# From saathi.platform.http.provider_errors — vendor status -> error type: provider_http_error.
+from saathi.platform.http.provider_errors import provider_http_error
+
 
 # OPENAI_* settings from .env.
 class OpenAIEmbedderSettings(BaseSettings):
@@ -109,6 +112,10 @@ class OpenAIEmbedder:
             # timed-out error.
             raise ProviderTimeoutError("embedding provider timed out") from exc
         # Network problem or unexpected answer:
+        # The vendor answered with an error status: permanent (4xx) or temporary (5xx/429).
+        except httpx.HTTPStatusError as exc:
+            # The matching error type.
+            raise provider_http_error(exc, "embedding provider failed") from exc
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
             # vendor error.
             raise ProviderError("embedding provider failed") from exc

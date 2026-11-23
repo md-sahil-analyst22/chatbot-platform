@@ -14,6 +14,7 @@ from saathi.platform.errors.errors import (
     InfrastructureError,
     NotFoundError,
     ProviderError,
+    ProviderRejectedError,
     ProviderTimeoutError,
     RateLimitError,
     SaathiError,
@@ -39,6 +40,7 @@ __all__ = [
     "NotFoundError",
     # ProviderError: a vendor failed.
     "ProviderError",
+    "ProviderRejectedError",
     # ProviderTimeoutError: a vendor was too slow.
     "ProviderTimeoutError",
     # RateLimitError: 429 too many requests.

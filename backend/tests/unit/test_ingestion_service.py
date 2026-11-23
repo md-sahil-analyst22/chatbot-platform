@@ -35,6 +35,7 @@ from saathi.modules.knowledge.application.ingestion import (
     MSG_MISSING,
     MSG_NO_TEXT,
     MSG_PROVIDER,
+    MSG_PROVIDER_REJECTED,
     MSG_RETRYING,
     MSG_TOO_LARGE,
     MSG_UNREADABLE,
@@ -399,3 +400,17 @@ async def test_unreachable_website_is_retried() -> None:
     await h.sources.add(source)
     # First of two attempts: retry.
     assert await h.service.ingest(TENANT, source.id, max_attempts=2) is IngestOutcome.RETRY
+
+
+# A permanent refusal (e.g. 403 unpaid billing) fails at once: retrying can't help.
+async def test_provider_rejection_fails_at_once_without_retry() -> None:
+    # An embedder that is refused for good.
+    h = Harness(embedder_mode="rejected")
+    # A file.
+    sid = await h.add_file()
+    # First of five attempts: failed, not retry.
+    assert await h.service.ingest(TENANT, sid, attempt=1, max_attempts=5) is IngestOutcome.FAILED
+    # Reload.
+    s = await h.status(sid)
+    # Failed with the 'account or configuration problem' message.
+    assert s.status is SourceStatus.FAILED and s.error == MSG_PROVIDER_REJECTED

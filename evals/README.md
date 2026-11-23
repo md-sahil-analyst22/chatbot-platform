@@ -2,7 +2,7 @@
 
 | Path | Purpose |
 |---|---|
-| `golden/` | Versioned golden datasets (`golden_v0.jsonl` in Phase 0; `golden_v1.jsonl`, 38 rows, drafted in Phase 2 and **pending owner review**) |
+| `golden/` | Versioned golden datasets (`golden_v0.jsonl` in Phase 0; `golden_v1.jsonl`, 38 rows over the first demo documents; `golden_v2.jsonl`, 65 rows = v1 + questions over the expanded demo documents; both drafted in Phase 2 and **pending owner review**) |
 | `runners/` | `validate_golden.py` (Phase 0), `run_golden.py` (Phase 2: correctness + source match, `--sweep` tuning, `--smoke` offline check; see `docs/runbooks/local-setup.md`), RAGAS (Phase 6) |
 | `reports/` | Generated eval reports (git-ignored except README) |
 

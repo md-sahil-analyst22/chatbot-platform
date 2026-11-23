@@ -13,7 +13,7 @@
 #              If the bot's chunking settings changed while we worked, queue it again.
 #   6. FAILURE  a safe, human message is stored on the source (never a stack trace, R17/R29).
 #              Provider hiccups (timeouts, 429/5xx) ask the worker to retry later, a bounded
-#              number of times (R33).
+#              number of times (R33). A permanent refusal (e.g. 401/403) fails at once.
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 """Ingestion use case (P2.2 - P2.8). Orchestrates ports; contains no vendor code."""
 
@@ -67,8 +67,14 @@ from saathi.modules.knowledge.ports.providers import DocumentParser, Embedder, W
 from saathi.modules.knowledge.ports.unit_of_work import IngestionUnitOfWork
 
 # From saathi.platform.errors — our error types: NotFoundError = 404; ProviderError = a vendor
-#   failed; ValidationError = invalid input (our own, safe message).
-from saathi.platform.errors import NotFoundError, ProviderError, ValidationError
+#   failed (maybe temporarily); ProviderRejectedError = the vendor refused for good;
+#   ValidationError = invalid input (our own, safe message).
+from saathi.platform.errors import (
+    NotFoundError,
+    ProviderError,
+    ProviderRejectedError,
+    ValidationError,
+)
 
 # From saathi.platform.storage — file storage contract: ObjectStore = save/read files.
 from saathi.platform.storage import ObjectStore
@@ -86,6 +92,10 @@ MSG_MISSING = "The uploaded file is missing. Please upload it again."
 MSG_TOO_LARGE = "This source is too large to process. Please split it into smaller files."
 MSG_PROVIDER = "The AI service was unavailable. Please use 'Re-sync' to try again later."
 MSG_RETRYING = "The AI service was busy. Retrying automatically."
+MSG_PROVIDER_REJECTED = (
+    "The AI service refused the request (account or configuration problem). "
+    "Please contact support; use 'Re-sync' once it is fixed."
+)
 MSG_CRAWL = "We could not fetch any page from this website."
 
 
@@ -188,7 +198,13 @@ class IngestionService:
         except NotFoundError:
             # Store a safe message.
             return await self._fail(source, MSG_MISSING, retry=False)
-        # A vendor (embedding/crawl) failed: retry while attempts remain.
+        # A vendor refused for good (bad key, unpaid billing, bad request): no retry.
+        except ProviderRejectedError as exc:
+            # Error level: an operator must fix the account or configuration (type only logged).
+            log.error("ingest.provider_rejected", error_type=type(exc).__name__, attempt=attempt)
+            # Store a safe message; retrying can't help.
+            return await self._fail(source, MSG_PROVIDER_REJECTED, retry=False)
+        # A vendor (embedding/crawl) failed temporarily: retry while attempts remain.
         except ProviderError as exc:
             # Log the type only (messages could contain vendor detail).
             log.warning("ingest.provider_error", error_type=type(exc).__name__, attempt=attempt)

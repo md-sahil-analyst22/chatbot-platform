@@ -52,6 +52,9 @@ from saathi.modules.knowledge.ports.providers import EmbedTask
 #   ProviderError = a vendor failed; ProviderTimeoutError = a vendor was too slow.
 from saathi.platform.errors import ConfigurationError, ProviderError, ProviderTimeoutError
 
+# From saathi.platform.http.provider_errors — vendor status -> error type: provider_http_error.
+from saathi.platform.http.provider_errors import provider_http_error
+
 # Google's Gemini API address.
 DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 MAX_BATCH = 100  # batchEmbedContents accepts at most 100 requests per call
@@ -182,6 +185,10 @@ class GeminiEmbedder:
         except httpx.TimeoutException as exc:
             # timed-out error.
             raise ProviderTimeoutError("embedding provider timed out") from exc
+        # The vendor answered with an error status: permanent (4xx) or temporary (5xx/429).
+        except httpx.HTTPStatusError as exc:
+            # The matching error type.
+            raise provider_http_error(exc, "embedding provider failed") from exc
         # Network problem or an unexpected answer shape:
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
             # vendor error.

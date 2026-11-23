@@ -277,6 +277,7 @@ undoing the database.
 | 💻 `make up` fails on port 6379 or 8000 | Something else uses the port | Stop the other app, or `brew services stop redis` if you installed Redis with Homebrew |
 | `worker` restarting, logs show `ConfigurationError` | A storage or embedding setting is missing (Phase 2 worker fails fast) | Add the named variable to `.env` (section 3.2a), then `up -d` |
 | A source stays `queued` for minutes | Its job was lost (Redis was down when it was queued) or the worker is down | Check `DC ps` / `DC logs worker`; then press **Re-sync** on the source (`POST …/sources/{id}/resync` re-sends the job) |
+| A source is `failed` with "The AI service refused the request" | The vendor refused for good: wrong key, or unpaid billing (Gemini answers 403 "billing account has an outstanding balance") | Fix the account or key in `.env`, then press **Re-sync** on the source |
 | A source is `failed` with "We could not read this file" | The file is broken, encrypted or not what its name says | Open it on your Mac; re-save as a normal PDF/DOCX and upload again |
 | GitHub check **dashboard** red with "EXPIRED" | The reviewed npm-audit exception reached its date | Re-check whether `picomatch` has a fix (merge the Dependabot PR), then update or remove `dashboard/audit-exceptions.json` |
 
